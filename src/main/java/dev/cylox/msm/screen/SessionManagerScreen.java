@@ -2,6 +2,7 @@ package dev.cylox.msm.screen;
 
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -44,14 +45,14 @@ public final class SessionManagerScreen extends Screen {
         int buttonLeft = (this.width - buttonWidth) / 2;
 
         this.usernameField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left, 47, fieldWidth, 20, new LiteralText("Username")));
+                MinecraftClient.getInstance().textRenderer, left, 47, fieldWidth, 20, new LiteralText("Username")));
         this.usernameField.setMaxLength(16);
         this.serverField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left, 87, fieldWidth, 20, new LiteralText("Server address")));
+                MinecraftClient.getInstance().textRenderer, left, 87, fieldWidth, 20, new LiteralText("Server address")));
         this.serverField.setMaxLength(255);
 
         this.addButton(new ButtonWidget(buttonLeft, 116, buttonWidth, 20,
-                new LiteralText("SAVE PROFILE"), button -> saveProfile()));
+                "SAVE PROFILE", button -> saveProfile()));
 
         int visibleProfiles = Math.min(this.profiles.size(), Math.max(0, (this.height - 207) / 21));
         int rowY = 158;
@@ -61,7 +62,7 @@ public final class SessionManagerScreen extends Screen {
             String label = profile.getUsername() + "  |  " + profile.getServerAddress();
             if (label.length() > 34) label = label.substring(0, 31) + "...";
             this.addButton(new ButtonWidget(buttonLeft, rowY, buttonWidth, 18,
-                    new LiteralText(label), button -> {
+                    label, button -> {
                 this.selectedIndex = profileIndex;
                 this.status = profile.getUsername() + " is saved locally and OFFLINE.";
             }));
@@ -69,9 +70,9 @@ public final class SessionManagerScreen extends Screen {
         }
 
         this.addButton(new ButtonWidget(buttonLeft, this.height - 25, buttonWidth / 2 - 2, 20,
-                new LiteralText("REMOVE"), button -> removeSelected()));
+                "REMOVE", button -> removeSelected()));
         this.addButton(new ButtonWidget(buttonLeft + buttonWidth / 2 + 2, this.height - 25,
-                buttonWidth / 2 - 2, 20, new LiteralText("CLOSE"), button -> onClose()));
+                buttonWidth / 2 - 2, 20, "CLOSE", button -> onClose()));
     }
 
     private void saveProfile() {
@@ -89,7 +90,7 @@ public final class SessionManagerScreen extends Screen {
             }
             this.profiles.add(profile);
             this.store.save(this.profiles);
-            this.client.openScreen(new SessionManagerScreen(this.parent, this.store,
+            MinecraftClient.getInstance().openScreen(new SessionManagerScreen(this.parent, this.store,
                     "Profile saved. Status: OFFLINE (not connected)."));
         } catch (IllegalArgumentException exception) {
             this.status = exception.getMessage();
@@ -108,7 +109,7 @@ public final class SessionManagerScreen extends Screen {
         this.selectedIndex = -1;
         try {
             this.store.save(this.profiles);
-            this.client.openScreen(new SessionManagerScreen(this.parent, this.store, "Profile removed."));
+            MinecraftClient.getInstance().openScreen(new SessionManagerScreen(this.parent, this.store, "Profile removed."));
         } catch (IOException exception) {
             this.profiles.add(removedIndex, removed);
             this.status = "Could not save profile changes: " + exception.getMessage();
@@ -124,7 +125,7 @@ public final class SessionManagerScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.client.openScreen(this.parent);
+        MinecraftClient.getInstance().openScreen(this.parent);
     }
 
     @Override
@@ -135,12 +136,13 @@ public final class SessionManagerScreen extends Screen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderBackground();
-        drawCenteredString(this.textRenderer, this.title.asFormattedString(), this.width / 2, 12, 0xFFFFFF);
-        drawString(this.textRenderer, "SECONDARY SESSION PROFILES", 12, 32, 0x8CCBFF);
-        drawString(this.textRenderer, "USERNAME", 12, 37, 0xA0A0A0);
-        drawString(this.textRenderer, "SERVER ADDRESS", 12, 77, 0xA0A0A0);
-        drawString(this.textRenderer, "SAVED PROFILES (OFFLINE)", 12, 143, 0x8CCBFF);
-        drawString(this.textRenderer, this.status, 12, this.height - 45, 0xFFFFFF);
+        drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                this.title.asFormattedString(), this.width / 2, 12, 0xFFFFFF);
+        drawString(MinecraftClient.getInstance().textRenderer, "SECONDARY SESSION PROFILES", 12, 32, 0x8CCBFF);
+        drawString(MinecraftClient.getInstance().textRenderer, "USERNAME", 12, 37, 0xA0A0A0);
+        drawString(MinecraftClient.getInstance().textRenderer, "SERVER ADDRESS", 12, 77, 0xA0A0A0);
+        drawString(MinecraftClient.getInstance().textRenderer, "SAVED PROFILES (OFFLINE)", 12, 143, 0x8CCBFF);
+        drawString(MinecraftClient.getInstance().textRenderer, this.status, 12, this.height - 45, 0xFFFFFF);
         super.render(mouseX, mouseY, delta);
     }
 }
