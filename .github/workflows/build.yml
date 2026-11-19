@@ -23,12 +23,7 @@ jobs:
           java-version: '17'
       - name: Verify and build
         run: chmod +x gradlew && ./gradlew clean check build
-      - name: Upload mod JARs
-        uses: actions/upload-artifact@v4
-        with:
-          name: MSM-Fabric-1.14.4-${{ github.sha }}
-          path: build/libs/*.jar
-      - name: Publish direct JAR download
+      - name: Publish single JAR download
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
@@ -42,7 +37,7 @@ jobs:
           body: |
             MSM Fabric 1.14.4
 
-            Download the JAR asset directly and place it in your Minecraft `mods` folder.
+            Download the single JAR asset and place it in your Minecraft `mods` folder.
             Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
 
             Current build includes the session manager UI and local profile management.
