@@ -24,6 +24,7 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    implementation project(":msm-core")
 }
 
 processResources {
@@ -43,10 +44,8 @@ java {
     withSourcesJar()
 }
 
-tasks.register("verifyProfileStore", JavaExec) {
-    dependsOn testClasses
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = "dev.cylox.msm.profile.SessionProfileStoreTest"
+tasks.named("jar") {
+    from project(":msm-core").sourceSets.main.output
 }
 
-check.dependsOn verifyProfileStore
+check.dependsOn ":msm-core:check"

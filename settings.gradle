@@ -7,3 +7,6 @@ pluginManagement {
 }
 
 rootProject.name = 'MSM-Fabric-1.14.4'
+
+include ':msm-core'
+project(':msm-core').projectDir = file('msm-core')

@@ -1,0 +1,3 @@
+[submodule "msm-core"]
+	path = msm-core
+	url = https://github.com/dap144p/MSM-Core.git
