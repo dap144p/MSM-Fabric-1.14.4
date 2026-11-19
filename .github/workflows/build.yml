@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,3 +28,22 @@ jobs:
         with:
           name: MSM-Fabric-1.14.4-${{ github.sha }}
           path: build/libs/*.jar
+      - name: Publish direct JAR download
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0
+          name: MSM Fabric 1.14.4 v0.1.0
+          target_commitish: main
+          files: build/libs/MSM-Fabric-1.14.4-0.1.0.jar
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          make_latest: true
+          body: |
+            MSM Fabric 1.14.4
+
+            Download the JAR asset directly and place it in your Minecraft `mods` folder.
+            Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
+
+            Current build includes the session manager UI and local profile management.
+            Independent multi-account connections are not implemented yet.
