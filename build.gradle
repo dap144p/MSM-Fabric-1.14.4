@@ -13,8 +13,10 @@ repositories {
     mavenCentral()
 }
 
-mixin {
-    defaultRefmapName = "msm_fabric.refmap.json"
+loom {
+    mixin {
+        defaultRefmapName = "msm_fabric.refmap.json"
+    }
 }
 
 dependencies {
