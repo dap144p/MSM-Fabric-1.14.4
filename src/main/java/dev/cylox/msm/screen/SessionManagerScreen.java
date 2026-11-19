@@ -45,10 +45,10 @@ public final class SessionManagerScreen extends Screen {
         int buttonLeft = (this.width - buttonWidth) / 2;
 
         this.usernameField = this.addButton(new TextFieldWidget(
-                MinecraftClient.getInstance().textRenderer, left, 47, fieldWidth, 20, new LiteralText("Username")));
+                MinecraftClient.getInstance().textRenderer, left, 47, fieldWidth, 20, "Username"));
         this.usernameField.setMaxLength(16);
         this.serverField = this.addButton(new TextFieldWidget(
-                MinecraftClient.getInstance().textRenderer, left, 87, fieldWidth, 20, new LiteralText("Server address")));
+                MinecraftClient.getInstance().textRenderer, left, 87, fieldWidth, 20, "Server address"));
         this.serverField.setMaxLength(255);
 
         this.addButton(new ButtonWidget(buttonLeft, 116, buttonWidth, 20,
