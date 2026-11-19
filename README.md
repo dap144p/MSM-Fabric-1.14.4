@@ -9,9 +9,10 @@ The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic
 - Adds an `MSM` button to the in-game Pause Menu.
 - Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
 - Saves profile metadata: Minecraft username and server address.
+- Shows up to **20 session slots** managed by MSM Core.
+- Displays each slot's runtime state: OFFLINE, CONNECTING, ONLINE, DISCONNECTED, or FAILED. The current build only creates OFFLINE slots.
 - Stores profiles in `.minecraft/config/msm-fabric.properties`.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
-- Profile status is explicitly shown as **OFFLINE**. Saving a profile does not connect an account.
 
 ## Not implemented yet
 
@@ -21,7 +22,7 @@ The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic
 - Secondary-session chat, movement, follow, jump, or sneak controls.
 - Automatic protocol translation for secondary sessions.
 
-These pieces need a separate client/network implementation. The Pause Menu and profile list are not a working multi-account connection by themselves.
+The current session slots are management records only. They do not connect another player to a server or create a second Minecraft network connection.
 
 ## Build
 
@@ -51,7 +52,7 @@ The remapped mod JAR is generated in `build/libs/`. MSM Core classes are include
 4. Launch the game, enter a world or server, and open the Pause Menu.
 5. Tap **MSM**.
 
-The current build only saves profile details. It does not make a second player join the server yet.
+The current build manages local session slots only. It does not make a second player join the server yet.
 
 ## ViaFabric note
 
