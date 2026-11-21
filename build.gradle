@@ -45,7 +45,44 @@ java {
 }
 
 tasks.named("jar") {
-    from project(":msm-core").sourceSets.main.output
+    dependsOn(":msm-core:jar")
+    from({
+        zipTree(project(":msm-core").tasks.named("jar").get().archiveFile.get().asFile)
+    }) {
+        exclude "META-INF/**"
+    }
+}
+
+tasks.register("verifyBundledCore") {
+    dependsOn tasks.named("remapJar")
+
+    doLast {
+        def remappedJar = tasks.named("remapJar").get().archiveFile.get().asFile
+        def requiredClasses = [
+                "dev/cylox/msm/profile/SessionProfile.class",
+                "dev/cylox/msm/profile/SessionProfileStore.class",
+                "dev/cylox/msm/session/SessionManager.class",
+                "dev/cylox/msm/session/SessionState.class"
+        ]
+        def missingClasses = []
+        def archive = new java.util.zip.ZipFile(remappedJar)
+
+        try {
+            requiredClasses.each { classPath ->
+                if (archive.getEntry(classPath) == null) {
+                    missingClasses.add(classPath)
+                }
+            }
+        } finally {
+            archive.close()
+        }
+
+        if (!missingClasses.isEmpty()) {
+            throw new GradleException(
+                    "MSM-Core classes are missing from ${remappedJar.name}: ${missingClasses.join(', ')}")
+        }
+    }
 }
 
 check.dependsOn ":msm-core:check"
+check.dependsOn "verifyBundledCore"

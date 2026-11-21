@@ -4,7 +4,7 @@
 
 The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic is maintained in [MSM-Core](https://github.com/dap144p/MSM-Core) as a Git submodule and is merged into the final mod JAR. Players install **one mod JAR**, not a separate Core mod.
 
-## Current build: 0.1.0
+## Current build: 0.1.1
 
 - Adds an `MSM` button to the in-game Pause Menu.
 - Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
@@ -28,8 +28,6 @@ The current session slots are management records only. They do not connect anoth
 
 Requirements: JDK 17 and the included Gradle wrapper.
 
-Clone with the Core submodule:
-
 ```sh
 git clone --recurse-submodules https://github.com/dap144p/MSM-Fabric-1.14.4.git
 cd MSM-Fabric-1.14.4
@@ -42,13 +40,13 @@ For an existing clone, initialize or update Core with:
 git submodule update --init --recursive
 ```
 
-The remapped mod JAR is generated in `build/libs/`. MSM Core classes are included in that JAR.
+The remapped mod JAR is generated in `build/libs/`. MSM Core classes are included in that JAR and verified by the `check` task.
 
 ## Install on MJ Launcher
 
 1. Create or select a Fabric profile for Minecraft **1.14.4**.
 2. Install Fabric Loader and Fabric API compatible with 1.14.4.
-3. Copy the built `MSM-Fabric-1.14.4-0.1.0.jar` into that profile's `mods` folder.
+3. Copy the built `MSM-Fabric-1.14.4-0.1.1.jar` into that profile's `mods` folder.
 4. Launch the game, enter a world or server, and open the Pause Menu.
 5. Tap **MSM**.
 

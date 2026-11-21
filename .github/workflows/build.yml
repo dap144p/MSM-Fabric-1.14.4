@@ -27,10 +27,10 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0
-          name: MSM Fabric 1.14.4 v0.1.0
+          tag_name: v0.1.1
+          name: MSM Fabric 1.14.4 v0.1.1
           target_commitish: main
-          files: build/libs/MSM-Fabric-1.14.4-0.1.0.jar
+          files: build/libs/MSM-Fabric-1.14.4-0.1.1.jar
           fail_on_unmatched_files: true
           overwrite_files: true
           make_latest: true
@@ -40,5 +40,5 @@ jobs:
             Download the single JAR asset and place it in your Minecraft `mods` folder.
             Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
 
-            Current build includes the session manager UI and local profile management.
+            This release verifies that MSM-Core classes are included in the mod JAR.
             Independent multi-account connections are not implemented yet.
