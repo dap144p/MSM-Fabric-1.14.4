@@ -4,25 +4,26 @@
 
 The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic is maintained in [MSM-Core](https://github.com/dap144p/MSM-Core) as a Git submodule and is merged into the final mod JAR. Players install **one mod JAR**, not a separate Core mod.
 
-## Current build: 0.1.1
+## Current build: 0.1.2
 
 - Adds an `MSM` button to the in-game Pause Menu.
 - Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
-- Saves profile metadata: Minecraft username and server address.
-- Shows up to **20 session slots** managed by MSM Core.
-- Displays each slot's runtime state: OFFLINE, CONNECTING, ONLINE, DISCONNECTED, or FAILED. The current build only creates OFFLINE slots.
+- Adds and validates local profiles using Minecraft username and server address.
+- Supports editing and deleting saved profiles, with confirmation before deletion.
+- Searches profiles by username or server address.
+- Shows the selected profile and session state, with a summary of all slot states.
+- Displays up to **20 session slots** managed by MSM Core, with pagination that adapts to screen height.
 - Stores profiles in `.minecraft/config/msm-fabric.properties`.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
 
-## Not implemented yet
+## Current limitations
 
-- Independent secondary Minecraft connections.
-- Microsoft/Minecraft authentication for additional accounts.
-- Background session packet handling, keep-alive, and world/player state.
-- Secondary-session chat, movement, follow, jump, or sneak controls.
-- Automatic protocol translation for secondary sessions.
+- Session slots are local management records only. They do not connect another player to a server or create a second Minecraft network connection.
+- Independent secondary Minecraft connections and Microsoft/Minecraft authentication for additional accounts are not implemented.
+- Background session packet handling, keep-alive, world/player state, secondary-session chat, movement, follow, jump, or sneak controls are not implemented.
+- Automatic protocol translation for secondary sessions is not implemented.
 
-The current session slots are management records only. They do not connect another player to a server or create a second Minecraft network connection.
+Editing a profile is unavailable while its slot is CONNECTING or ONLINE. A successfully edited profile is reset to OFFLINE because it represents a new profile record.
 
 ## Build
 
@@ -46,11 +47,9 @@ The remapped mod JAR is generated in `build/libs/`. MSM Core classes are include
 
 1. Create or select a Fabric profile for Minecraft **1.14.4**.
 2. Install Fabric Loader and Fabric API compatible with 1.14.4.
-3. Copy the built `MSM-Fabric-1.14.4-0.1.1.jar` into that profile's `mods` folder.
+3. Copy `MSM-Fabric-1.14.4-0.1.2.jar` into that profile's `mods` folder.
 4. Launch the game, enter a world or server, and open the Pause Menu.
 5. Tap **MSM**.
-
-The current build manages local session slots only. It does not make a second player join the server yet.
 
 ## ViaFabric note
 

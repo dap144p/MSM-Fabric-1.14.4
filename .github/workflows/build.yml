@@ -27,10 +27,10 @@ jobs:
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.1-beta.${{ github.run_number }}
-          name: MSM Fabric 1.14.4 v0.1.1-beta.${{ github.run_number }}
+          tag_name: v0.1.2-beta.${{ github.run_number }}
+          name: MSM Fabric 1.14.4 v0.1.2-beta.${{ github.run_number }}
           target_commitish: main
-          files: build/libs/MSM-Fabric-1.14.4-0.1.1.jar
+          files: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
           fail_on_unmatched_files: true
           overwrite_files: true
           prerelease: true
@@ -44,6 +44,6 @@ jobs:
             Download the single JAR asset and place it in your Minecraft `mods` folder.
             Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
 
-            This beta includes verification that MSM-Core classes are packaged in the mod JAR.
-            Independent multi-account connections are not implemented yet.
-
+            This beta includes improved local profile management UI:
+            profile search, edit, delete confirmation, slot-state summary, and responsive pagination.
+            Independent secondary Minecraft connections are not implemented yet.
