@@ -486,12 +486,11 @@ public final class SessionManagerScreen extends Screen {
                 "USERNAME", 12, 39, 0xA0A0A0);
         drawString(MinecraftClient.getInstance().textRenderer,
                 "SERVER ADDRESS", 12, 73, 0xA0A0A0);
-        drawString(MinecraftClient.getInstance().textRenderer,
-                "SEARCH PROFILES", 12, 121, 0xA0A0A0);
-
         List<SessionManager.Session> filtered = getFilteredSessions();
+        int pageCount = Math.max(1, (filtered.size() + this.pageSize - 1) / this.pageSize);
         drawString(MinecraftClient.getInstance().textRenderer,
-                "SESSION SLOTS (" + filtered.size() + " MATCH / " + this.sessions.size() + " TOTAL)",
+                "SLOTS " + filtered.size() + "/" + this.sessions.size()
+                        + "  |  PAGE " + (this.pageIndex + 1) + "/" + pageCount,
                 12, 155, 0x8CCBFF);
 
         Optional<SessionManager.Session> selected = getSelectedSession();
