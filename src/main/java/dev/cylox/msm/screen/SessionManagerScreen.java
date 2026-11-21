@@ -483,9 +483,6 @@ public final class SessionManagerScreen extends Screen {
                 fitText(summary, this.width - 20), this.width / 2, 23, 0xA0A0A0);
 
         drawString(MinecraftClient.getInstance().textRenderer,
-                this.editing ? "EDIT PROFILE" : "ADD PROFILE TO SESSION SLOTS",
-                12, 35, 0x8CCBFF);
-        drawString(MinecraftClient.getInstance().textRenderer,
                 "USERNAME", 12, 39, 0xA0A0A0);
         drawString(MinecraftClient.getInstance().textRenderer,
                 "SERVER ADDRESS", 12, 73, 0xA0A0A0);
@@ -497,7 +494,6 @@ public final class SessionManagerScreen extends Screen {
                 "SESSION SLOTS (" + filtered.size() + " MATCH / " + this.sessions.size() + " TOTAL)",
                 12, 155, 0x8CCBFF);
 
-        int pageCount = Math.max(1, (filtered.size() + this.pageSize - 1) / this.pageSize);
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (this.height >= 300 && selected.isPresent()) {
             SessionProfile profile = selected.get().getProfile();
