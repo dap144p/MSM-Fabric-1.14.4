@@ -23,22 +23,27 @@ jobs:
           java-version: '17'
       - name: Verify and build
         run: chmod +x gradlew && ./gradlew clean check build
-      - name: Publish single JAR download
+      - name: Publish single JAR Beta release
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.1
-          name: MSM Fabric 1.14.4 v0.1.1
+          tag_name: v0.1.1-beta.${{ github.run_number }}
+          name: MSM Fabric 1.14.4 v0.1.1-beta.${{ github.run_number }}
           target_commitish: main
           files: build/libs/MSM-Fabric-1.14.4-0.1.1.jar
           fail_on_unmatched_files: true
           overwrite_files: true
-          make_latest: true
+          prerelease: true
+          make_latest: false
           body: |
-            MSM Fabric 1.14.4
+            MSM Fabric 1.14.4 — Beta Test
+
+            Build: #${{ github.run_number }}
+            Commit: ${{ github.sha }}
 
             Download the single JAR asset and place it in your Minecraft `mods` folder.
             Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
 
-            This release verifies that MSM-Core classes are included in the mod JAR.
+            This beta includes verification that MSM-Core classes are packaged in the mod JAR.
             Independent multi-account connections are not implemented yet.
+
