@@ -238,9 +238,14 @@ public final class SessionManagerScreen extends Screen {
                 throw exception;
             }
 
-            int lastPage = Math.max(0, (getFilteredSessions().size() - 1) / this.pageSize);
+            this.sessions.add(created);
+            List<SessionManager.Session> filtered = getFilteredSessions();
+            int selectedIndex = filtered.indexOf(created);
+            int targetPage = selectedIndex >= 0
+                    ? selectedIndex / this.pageSize
+                    : Math.max(0, (filtered.size() - 1) / this.pageSize);
             openScreen("Session slot added. Status: OFFLINE (not connected).",
-                    lastPage, created.getId(), this.requestedSearch, false, false);
+                    targetPage, created.getId(), this.requestedSearch, false, false);
         } catch (IllegalArgumentException exception) {
             this.status = exception.getMessage();
         } catch (IllegalStateException exception) {
@@ -315,14 +320,23 @@ public final class SessionManagerScreen extends Screen {
                 this.store.save(updatedProfiles);
                 this.profiles.clear();
                 this.profiles.addAll(updatedProfiles);
+                this.sessions.remove(oldSession);
+                this.sessions.add(replacementSession);
+                List<SessionManager.Session> filtered = getFilteredSessions();
+                int selectedIndex = filtered.indexOf(replacementSession);
+                int targetPage = selectedIndex >= 0
+                        ? selectedIndex / this.pageSize
+                        : Math.min(this.pageIndex,
+                                Math.max(0, (filtered.size() - 1) / this.pageSize));
                 openScreen("Profile updated. The slot is now OFFLINE.",
-                        this.pageIndex, replacementSession.getId(), this.requestedSearch, false, false);
+                        targetPage, replacementSession.getId(), this.requestedSearch, false, false);
             } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
                 if (replacementSession != null) {
                     this.sessionManager.remove(replacementSession.getId());
                 }
-                restoreSession(oldProfile, oldState);
-                this.status = "Could not update profile: " + exception.getMessage();
+                SessionManager.Session restored = restoreSession(oldProfile, oldState);
+                openScreen("Could not update profile: " + exception.getMessage(),
+                        this.pageIndex, restored.getId(), this.requestedSearch, false, false);
             }
         } catch (IllegalArgumentException exception) {
             this.status = exception.getMessage();
@@ -381,23 +395,26 @@ public final class SessionManagerScreen extends Screen {
         this.profiles.remove(profileIndex);
         try {
             this.store.save(this.profiles);
+            this.sessions.remove(session);
             int page = Math.min(this.pageIndex,
                     Math.max(0, (getFilteredSessions().size() - 1) / this.pageSize));
             openScreen("Profile removed.", page, -1L,
                     this.requestedSearch, false, false);
         } catch (IOException exception) {
             this.profiles.add(profileIndex, profile);
-            restoreSession(profile, previousState);
-            this.status = "Could not save profile changes: " + exception.getMessage();
+            SessionManager.Session restored = restoreSession(profile, previousState);
+            openScreen("Could not save profile changes: " + exception.getMessage(),
+                    this.pageIndex, restored.getId(), this.requestedSearch, false, false);
         }
     }
 
-    private void restoreSession(SessionProfile profile, SessionState previousState) {
+    private SessionManager.Session restoreSession(SessionProfile profile, SessionState previousState) {
         SessionManager.Session restored = this.sessionManager.create(profile);
         if (previousState == SessionState.DISCONNECTED || previousState == SessionState.FAILED) {
             this.sessionManager.updateState(restored.getId(), SessionState.CONNECTING);
             this.sessionManager.updateState(restored.getId(), previousState);
         }
+        return restored;
     }
 
     private void selectSession(SessionManager.Session session) {
