@@ -2,6 +2,7 @@ package dev.cylox.msm.screen;
 
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
+import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
 import net.minecraft.client.MinecraftClient;
@@ -19,7 +20,7 @@ import java.util.Optional;
 public final class SessionManagerScreen extends Screen {
     private static final int PAGE_SIZE = 5;
     private static final String DEFAULT_STATUS =
-            "Profiles are local only. Secondary Minecraft connections are not available.";
+            "Authentication mode is saved per profile; secondary connections are not implemented yet.";
 
     private final Screen parent;
     private final SessionProfileStore store;
@@ -38,19 +39,21 @@ public final class SessionManagerScreen extends Screen {
     private long selectedSessionId = -1L;
     private int pageIndex;
     private int pageSize = PAGE_SIZE;
+    private SessionAuthMode authMode = SessionAuthMode.MICROSOFT;
 
     public SessionManagerScreen(Screen parent, SessionProfileStore store) {
         this(parent, store, new SessionManager());
     }
 
     public SessionManagerScreen(Screen parent, SessionProfileStore store, SessionManager sessionManager) {
-        this(parent, store, sessionManager, DEFAULT_STATUS, 0, -1L, "", false, false);
+        this(parent, store, sessionManager, DEFAULT_STATUS, 0, -1L, "", false, false,
+                SessionAuthMode.MICROSOFT);
     }
 
     private SessionManagerScreen(Screen parent, SessionProfileStore store,
                                  SessionManager sessionManager, String status, int page,
                                  long selectedSessionId, String searchQuery,
-                                 boolean editing, boolean confirmRemoval) {
+                                 boolean editing, boolean confirmRemoval, SessionAuthMode authMode) {
         super(new LiteralText("Cylox Multi Session Manager"));
         if (store == null || sessionManager == null) {
             throw new IllegalArgumentException("Profile store and session manager are required");
@@ -64,6 +67,7 @@ public final class SessionManagerScreen extends Screen {
         this.requestedSearch = searchQuery == null ? "" : searchQuery.trim();
         this.editing = editing;
         this.confirmRemoval = confirmRemoval;
+        this.authMode = authMode == null ? SessionAuthMode.MICROSOFT : authMode;
 
         try {
             this.profiles.addAll(store.load());
@@ -112,6 +116,8 @@ public final class SessionManagerScreen extends Screen {
         int contentLeft = (this.width - contentWidth) / 2;
         int fieldWidth = Math.min(240, contentWidth);
         int fieldLeft = (this.width - fieldWidth) / 2;
+        int authButtonWidth = Math.min(96, Math.max(76, fieldWidth / 3));
+        int serverFieldWidth = fieldWidth - authButtonWidth - 4;
 
         this.pageSize = Math.max(1, Math.min(PAGE_SIZE, (this.height - 270) / 20 + 1));
 
@@ -119,8 +125,11 @@ public final class SessionManagerScreen extends Screen {
                 MinecraftClient.getInstance().textRenderer, fieldLeft, 48, fieldWidth, 20, "Username"));
         this.usernameField.setMaxLength(16);
         this.serverField = this.addButton(new TextFieldWidget(
-                MinecraftClient.getInstance().textRenderer, fieldLeft, 82, fieldWidth, 20, "Server address"));
+                MinecraftClient.getInstance().textRenderer, fieldLeft, 82,
+                serverFieldWidth, 20, "Server address"));
         this.serverField.setMaxLength(255);
+        this.addButton(new ButtonWidget(fieldLeft + serverFieldWidth + 4, 82,
+                authButtonWidth, 20, getAuthModeLabel(), button -> cycleAuthMode()));
 
         if (this.editing) {
             Optional<SessionManager.Session> selected = getSelectedSession();
@@ -158,8 +167,10 @@ public final class SessionManagerScreen extends Screen {
         for (int index = startIndex; index < endIndex; index++) {
             final SessionManager.Session session = filtered.get(index);
             final int slotNumber = this.sessions.indexOf(session) + 1;
-            String label = String.format(Locale.ROOT, "S%02d  %s  [%s]",
-                    slotNumber, session.getProfile().getUsername(), session.getState().name());
+            String authLabel = session.getProfile().getAuthMode() == SessionAuthMode.MICROSOFT
+                    ? "MS" : "LOCAL";
+            String label = String.format(Locale.ROOT, "S%02d  %s  [%s | %s]",
+                    slotNumber, session.getProfile().getUsername(), authLabel, session.getState().name());
             int maxCharacters = Math.max(16, contentWidth / 6);
             if (label.length() > maxCharacters) {
                 label = label.substring(0, maxCharacters - 3) + "...";
@@ -217,7 +228,7 @@ public final class SessionManagerScreen extends Screen {
         SessionManager.Session created = null;
         try {
             SessionProfile profile = new SessionProfile(
-                    this.usernameField.getText(), this.serverField.getText());
+                    this.usernameField.getText(), this.serverField.getText(), this.authMode);
             if (this.profiles.contains(profile)) {
                 this.status = "That username and server are already saved.";
                 return;
@@ -266,6 +277,7 @@ public final class SessionManagerScreen extends Screen {
             this.status = "A connecting or online session cannot be edited.";
             return;
         }
+        this.authMode = selected.get().getProfile().getAuthMode();
         openScreen("Editing " + selected.get().getProfile().getUsername() + ".",
                 this.pageIndex, this.selectedSessionId, this.requestedSearch, true, false);
     }
@@ -287,7 +299,7 @@ public final class SessionManagerScreen extends Screen {
 
         try {
             SessionProfile replacement = new SessionProfile(
-                    this.usernameField.getText(), this.serverField.getText());
+                    this.usernameField.getText(), this.serverField.getText(), this.authMode);
             if (replacement.equals(oldProfile)) {
                 openScreen("No profile changes were needed.",
                         this.pageIndex, oldSession.getId(), this.requestedSearch, false, false);
@@ -418,10 +430,23 @@ public final class SessionManagerScreen extends Screen {
     }
 
     private void selectSession(SessionManager.Session session) {
+        this.authMode = session.getProfile().getAuthMode();
         String selectedStatus = session.getProfile().getUsername() + " | "
-                + session.getState().name() + " | " + session.getProfile().getServerAddress();
+                + session.getState().name() + " | " + session.getProfile().getAuthMode().name()
+                + " | " + session.getProfile().getServerAddress();
         openScreen(selectedStatus, this.pageIndex, session.getId(),
                 this.requestedSearch, false, false);
+    }
+
+    private String getAuthModeLabel() {
+        return this.authMode == SessionAuthMode.MICROSOFT ? "MICROSOFT" : "OFFLINE";
+    }
+
+    private void cycleAuthMode() {
+        this.authMode = this.authMode == SessionAuthMode.MICROSOFT
+                ? SessionAuthMode.OFFLINE_LOCAL : SessionAuthMode.MICROSOFT;
+        openScreen("Authentication mode set to " + this.authMode.name() + ".",
+                this.pageIndex, this.selectedSessionId, this.requestedSearch, this.editing, false);
     }
 
     private void applySearch() {
@@ -448,7 +473,7 @@ public final class SessionManagerScreen extends Screen {
                             String search, boolean edit, boolean confirm) {
         MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
                 this.parent, this.store, this.sessionManager,
-                newStatus, page, selection, search, edit, confirm));
+                newStatus, page, selection, search, edit, confirm, this.authMode));
     }
 
     @Override
@@ -502,7 +527,7 @@ public final class SessionManagerScreen extends Screen {
         drawString(MinecraftClient.getInstance().textRenderer,
                 "USERNAME", 12, 39, 0xA0A0A0);
         drawString(MinecraftClient.getInstance().textRenderer,
-                "SERVER ADDRESS", 12, 73, 0xA0A0A0);
+                "SERVER ADDRESS  /  AUTH MODE", 12, 73, 0xA0A0A0);
         List<SessionManager.Session> filtered = getFilteredSessions();
         int pageCount = Math.max(1, (filtered.size() + this.pageSize - 1) / this.pageSize);
         drawString(MinecraftClient.getInstance().textRenderer,

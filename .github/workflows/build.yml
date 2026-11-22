@@ -44,6 +44,6 @@ jobs:
             Download the single JAR asset and place it in your Minecraft `mods` folder.
             Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
 
-            This beta includes improved local profile management UI:
-            profile search, edit, delete confirmation, slot-state summary, and responsive pagination.
+            This beta includes improved local profile management UI and persisted per-profile auth-mode selection:
+            Microsoft or local/offline-mode metadata. It does not perform sign-in or create secondary connections yet.
             Independent secondary Minecraft connections are not implemented yet.
