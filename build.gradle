@@ -30,7 +30,7 @@ dependencies {
 
     // Protocol 498 (Minecraft Java 1.14.4), used only by independent secondary sessions.
     // Loom nests this dependency and its runtime dependencies in the single mod JAR.
-    include(implementation("com.github.steveice10:mcprotocollib:1.14.4-2"))
+    include(implementation("com.github.GeyserMC:MCProtocolLib:1.14.4-2"))
 }
 
 processResources {
