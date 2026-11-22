@@ -169,12 +169,12 @@ final class MinecraftSessionConnection implements Runnable {
                 dz = -Math.cos(radians) * step;
                 break;
             case LEFT:
-                dx = Math.cos(radians) * step;
-                dz = Math.sin(radians) * step;
-                break;
-            case RIGHT:
                 dx = -Math.cos(radians) * step;
                 dz = -Math.sin(radians) * step;
+                break;
+            case RIGHT:
+                dx = Math.cos(radians) * step;
+                dz = Math.sin(radians) * step;
                 break;
             default:
                 throw new IllegalArgumentException("Unknown movement direction.");
@@ -198,19 +198,19 @@ final class MinecraftSessionConnection implements Runnable {
         Thread thread = new Thread(() -> {
             double velocity = 0.42D;
             try {
-                for (int tick = 0; tick < 12 && this.running.get(); tick++) {
+                for (int tick = 0; tick < 20 && this.running.get(); tick++) {
                     synchronized (MinecraftSessionConnection.this) {
-                        this.y += velocity;
+                        double nextY = this.y + velocity;
+                        if (nextY <= baseY) {
+                            this.y = baseY;
+                            sendPosition(this.x, this.y, this.z, true);
+                            break;
+                        }
+                        this.y = nextY;
                         sendPosition(this.x, this.y, this.z, false);
                     }
                     velocity = (velocity - 0.08D) * 0.98D;
                     Thread.sleep(50L);
-                }
-                if (this.running.get()) {
-                    synchronized (MinecraftSessionConnection.this) {
-                        this.y = baseY;
-                        sendPosition(this.x, this.y, this.z, true);
-                    }
                 }
             } catch (Exception exception) {
                 if (this.running.get()) this.listener.onMessage("[MSM] Jump failed: " + readableError(exception));
