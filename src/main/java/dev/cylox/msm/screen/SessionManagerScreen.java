@@ -445,7 +445,7 @@ public final class SessionManagerScreen extends Screen {
     private void cycleAuthMode(ButtonWidget button) {
         this.authMode = this.authMode == SessionAuthMode.MICROSOFT
                 ? SessionAuthMode.OFFLINE_LOCAL : SessionAuthMode.MICROSOFT;
-        button.setMessage(new LiteralText(getAuthModeLabel()));
+        button.setMessage(getAuthModeLabel());
         this.status = "Authentication mode set to " + this.authMode.name() + ".";
     }
 
