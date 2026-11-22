@@ -161,7 +161,7 @@ public final class SessionManagerScreen extends Screen {
                 SessionState state = selected.get().getState();
                 this.connectionButton.setMessage(
                         state == SessionState.CONNECTING ? "CANCEL"
-                                : state == SessionState.ONLINE ? "DISCONNECT" : "CONNECT");
+                                : state == SessionState.ONLINE ? "STOP" : "CONNECT");
                 this.connectionButton.active = true;
             }
         }
