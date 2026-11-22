@@ -129,7 +129,7 @@ public final class SessionManagerScreen extends Screen {
                 serverFieldWidth, 20, "Server address"));
         this.serverField.setMaxLength(255);
         this.addButton(new ButtonWidget(fieldLeft + serverFieldWidth + 4, 82,
-                authButtonWidth, 20, getAuthModeLabel(), button -> cycleAuthMode()));
+                authButtonWidth, 20, getAuthModeLabel(), button -> cycleAuthMode(button)));
 
         if (this.editing) {
             Optional<SessionManager.Session> selected = getSelectedSession();
@@ -442,11 +442,11 @@ public final class SessionManagerScreen extends Screen {
         return this.authMode == SessionAuthMode.MICROSOFT ? "MICROSOFT" : "OFFLINE";
     }
 
-    private void cycleAuthMode() {
+    private void cycleAuthMode(ButtonWidget button) {
         this.authMode = this.authMode == SessionAuthMode.MICROSOFT
                 ? SessionAuthMode.OFFLINE_LOCAL : SessionAuthMode.MICROSOFT;
-        openScreen("Authentication mode set to " + this.authMode.name() + ".",
-                this.pageIndex, this.selectedSessionId, this.requestedSearch, this.editing, false);
+        button.setMessage(new LiteralText(getAuthModeLabel()));
+        this.status = "Authentication mode set to " + this.authMode.name() + ".";
     }
 
     private void applySearch() {
