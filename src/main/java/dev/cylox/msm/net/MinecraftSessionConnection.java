@@ -296,6 +296,14 @@ final class MinecraftSessionConnection implements Runnable {
                 readString(packet); // world type
                 readVarInt(packet); // view distance
                 packet.readBoolean(); // reduced debug info
+                sendPacket(0x05, settings -> {
+                    writeString(settings, "en_us");
+                    settings.writeByte(8);
+                    writeVarInt(settings, 0); // Full chat visibility.
+                    settings.writeBoolean(true);
+                    settings.writeByte(0x7F); // All skin parts visible.
+                    writeVarInt(settings, 1); // Right main hand.
+                });
                 this.online = true;
                 this.listener.onOnline(this);
                 this.listener.onMessage("[MSM] Joined the server.");

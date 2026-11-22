@@ -52,6 +52,8 @@ public final class SessionControlScreen extends Screen {
         Optional<SessionManager.Session> selected = this.sessionManager.find(this.sessionId);
         if (!selected.isPresent()) {
             this.status = "This session profile no longer exists.";
+            this.addButton(new ButtonWidget(12, this.height - 24, Math.max(120, this.width - 24),
+                    20, "BACK", button -> onClose()));
             return;
         }
         SessionProfile profile = selected.get().getProfile();
@@ -230,17 +232,17 @@ public final class SessionControlScreen extends Screen {
         }
 
         drawString(MinecraftClient.getInstance().textRenderer,
-                fitText(this.status, this.width - 24), 12, 137, 0xFFFFFF);
+                fitText(this.status, this.width - 24), 12, 147, 0xFFFFFF);
         drawString(MinecraftClient.getInstance().textRenderer,
                 fitText(this.networkManager.getPositionText(this.sessionId), this.width - 24),
-                12, 150, 0xA0A0A0);
+                12, 160, 0xA0A0A0);
         drawString(MinecraftClient.getInstance().textRenderer,
-                "SESSION CHAT / SERVER FEEDBACK", 12, 166, 0x8CCBFF);
+                "SESSION CHAT / SERVER FEEDBACK", 12, 174, 0x8CCBFF);
 
         List<String> messages = this.networkManager.getRecentMessages(this.sessionId);
-        int maxLines = Math.max(0, (this.height - 205) / 11);
+        int maxLines = Math.max(0, (this.height - 213) / 11);
         int start = Math.max(0, messages.size() - maxLines);
-        int y = 178;
+        int y = 186;
         for (int index = start; index < messages.size(); index++) {
             drawString(MinecraftClient.getInstance().textRenderer,
                     fitText(messages.get(index), this.width - 24), 12, y, 0xD0D0D0);
