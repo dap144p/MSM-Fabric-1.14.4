@@ -6,6 +6,8 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "ScreenAccessor",
+    "KeyBindingAccessor",
+    "ServerInfoAccessor",
     "GameMenuScreenMixin"
   ],
   "injectors": {

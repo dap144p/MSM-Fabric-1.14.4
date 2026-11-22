@@ -500,12 +500,17 @@ public final class SessionManagerScreen extends Screen {
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
+        int active = 0;
         int offline = 0;
         int connecting = 0;
         int online = 0;
         int disconnected = 0;
         int failed = 0;
         for (SessionManager.Session session : this.sessions) {
+            if (SessionControlScreen.matchesActiveProfile(session.getProfile())) {
+                active++;
+                continue;
+            }
             switch (session.getState()) {
                 case OFFLINE: offline++; break;
                 case CONNECTING: connecting++; break;
@@ -516,7 +521,8 @@ public final class SessionManagerScreen extends Screen {
             }
         }
         String summary = "SLOTS " + this.sessions.size() + "/20"
-                + "  |  OFFLINE " + offline
+                + "  |  ACTIVE " + active
+                + "  OFFLINE " + offline
                 + "  CONNECTING " + connecting
                 + "  ONLINE " + online
                 + "  DISCONNECTED " + disconnected
