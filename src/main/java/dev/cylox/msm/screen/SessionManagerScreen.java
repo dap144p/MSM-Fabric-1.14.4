@@ -166,8 +166,7 @@ public final class SessionManagerScreen extends Screen {
             }
         }
         if (this.chatButton != null) {
-            this.chatButton.active = selected.isPresent()
-                    && selected.get().getState() == SessionState.ONLINE;
+            this.chatButton.active = selected.isPresent();
         }
         if (this.editButton != null) {
             boolean canEdit = selected.isPresent()
@@ -312,8 +311,8 @@ public final class SessionManagerScreen extends Screen {
 
     private void openSelectedChat() {
         Optional<SessionManager.Session> selected = getSelectedSession();
-        if (!selected.isPresent() || selected.get().getState() != SessionState.ONLINE) {
-            this.status = "The selected secondary session must be ONLINE before opening chat.";
+        if (!selected.isPresent()) {
+            this.status = "Select a session slot first.";
             return;
         }
         MinecraftClient.getInstance().openScreen(new SessionChatScreen(
