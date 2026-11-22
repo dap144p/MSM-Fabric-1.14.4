@@ -47,7 +47,7 @@ For an existing clone, initialize or update Core with:
 git submodule update --init --recursive
 ```
 
-The build resolves MCProtocolLib 1.14.4-2 from JitPack and nests it with its runtime dependencies in the mod JAR. The remapped mod JAR is generated in `build/libs/`. MSM Core classes are included in that JAR and verified by the `check` task.
+The build resolves `com.github.GeyserMC:MCProtocolLib:1.14.4-2` from JitPack and nests it with its runtime dependencies in the mod JAR. The remapped mod JAR is generated in `build/libs/`. MSM Core classes are included in that JAR and verified by the `check` task.
 
 ## Install on MJ Launcher
 
