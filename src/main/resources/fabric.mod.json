@@ -3,7 +3,7 @@
   "id": "msm_fabric",
   "version": "${version}",
   "name": "Cylox Multi Session Manager",
-  "description": "Local profile and session-slot manager for Minecraft Java 1.14.4.",
+  "description": "Multi-session manager for Minecraft Java 1.14.4 with independent protocol-only secondary sessions.",
   "environment": "client",
   "entrypoints": {
     "client": ["dev.cylox.msm.MsmClient"]
