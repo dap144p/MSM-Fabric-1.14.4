@@ -11,6 +11,7 @@ base {
 
 repositories {
     mavenCentral()
+    maven { url = "https://jitpack.io" }
 }
 
 loom {
@@ -24,7 +25,12 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
     implementation project(":msm-core")
+
+    // Protocol 498 (Minecraft Java 1.14.4), used only by independent secondary sessions.
+    // Loom nests this dependency and its runtime dependencies in the single mod JAR.
+    include(implementation("com.github.steveice10:mcprotocollib:1.14.4-2"))
 }
 
 processResources {
