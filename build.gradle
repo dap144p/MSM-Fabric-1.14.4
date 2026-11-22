@@ -61,6 +61,7 @@ tasks.register("verifyBundledCore") {
         def requiredClasses = [
                 "dev/cylox/msm/profile/SessionProfile.class",
                 "dev/cylox/msm/profile/SessionProfileStore.class",
+                "dev/cylox/msm/profile/SessionAuthMode.class",
                 "dev/cylox/msm/session/SessionManager.class",
                 "dev/cylox/msm/session/SessionState.class"
         ]

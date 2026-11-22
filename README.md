@@ -9,18 +9,21 @@ The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic
 - Adds an `MSM` button to the in-game Pause Menu.
 - Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
 - Adds and validates local profiles using Minecraft username and server address.
+- Saves a per-profile authentication-mode choice: Microsoft or local/offline-mode.
 - Supports editing and deleting saved profiles, with confirmation before deletion.
 - Searches profiles by username or server address.
 - Shows the selected profile and session state, with a summary of all slot states.
 - Displays up to **20 session slots** managed by MSM Core, with pagination that adapts to screen height.
 - Stores profiles in `.minecraft/config/msm-fabric.properties`.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
+- Existing profiles without an authentication-mode field default to Microsoft.
 
 ## Current limitations
 
 - Session slots are local management records only. They do not connect another player to a server or create a second Minecraft network connection.
-- Independent secondary Minecraft connections and Microsoft/Minecraft authentication for additional accounts are not implemented.
+- Selecting Microsoft or local/offline-mode is profile metadata only. Microsoft sign-in and independent secondary Minecraft connections are not implemented yet.
 - Background session packet handling, keep-alive, world/player state, secondary-session chat, movement, follow, jump, or sneak controls are not implemented.
+- Local/offline-mode is intended only for a local/offline-mode server operated or explicitly configured by the player; it does not bypass online-mode authentication.
 - Automatic protocol translation for secondary sessions is not implemented.
 
 Editing a profile is unavailable while its slot is CONNECTING or ONLINE. A successfully edited profile is reset to OFFLINE because it represents a new profile record.
