@@ -3,6 +3,7 @@ package dev.cylox.msm.screen;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
 import dev.cylox.msm.profile.SessionAuthMode;
+import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
 import net.minecraft.client.MinecraftClient;
@@ -20,7 +21,7 @@ import java.util.Optional;
 public final class SessionManagerScreen extends Screen {
     private static final int PAGE_SIZE = 5;
     private static final String DEFAULT_STATUS =
-            "Authentication mode is saved per profile; secondary connections are not implemented yet.";
+            "Select a profile and open CONTROL to manage its secondary connection.";
 
     private final Screen parent;
     private final SessionProfileStore store;
@@ -193,15 +194,20 @@ public final class SessionManagerScreen extends Screen {
         this.addButton(next);
 
         int actionGap = 4;
-        int actionWidth = (contentWidth - actionGap * 2) / 3;
+        int actionWidth = (contentWidth - actionGap * 3) / 4;
         int actionY = this.height - 23;
         Optional<SessionManager.Session> selected = getSelectedSession();
         boolean selectionCanBeEdited = selected.isPresent()
                 && selected.get().getState() != SessionState.CONNECTING
                 && selected.get().getState() != SessionState.ONLINE;
 
-        ButtonWidget edit = new ButtonWidget(contentLeft, actionY, actionWidth, 20,
-                this.editing ? "CANCEL" : "EDIT",
+        ButtonWidget control = new ButtonWidget(contentLeft, actionY, actionWidth, 20,
+                "CONTROL", button -> openControlSelected());
+        control.active = selected.isPresent();
+        this.addButton(control);
+
+        ButtonWidget edit = new ButtonWidget(contentLeft + actionWidth + actionGap,
+                actionY, actionWidth, 20, this.editing ? "CANCEL" : "EDIT",
                 button -> {
                     if (this.editing) cancelEdit();
                     else editSelected();
@@ -210,12 +216,12 @@ public final class SessionManagerScreen extends Screen {
         this.addButton(edit);
 
         String removeLabel = this.confirmRemoval ? "CONFIRM" : "DELETE";
-        ButtonWidget remove = new ButtonWidget(contentLeft + actionWidth + actionGap,
+        ButtonWidget remove = new ButtonWidget(contentLeft + (actionWidth + actionGap) * 2,
                 actionY, actionWidth, 20, removeLabel, button -> requestOrRemoveSelected());
         remove.active = selected.isPresent();
         this.addButton(remove);
 
-        this.addButton(new ButtonWidget(contentLeft + (actionWidth + actionGap) * 2,
+        this.addButton(new ButtonWidget(contentLeft + (actionWidth + actionGap) * 3,
                 actionY, actionWidth, 20, "CLOSE", button -> onClose()));
     }
 
@@ -408,6 +414,7 @@ public final class SessionManagerScreen extends Screen {
         try {
             this.store.save(this.profiles);
             this.sessions.remove(session);
+            MsmClient.getNetworkManager().forget(session.getId());
             int page = Math.min(this.pageIndex,
                     Math.max(0, (getFilteredSessions().size() - 1) / this.pageSize));
             openScreen("Profile removed.", page, -1L,
@@ -427,6 +434,16 @@ public final class SessionManagerScreen extends Screen {
             this.sessionManager.updateState(restored.getId(), previousState);
         }
         return restored;
+    }
+
+    private void openControlSelected() {
+        Optional<SessionManager.Session> selected = getSelectedSession();
+        if (!selected.isPresent()) {
+            this.status = "Select a session slot first.";
+            return;
+        }
+        MinecraftClient.getInstance().openScreen(new SessionControlScreen(
+                this, this.sessionManager, MsmClient.getNetworkManager(), selected.get().getId()));
     }
 
     private void selectSession(SessionManager.Session session) {
@@ -482,6 +499,8 @@ public final class SessionManagerScreen extends Screen {
         if (this.usernameField != null) this.usernameField.tick();
         if (this.serverField != null) this.serverField.tick();
         if (this.searchField != null) this.searchField.tick();
+        this.sessions.clear();
+        this.sessions.addAll(this.sessionManager.getSessions());
     }
 
     @Override

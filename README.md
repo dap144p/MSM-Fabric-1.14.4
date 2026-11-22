@@ -6,25 +6,22 @@ The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic
 
 ## Current build: 0.1.2
 
-- Adds an `MSM` button to the in-game Pause Menu.
-- Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
-- Adds and validates local profiles using Minecraft username and server address.
-- Saves a per-profile authentication-mode choice: Microsoft or local/offline-mode.
-- Supports editing and deleting saved profiles, with confirmation before deletion.
-- Searches profiles by username or server address.
-- Shows the selected profile and session state, with a summary of all slot states.
-- Displays up to **20 session slots** managed by MSM Core, with pagination that adapts to screen height.
+- Adds an `MSM` button to the in-game Pause Menu and manages up to **20 saved session profiles**.
+- Saves per-profile username, server address, and authentication mode (Microsoft or local/offline-mode).
+- Adds an independent secondary network connection for profiles explicitly set to `OFFLINE_LOCAL`.
+- Supports per-session connect/disconnect, server chat and commands, position updates, keep-alive responses, W/A/S/D movement, jump, sneak, and sprint controls.
+- Keeps secondary sessions packet-driven; it does not create another rendered Minecraft world or viewport.
 - Stores profiles in `.minecraft/config/msm-fabric.properties`.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
 - Existing profiles without an authentication-mode field default to Microsoft.
 
 ## Current limitations
 
-- Session slots are local management records only. They do not connect another player to a server or create a second Minecraft network connection.
-- Selecting Microsoft or local/offline-mode is profile metadata only. Microsoft sign-in and independent secondary Minecraft connections are not implemented yet.
-- Background session packet handling, keep-alive, world/player state, secondary-session chat, movement, follow, jump, or sneak controls are not implemented.
-- Local/offline-mode is intended only for a local/offline-mode server operated or explicitly configured by the player; it does not bypass online-mode authentication.
-- Automatic protocol translation for secondary sessions is not implemented.
+- `OFFLINE_LOCAL` is only for a local/offline-mode server operated or explicitly configured by the player. A server that requests online authentication is rejected; this mode does not bypass online-mode authentication.
+- Microsoft sign-in and authenticated Microsoft secondary connections are not implemented yet.
+- The secondary protocol implementation targets Minecraft **1.14.4 (protocol 498)**. It does not perform ViaVersion/ViaFabric translation for secondary sessions.
+- Secondary sessions do not render chunks, entities, inventory screens, or a second player view. They are background packet connections controlled from the MSM screen.
+- Movement buttons send discrete position updates; they are not a streamed keyboard-input or full physics simulation.
 
 Editing a profile is unavailable while its slot is CONNECTING or ONLINE. A successfully edited profile is reset to OFFLINE because it represents a new profile record.
 
