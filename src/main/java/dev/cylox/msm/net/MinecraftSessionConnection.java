@@ -302,7 +302,7 @@ final class MinecraftSessionConnection implements Runnable {
                     writeVarInt(settings, 0); // Full chat visibility.
                     settings.writeBoolean(true);
                     settings.writeByte(0x7F); // All skin parts visible.
-                    writeVarInt(settings, 1); // Right main hand.
+                    writeVarInt(settings, 0); // Main hand.
                 });
                 this.online = true;
                 this.listener.onOnline(this);
@@ -329,8 +329,8 @@ final class MinecraftSessionConnection implements Runnable {
             this.x = (flags & 0x01) != 0 ? this.x + packetX : packetX;
             this.y = (flags & 0x02) != 0 ? this.y + packetY : packetY;
             this.z = (flags & 0x04) != 0 ? this.z + packetZ : packetZ;
-            this.yaw = (flags & 0x08) != 0 ? this.yaw + packetYaw : packetYaw;
-            this.pitch = (flags & 0x10) != 0 ? this.pitch + packetPitch : packetPitch;
+            this.pitch = (flags & 0x08) != 0 ? this.pitch + packetPitch : packetPitch;
+            this.yaw = (flags & 0x10) != 0 ? this.yaw + packetYaw : packetYaw;
             this.hasPosition = true;
         }
 
