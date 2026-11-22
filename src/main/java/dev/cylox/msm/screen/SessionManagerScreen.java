@@ -1,5 +1,6 @@
 package dev.cylox.msm.screen;
 
+import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
 import dev.cylox.msm.profile.SessionAuthMode;
@@ -13,20 +14,24 @@ import net.minecraft.text.LiteralText;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 public final class SessionManagerScreen extends Screen {
     private static final int PAGE_SIZE = 5;
     private static final String DEFAULT_STATUS =
-            "Authentication mode is saved per profile; secondary connections are not implemented yet.";
+            "Select a profile, then CONNECT. OFFLINE is for offline-mode servers only.";
 
     private final Screen parent;
     private final SessionProfileStore store;
     private final SessionManager sessionManager;
+    private final SecondarySessionController secondarySessions;
     private final List<SessionProfile> profiles = new ArrayList<SessionProfile>();
     private final List<SessionManager.Session> sessions = new ArrayList<SessionManager.Session>();
+    private final Map<Long, ButtonWidget> sessionRowButtons = new LinkedHashMap<Long, ButtonWidget>();
     private final int requestedPage;
     private final String requestedSearch;
     private final boolean editing;
@@ -35,6 +40,10 @@ public final class SessionManagerScreen extends Screen {
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private TextFieldWidget searchField;
+    private ButtonWidget connectionButton;
+    private ButtonWidget chatButton;
+    private ButtonWidget editButton;
+    private ButtonWidget removeButton;
     private String status = DEFAULT_STATUS;
     private long selectedSessionId = -1L;
     private int pageIndex;
@@ -46,21 +55,29 @@ public final class SessionManagerScreen extends Screen {
     }
 
     public SessionManagerScreen(Screen parent, SessionProfileStore store, SessionManager sessionManager) {
-        this(parent, store, sessionManager, DEFAULT_STATUS, 0, -1L, "", false, false,
-                SessionAuthMode.MICROSOFT);
+        this(parent, store, sessionManager, new SecondarySessionController(sessionManager));
+    }
+
+    public SessionManagerScreen(Screen parent, SessionProfileStore store,
+                                SessionManager sessionManager,
+                                SecondarySessionController secondarySessions) {
+        this(parent, store, sessionManager, secondarySessions, DEFAULT_STATUS, 0, -1L, "",
+                false, false, SessionAuthMode.MICROSOFT);
     }
 
     private SessionManagerScreen(Screen parent, SessionProfileStore store,
-                                 SessionManager sessionManager, String status, int page,
-                                 long selectedSessionId, String searchQuery,
+                                 SessionManager sessionManager,
+                                 SecondarySessionController secondarySessions,
+                                 String status, int page, long selectedSessionId, String searchQuery,
                                  boolean editing, boolean confirmRemoval, SessionAuthMode authMode) {
         super(new LiteralText("Cylox Multi Session Manager"));
-        if (store == null || sessionManager == null) {
-            throw new IllegalArgumentException("Profile store and session manager are required");
+        if (store == null || sessionManager == null || secondarySessions == null) {
+            throw new IllegalArgumentException("Profile store, session manager, and network controller are required");
         }
         this.parent = parent;
         this.store = store;
         this.sessionManager = sessionManager;
+        this.secondarySessions = secondarySessions;
         this.status = status == null ? DEFAULT_STATUS : status;
         this.requestedPage = Math.max(0, page);
         this.selectedSessionId = selectedSessionId;
@@ -84,10 +101,34 @@ public final class SessionManagerScreen extends Screen {
                 this.sessionManager.create(profile);
             }
         }
-        this.sessions.addAll(this.sessionManager.getSessions());
+        refreshSessions();
         if (this.profiles.size() > SessionManager.MAX_SESSIONS) {
             this.status = "Only the first 20 saved profiles can occupy session slots.";
         }
+    }
+
+    private void refreshSessions() {
+        this.sessions.clear();
+        this.sessions.addAll(this.sessionManager.getSessions());
+
+        for (Map.Entry<Long, ButtonWidget> entry : this.sessionRowButtons.entrySet()) {
+            Optional<SessionManager.Session> current = this.sessionManager.find(entry.getKey());
+            if (current.isPresent()) {
+                entry.getValue().setMessage(getSessionLabel(current.get(),
+                        this.sessions.indexOf(current.get()) + 1,
+                        Math.max(16, (this.width - 24) / 6)));
+            }
+        }
+        refreshControls();
+    }
+
+    private String getSessionLabel(SessionManager.Session session, int slotNumber, int maxCharacters) {
+        String authLabel = session.getProfile().getAuthMode() == SessionAuthMode.MICROSOFT
+                ? "MS" : "LOCAL";
+        String label = String.format(Locale.ROOT, "S%02d  %s  [%s | %s]",
+                slotNumber, session.getProfile().getUsername(), authLabel, session.getState().name());
+        return label.length() > maxCharacters
+                ? label.substring(0, maxCharacters - 3) + "..." : label;
     }
 
     private List<SessionManager.Session> getFilteredSessions() {
@@ -110,6 +151,37 @@ public final class SessionManagerScreen extends Screen {
                 : this.sessionManager.find(this.selectedSessionId);
     }
 
+    private void refreshControls() {
+        Optional<SessionManager.Session> selected = getSelectedSession();
+        if (this.connectionButton != null) {
+            if (!selected.isPresent()) {
+                this.connectionButton.setMessage("CONNECT");
+                this.connectionButton.active = false;
+            } else {
+                SessionState state = selected.get().getState();
+                this.connectionButton.setMessage(
+                        state == SessionState.CONNECTING ? "CANCEL"
+                                : state == SessionState.ONLINE ? "DISCONNECT" : "CONNECT");
+                this.connectionButton.active = true;
+            }
+        }
+        if (this.chatButton != null) {
+            this.chatButton.active = selected.isPresent()
+                    && selected.get().getState() == SessionState.ONLINE;
+        }
+        if (this.editButton != null) {
+            boolean canEdit = selected.isPresent()
+                    && selected.get().getState() != SessionState.CONNECTING
+                    && selected.get().getState() != SessionState.ONLINE;
+            this.editButton.active = this.editing || canEdit;
+        }
+        if (this.removeButton != null) {
+            this.removeButton.active = selected.isPresent()
+                    && selected.get().getState() != SessionState.CONNECTING
+                    && selected.get().getState() != SessionState.ONLINE;
+        }
+    }
+
     @Override
     protected void init() {
         int contentWidth = Math.max(120, this.width - 24);
@@ -119,6 +191,7 @@ public final class SessionManagerScreen extends Screen {
         int authButtonWidth = Math.min(96, Math.max(76, fieldWidth / 3));
         int serverFieldWidth = fieldWidth - authButtonWidth - 4;
 
+        this.sessionRowButtons.clear();
         this.pageSize = Math.max(1, Math.min(PAGE_SIZE, (this.height - 270) / 20 + 1));
 
         this.usernameField = this.addButton(new TextFieldWidget(
@@ -166,17 +239,12 @@ public final class SessionManagerScreen extends Screen {
 
         for (int index = startIndex; index < endIndex; index++) {
             final SessionManager.Session session = filtered.get(index);
-            final int slotNumber = this.sessions.indexOf(session) + 1;
-            String authLabel = session.getProfile().getAuthMode() == SessionAuthMode.MICROSOFT
-                    ? "MS" : "LOCAL";
-            String label = String.format(Locale.ROOT, "S%02d  %s  [%s | %s]",
-                    slotNumber, session.getProfile().getUsername(), authLabel, session.getState().name());
-            int maxCharacters = Math.max(16, contentWidth / 6);
-            if (label.length() > maxCharacters) {
-                label = label.substring(0, maxCharacters - 3) + "...";
-            }
-            this.addButton(new ButtonWidget(contentLeft, rowY, contentWidth, 18,
-                    label, button -> selectSession(session)));
+            int slotNumber = this.sessions.indexOf(session) + 1;
+            ButtonWidget row = new ButtonWidget(contentLeft, rowY, contentWidth, 18,
+                    getSessionLabel(session, slotNumber, Math.max(16, contentWidth / 6)),
+                    button -> selectSession(session));
+            this.sessionRowButtons.put(session.getId(), row);
+            this.addButton(row);
             rowY += 20;
         }
 
@@ -192,31 +260,65 @@ public final class SessionManagerScreen extends Screen {
         this.addButton(previous);
         this.addButton(next);
 
-        int actionGap = 4;
-        int actionWidth = (contentWidth - actionGap * 2) / 3;
+        int actionGap = 3;
+        int actionWidth = (contentWidth - actionGap * 4) / 5;
         int actionY = this.height - 23;
-        Optional<SessionManager.Session> selected = getSelectedSession();
-        boolean selectionCanBeEdited = selected.isPresent()
-                && selected.get().getState() != SessionState.CONNECTING
-                && selected.get().getState() != SessionState.ONLINE;
 
-        ButtonWidget edit = new ButtonWidget(contentLeft, actionY, actionWidth, 20,
-                this.editing ? "CANCEL" : "EDIT",
+        this.connectionButton = new ButtonWidget(contentLeft, actionY, actionWidth, 20,
+                "CONNECT", button -> toggleSelectedConnection());
+        this.chatButton = new ButtonWidget(contentLeft + actionWidth + actionGap,
+                actionY, actionWidth, 20, "CHAT", button -> openSelectedChat());
+        this.editButton = new ButtonWidget(contentLeft + (actionWidth + actionGap) * 2,
+                actionY, actionWidth, 20, this.editing ? "CANCEL" : "EDIT",
                 button -> {
                     if (this.editing) cancelEdit();
                     else editSelected();
                 });
-        edit.active = this.editing || selectionCanBeEdited;
-        this.addButton(edit);
-
-        String removeLabel = this.confirmRemoval ? "CONFIRM" : "DELETE";
-        ButtonWidget remove = new ButtonWidget(contentLeft + actionWidth + actionGap,
-                actionY, actionWidth, 20, removeLabel, button -> requestOrRemoveSelected());
-        remove.active = selected.isPresent();
-        this.addButton(remove);
-
-        this.addButton(new ButtonWidget(contentLeft + (actionWidth + actionGap) * 2,
+        this.removeButton = new ButtonWidget(contentLeft + (actionWidth + actionGap) * 3,
+                actionY, actionWidth, 20, this.confirmRemoval ? "CONFIRM" : "DELETE",
+                button -> requestOrRemoveSelected());
+        this.addButton(this.connectionButton);
+        this.addButton(this.chatButton);
+        this.addButton(this.editButton);
+        this.addButton(this.removeButton);
+        this.addButton(new ButtonWidget(contentLeft + (actionWidth + actionGap) * 4,
                 actionY, actionWidth, 20, "CLOSE", button -> onClose()));
+        refreshControls();
+    }
+
+    private void toggleSelectedConnection() {
+        Optional<SessionManager.Session> selected = getSelectedSession();
+        if (!selected.isPresent()) {
+            this.status = "Select a session slot first.";
+            return;
+        }
+
+        long sessionId = selected.get().getId();
+        SessionState state = selected.get().getState();
+        try {
+            if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
+                this.secondarySessions.disconnect(sessionId);
+                this.status = "Disconnect requested for " + selected.get().getProfile().getUsername() + ".";
+            } else {
+                this.secondarySessions.connect(sessionId);
+                this.status = "Connecting " + selected.get().getProfile().getUsername()
+                        + " using protocol 498 (Java 1.14.4).";
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.status = exception.getMessage();
+        }
+        refreshSessions();
+    }
+
+    private void openSelectedChat() {
+        Optional<SessionManager.Session> selected = getSelectedSession();
+        if (!selected.isPresent() || selected.get().getState() != SessionState.ONLINE) {
+            this.status = "The selected secondary session must be ONLINE before opening chat.";
+            return;
+        }
+        MinecraftClient.getInstance().openScreen(new SessionChatScreen(
+                this, this.secondarySessions, selected.get().getId(),
+                selected.get().getProfile().getUsername()));
     }
 
     private void saveProfile() {
@@ -255,7 +357,7 @@ public final class SessionManagerScreen extends Screen {
             int targetPage = selectedIndex >= 0
                     ? selectedIndex / this.pageSize
                     : Math.max(0, (filtered.size() - 1) / this.pageSize);
-            openScreen("Session slot added. Status: OFFLINE (not connected).",
+            openScreen("Session slot added. Press CONNECT to start its secondary connection.",
                     targetPage, created.getId(), this.requestedSearch, false, false);
         } catch (IllegalArgumentException exception) {
             this.status = exception.getMessage();
@@ -472,7 +574,7 @@ public final class SessionManagerScreen extends Screen {
     private void openScreen(String newStatus, int page, long selection,
                             String search, boolean edit, boolean confirm) {
         MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
-                this.parent, this.store, this.sessionManager,
+                this.parent, this.store, this.sessionManager, this.secondarySessions,
                 newStatus, page, selection, search, edit, confirm, this.authMode));
     }
 
@@ -482,6 +584,7 @@ public final class SessionManagerScreen extends Screen {
         if (this.usernameField != null) this.usernameField.tick();
         if (this.serverField != null) this.serverField.tick();
         if (this.searchField != null) this.searchField.tick();
+        refreshSessions();
     }
 
     @Override
