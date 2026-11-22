@@ -7,6 +7,7 @@ The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic
 ## Current build: 0.1.2
 
 - Adds an `MSM` button to the in-game Pause Menu.
+- Adds an active-session control panel when a saved profile matches the current Minecraft username and server exactly. It sends chat/commands through the existing vanilla connection, shows player coordinates/health/orientation, and provides movement toggles.
 - Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
 - Adds and validates local profiles using Minecraft username and server address.
 - Saves a per-profile authentication-mode choice: Microsoft or local/offline-mode.
@@ -22,7 +23,8 @@ The Fabric project supplies Minecraft-specific UI and hooks. Shared domain logic
 
 - Session slots are local management records only. They do not connect another player to a server or create a second Minecraft network connection.
 - Selecting Microsoft or local/offline-mode is profile metadata only. Microsoft sign-in and independent secondary Minecraft connections are not implemented yet.
-- Background session packet handling, keep-alive, world/player state, secondary-session chat, movement, follow, jump, or sneak controls are not implemented.
+- The control panel controls only the already-active main Minecraft session. It does not create or authenticate additional Minecraft connections; other saved profiles remain local management records.
+- Movement toggles are released when the control panel closes or the game window loses focus.
 - Local/offline-mode is intended only for a local/offline-mode server operated or explicitly configured by the player; it does not bypass online-mode authentication.
 - Automatic protocol translation for secondary sessions is not implemented.
 

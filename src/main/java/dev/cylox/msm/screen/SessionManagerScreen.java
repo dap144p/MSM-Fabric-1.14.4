@@ -20,7 +20,7 @@ import java.util.Optional;
 public final class SessionManagerScreen extends Screen {
     private static final int PAGE_SIZE = 5;
     private static final String DEFAULT_STATUS =
-            "Authentication mode is saved per profile; secondary connections are not implemented yet.";
+            "CONTROL applies only to the matching active main Minecraft session.";
 
     private final Screen parent;
     private final SessionProfileStore store;
@@ -431,8 +431,10 @@ public final class SessionManagerScreen extends Screen {
 
     private void selectSession(SessionManager.Session session) {
         this.authMode = session.getProfile().getAuthMode();
+        String stateLabel = SessionControlScreen.matchesActiveProfile(session.getProfile())
+                ? "ACTIVE" : session.getState().name();
         String selectedStatus = session.getProfile().getUsername() + " | "
-                + session.getState().name() + " | " + session.getProfile().getAuthMode().name()
+                + stateLabel + " | " + session.getProfile().getAuthMode().name()
                 + " | " + session.getProfile().getServerAddress();
         openScreen(selectedStatus, this.pageIndex, session.getId(),
                 this.requestedSearch, false, false);
@@ -500,12 +502,17 @@ public final class SessionManagerScreen extends Screen {
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
+        int active = 0;
         int offline = 0;
         int connecting = 0;
         int online = 0;
         int disconnected = 0;
         int failed = 0;
         for (SessionManager.Session session : this.sessions) {
+            if (SessionControlScreen.matchesActiveProfile(session.getProfile())) {
+                active++;
+                continue;
+            }
             switch (session.getState()) {
                 case OFFLINE: offline++; break;
                 case CONNECTING: connecting++; break;
@@ -516,7 +523,8 @@ public final class SessionManagerScreen extends Screen {
             }
         }
         String summary = "SLOTS " + this.sessions.size() + "/20"
-                + "  |  OFFLINE " + offline
+                + "  |  ACTIVE " + active
+                + "  OFFLINE " + offline
                 + "  CONNECTING " + connecting
                 + "  ONLINE " + online
                 + "  DISCONNECTED " + disconnected
@@ -538,9 +546,11 @@ public final class SessionManagerScreen extends Screen {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (this.height >= 300 && selected.isPresent()) {
             SessionProfile profile = selected.get().getProfile();
+            String selectedState = SessionControlScreen.matchesActiveProfile(profile)
+                    ? "ACTIVE" : selected.get().getState().name();
             drawString(MinecraftClient.getInstance().textRenderer,
                     fitText("SELECTED: " + profile.getUsername()
-                            + " [" + selected.get().getState().name() + "]", this.width - 24),
+                            + " [" + selectedState + "]", this.width - 24),
                     12, this.height - 82, 0xFFFFFF);
             drawString(MinecraftClient.getInstance().textRenderer,
                     fitText("SERVER: " + profile.getServerAddress(), this.width - 24),
