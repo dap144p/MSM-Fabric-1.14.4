@@ -44,6 +44,7 @@ jobs:
             Download the single JAR asset and place it in your Minecraft `mods` folder.
             Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
 
-            This beta includes improved local profile management UI and persisted per-profile auth-mode selection:
-            Microsoft or local/offline-mode metadata. It does not perform sign-in or create secondary connections yet.
-            Independent secondary Minecraft connections are not implemented yet.
+            This beta adds independent packet-driven secondary sessions for profiles set to OFFLINE_LOCAL.
+            It includes connect/disconnect, chat and commands, keep-alive, W/A/S/D movement, jump, sneak, and sprint.
+            Use only with an offline-mode server you own or explicitly manage. Online-mode authentication requests are rejected.
+            Microsoft sign-in and secondary Via protocol translation are not implemented.
