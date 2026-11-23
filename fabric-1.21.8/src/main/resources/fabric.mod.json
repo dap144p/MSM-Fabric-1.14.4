@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "msm_fabric",
+  "version": "${version}",
+  "name": "Cylox Multi Session Manager",
+  "description": "Client-side multi-account session manager for Minecraft Java 1.21.8.",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.cylox.msm.MsmClient"
+    ]
+  },
+  "mixins": [
+    "msm_fabric.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "1.21.8",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
