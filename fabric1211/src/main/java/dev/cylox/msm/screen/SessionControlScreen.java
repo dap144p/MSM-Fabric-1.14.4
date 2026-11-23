@@ -518,14 +518,6 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void tick() {
         super.tick();
-        if (this.chatField != null) this.chatField.tick();
-        if (this.ruleMessageField != null) this.ruleMessageField.tick();
-        if (this.ruleDelayField != null) this.ruleDelayField.tick();
-        if (this.reconnectDelayField != null) this.reconnectDelayField.tick();
-        if (this.reconnectAttemptsField != null) this.reconnectAttemptsField.tick();
-        if (this.reconnectMaxDelayField != null) this.reconnectMaxDelayField.tick();
-        if (this.initialChatDelayField != null) this.initialChatDelayField.tick();
-        if (this.globalChatIntervalField != null) this.globalChatIntervalField.tick();
         refreshWrappedMessages();
         updateConnectionControls();
     }
