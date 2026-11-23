@@ -703,8 +703,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
         if (this.compactLayout) {
             drawSectionTitle("ADD ACCOUNT", this.formPanelLeft + 12, 40);
-            drawSectionTitle("USERNAME", this.formPanelLeft + 12, 44);
-            drawSectionTitle("SERVER ADDRESS", this.formPanelLeft + 12, 84);
+            drawSectionTitle("SERVER ADDRESS", this.formPanelLeft + 12, 82);
             drawSectionTitle("ACCOUNTS  (" + this.sessions.size() + ")",
                     this.accountsPanelLeft + 12, this.accountsLabelY);
 
