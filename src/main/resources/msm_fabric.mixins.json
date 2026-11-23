@@ -6,7 +6,10 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "ScreenAccessor",
-    "GameMenuScreenMixin"
+    "GameMenuScreenMixin",
+    "MultiplayerScreenAccessor",
+    "MultiplayerScreenMixin",
+    "ServerNotifyClientPacketMixin"
   ],
   "injectors": {
     "defaultRequire": 1
