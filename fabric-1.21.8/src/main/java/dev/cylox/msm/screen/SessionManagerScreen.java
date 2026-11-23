@@ -202,6 +202,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.serverField = this.addField(
                     innerLeft, 94, innerWidth, 20, "Server address");
             this.serverField.setMaxLength(255);
+            this.serverField.setPlaceholder(Text.literal("server.example"));
             this.serverField.setText(this.serverValue);
 
             this.authModeButton = this.addButton(new MsmButtonWidget(
@@ -235,6 +236,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.serverField = this.addField(
                     innerLeft, 132, innerWidth, 20, "Server address");
             this.serverField.setMaxLength(255);
+            this.serverField.setPlaceholder(Text.literal("server.example"));
             this.serverField.setText(this.serverValue);
 
             this.authModeButton = this.addButton(new MsmButtonWidget(
