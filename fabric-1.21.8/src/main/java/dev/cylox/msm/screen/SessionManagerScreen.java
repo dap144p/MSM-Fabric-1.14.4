@@ -55,7 +55,7 @@ public final class SessionManagerScreen extends MsmScreen {
                 this.textRenderer, margin + inputWidth + 8, 38,
                 contentWidth - inputWidth - 8, 20, Text.literal("Server")));
         this.serverField.setMaxLength(255);
-        this.serverField.setPlaceholder(Text.literal("server.example:25565"));
+        this.serverField.setPlaceholder(Text.literal("server.example"));
 
         int authWidth = Math.max(1, (contentWidth - 6) / 2);
         this.authModeButton = this.addAction(margin, 64, authWidth, 20,
@@ -246,7 +246,7 @@ public final class SessionManagerScreen extends MsmScreen {
         panel(context, 8, 8, this.width - 8, this.height - 8);
         centered(context, "MULTI SESSION MANAGER", this.width / 2, 17, 0xFFF1F5FA);
         text(context, "USERNAME", 12, 28, 0xFF9EADBD);
-        text(context, "SERVER ADDRESS", Math.max(12, this.width / 2 + 4), 28, 0xFF9EADBD);
+        text(context, "SERVER (PORT OPTIONAL)", Math.max(12, this.width / 2 + 4), 28, 0xFF9EADBD);
         text(context, "ACCOUNTS  (" + MsmClient.getSessionManager().size() + ")",
                 12, 91, 0xFF9EADBD);
         int maxCharacters = Math.max(8, (this.width - 24) / 6);
