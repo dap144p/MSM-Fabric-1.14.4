@@ -7,6 +7,7 @@ import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.session.SessionState;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
@@ -30,11 +31,12 @@ public final class SessionControlScreen extends MsmScreen {
     private TextFieldWidget reconnectMaxDelayField;
     private TextFieldWidget initialChatDelayField;
     private TextFieldWidget globalChatIntervalField;
+    private ButtonWidget connectionButton;
+    private ButtonWidget sendButton;
     private SessionAutomationSettings.AutoChatRule.Mode ruleMode =
             SessionAutomationSettings.AutoChatRule.Mode.ONCE;
     private int selectedRule = -1;
     private int rulePage;
-    private int scrollOffset;
     private List<String> cachedMessages = Collections.emptyList();
     private int cachedMessageCount = -1;
     private String cachedFirstMessage;
@@ -83,49 +85,49 @@ public final class SessionControlScreen extends MsmScreen {
                 width - (tabWidth + gap) * 2, 20, "SETTINGS",
                 button -> openPage(Page.SETTINGS));
 
-        addConnectionControls(margin, width);
-
         if (this.page == Page.CHAT) {
             initChat(margin, width);
             refreshChatMessages();
-        } else if (this.page == Page.AUTO_CHAT) {
-            initAutoChat(margin, width);
+            refreshState();
         } else {
-            initSettings(margin, width);
+            addConnectionControls(margin, width, 58);
+            if (this.page == Page.AUTO_CHAT) {
+                initAutoChat(margin, width);
+            } else {
+                initSettings(margin, width);
+            }
         }
     }
 
-    private void addConnectionControls(int margin, int width) {
+    private void addConnectionControls(int margin, int width, int y) {
+        int half = Math.max(1, (width - 6) / 2);
+        this.connectionButton = this.addAction(margin, y, half, 20,
+                connectionLabel(), button -> toggleConnection());
+        this.addAction(margin + half + 6, y,
+                width - half - 6, 20, "BACK", button -> close());
+    }
+
+    private String connectionLabel() {
         SessionState state;
         try {
             state = MsmClient.getSecondarySessions().getState(this.sessionId);
         } catch (RuntimeException exception) {
             state = SessionState.FAILED;
         }
-        String label = state == SessionState.ONLINE ? "DISCONNECT"
+        return state == SessionState.ONLINE ? "DISCONNECT"
                 : state == SessionState.CONNECTING ? "CANCEL" : "JOIN / CONNECT";
-        int leftWidth = Math.max(1, (width - 6) / 2);
-        this.addAction(margin, 58, leftWidth, 20, label,
-                button -> toggleConnection());
-        this.addAction(margin + leftWidth + 6, 58,
-                width - leftWidth - 6, 20, "BACK",
-                button -> close());
     }
 
     private void initChat(int margin, int width) {
-        int bottom = this.height - 64;
+        int bottom = this.height - 76;
         int fieldWidth = Math.max(1, width - 70);
         this.chatField = this.addDrawableChild(new TextFieldWidget(
                 this.textRenderer, margin, bottom, fieldWidth, 20, Text.literal("Message")));
         this.chatField.setMaxLength(256);
         this.chatField.setPlaceholder(Text.literal("Type a chat message"));
-        this.addAction(margin + fieldWidth + 6, bottom, width - fieldWidth - 6, 20,
-                "SEND", button -> sendChat());
-        int half = Math.max(1, (width - 6) / 2);
-        this.addAction(margin, this.height - 34, half, 20,
-                "OLDER", button -> scrollChat(-5));
-        this.addAction(margin + half + 6, this.height - 34,
-                width - half - 6, 20, "NEWER", button -> scrollChat(5));
+        this.sendButton = this.addAction(margin + fieldWidth + 6, bottom,
+                width - fieldWidth - 6, 20, "SEND", button -> sendChat());
+        addConnectionControls(margin, width, this.height - 24);
     }
 
     private void initAutoChat(int margin, int width) {
@@ -269,13 +271,6 @@ public final class SessionControlScreen extends MsmScreen {
         }
     }
 
-    private void scrollChat(int amount) {
-        int count = MsmClient.getSecondarySessions().getMessages(this.sessionId).size();
-        int visibleLines = Math.max(1, (this.height - 180) / 11);
-        this.scrollOffset = Math.max(0, Math.min(
-                Math.max(0, count - visibleLines), this.scrollOffset + amount));
-    }
-
     private void sendChat() {
         if (this.chatField == null) return;
         String message = this.chatField.getText();
@@ -370,6 +365,14 @@ public final class SessionControlScreen extends MsmScreen {
     private void refreshState() {
         try {
             SessionState state = MsmClient.getSecondarySessions().getState(this.sessionId);
+            if (this.connectionButton != null) {
+                this.connectionButton.setMessage(Text.literal(
+                        state == SessionState.ONLINE ? "DISCONNECT"
+                                : state == SessionState.CONNECTING ? "CANCEL" : "JOIN / CONNECT"));
+            }
+            if (this.sendButton != null) {
+                this.sendButton.active = state == SessionState.ONLINE;
+            }
             if (state == SessionState.CONNECTING) {
                 this.status = "CONNECTING as " + this.username + "...";
             } else if (state == SessionState.ONLINE) {
@@ -411,7 +414,7 @@ public final class SessionControlScreen extends MsmScreen {
 
         if (this.page == Page.CHAT) {
             renderChat(context);
-            text(context, fit(this.status, this.width - 24), 12, this.height - 80, 0xFF9EADBD);
+            text(context, fit(this.status, this.width - 24), 12, this.height - 95, 0xFF9EADBD);
         } else if (this.page == Page.AUTO_CHAT) {
             text(context, "RULE MESSAGE", 12, 106, 0xFF9EADBD);
             text(context, "DELAY", this.width - 92, 106, 0xFF9EADBD);
@@ -432,8 +435,6 @@ public final class SessionControlScreen extends MsmScreen {
         int count = messages.size();
         String first = count == 0 ? null : messages.get(0);
         String last = count == 0 ? null : messages.get(count - 1);
-        int visibleLines = Math.max(1, (this.height - 180) / 11);
-        this.scrollOffset = Math.min(this.scrollOffset, Math.max(0, count - visibleLines));
         if (count == this.cachedMessageCount
                 && equal(first, this.cachedFirstMessage)
                 && equal(last, this.cachedLastMessage)) {
@@ -454,7 +455,7 @@ public final class SessionControlScreen extends MsmScreen {
         List<String> messages = this.cachedMessages;
         int lineHeight = 11;
         int visibleLines = Math.max(1, (this.height - 180) / lineHeight);
-        int end = Math.max(0, messages.size() - this.scrollOffset);
+        int end = messages.size();
         int start = Math.max(0, end - visibleLines);
         int y = 88;
         for (int i = start; i < end; i++) {
