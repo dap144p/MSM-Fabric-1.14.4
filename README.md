@@ -4,7 +4,21 @@
 
 The Fabric project supplies Minecraft-specific UI and network integration. Shared domain logic is maintained in [MSM-Core](https://github.com/dap144p/MSM-Core) as a Git submodule and is merged into the final mod JAR. Players install **one mod JAR**, not a separate Core mod.
 
-## Current build: 0.1.2
+## Release stage
+
+**Current stage: Development / Nightly.** Features and long-running multi-account behavior are still being validated in Minecraft. This project is not marked Beta, Release Candidate, or Stable yet.
+
+| Channel | What it means |
+|---|---|
+| Development | Temporary CI builds from pull requests and feature branches. Intended for active development and testing. |
+| Nightly | Automatically published prerelease builds from the `development` branch. May contain regressions or unfinished work. |
+| Beta | Versioned prerelease created from a `vX.Y.Z-beta.N` tag after the main features pass initial testing. |
+| Release Candidate | Versioned prerelease created from a `vX.Y.Z-rc.N` tag, used for final validation before Stable. |
+| Stable | Final release created from a `vX.Y.Z` tag only after the release candidate is validated. |
+
+See [RELEASE_CHANNELS.md](RELEASE_CHANNELS.md) for the branch, tag, build, and promotion rules.
+
+## Current implementation
 
 - Adds an `MSM` button to the in-game Pause Menu.
 - Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
@@ -55,10 +69,11 @@ The build resolves `com.github.GeyserMC:MCProtocolLib:1.14.4-2` from JitPack and
 
 1. Create or select a Fabric profile for Minecraft **1.14.4**.
 2. Install Fabric Loader and Fabric API compatible with 1.14.4.
-3. Copy `MSM-Fabric-1.14.4-0.1.2.jar` into that profile's `mods` folder.
-4. Launch the game, enter a world or server, and open the Pause Menu.
-5. Tap **MSM**, add a profile with **OFFLINE** authentication only when the target server uses offline-mode, select it, and press **CONNECT**.
-6. Wait for the slot to show **ONLINE**. Open **CHAT** to read and send messages through the secondary account.
+3. Download the JAR for the channel you are testing. For Development builds, download the workflow artifact from GitHub Actions and extract the single JAR inside it; Nightly, Beta, RC, and Stable releases attach the JAR directly.
+4. Copy that JAR into that profile's `mods` folder.
+5. Launch the game, enter a world or server, and open the Pause Menu.
+6. Tap **MSM**, add a profile with **OFFLINE** authentication only when the target server uses offline-mode, select it, and press **CONNECT**.
+7. Wait for the slot to show **ONLINE**. Open **CHAT** to read and send messages through the secondary account.
 
 ## ViaFabric note
 
