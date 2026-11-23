@@ -2,7 +2,7 @@ plugins {
     id "fabric-loom" version "${loom_version}"
 }
 
-version = project.mod_version
+version = project.findProperty("build_version") ?: project.mod_version
 group = project.maven_group
 
 base {
