@@ -57,10 +57,10 @@ public final class SessionChatScreen extends MsmScreen {
                 left + fieldWidth + gap, this.height - 76, sendWidth, 20,
                 "SEND", button -> sendMessage()));
 
-        this.connectionButton = this.addButton(new ButtonWidget(
+        this.connectionButton = this.addButton(new MsmButtonWidget(
                 left, this.height - 24, actionWidth, 20,
                 "JOIN / CONNECT", button -> toggleConnection()));
-        this.addButton(new ButtonWidget(
+        this.addButton(new MsmButtonWidget(
                 left + actionWidth + gap, this.height - 24,
                 actionWidth, 20, "BACK", button -> onClose()));
 
