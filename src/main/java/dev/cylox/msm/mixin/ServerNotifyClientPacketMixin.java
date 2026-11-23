@@ -2,6 +2,7 @@ package dev.cylox.msm.mixin;
 
 import com.github.steveice10.mc.protocol.data.MagicValues;
 import com.github.steveice10.mc.protocol.data.game.world.notify.ClientNotification;
+import com.github.steveice10.mc.protocol.packet.ingame.server.world.ServerNotifyClientPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -11,13 +12,15 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * MSM does not render a world, so it can safely ignore an unknown notification
  * while continuing to decode the rest of the login/play stream.
  */
-@Mixin(targets = "com.github.steveice10.mc.protocol.packet.ingame.server.world.ServerNotifyClientPacket")
+@Mixin(value = ServerNotifyClientPacket.class, remap = false)
 public abstract class ServerNotifyClientPacketMixin {
     @Redirect(
             method = "read",
+            remap = false,
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/github/steveice10/mc/protocol/data/MagicValues;key(Ljava/lang/Class;Ljava/lang/Object;)Ljava/lang/Object;"
+                    target = "Lcom/github/steveice10/mc/protocol/data/MagicValues;key(Ljava/lang/Class;Ljava/lang/Object;)Ljava/lang/Object;",
+                    remap = false
             )
     )
     @SuppressWarnings({"rawtypes", "unchecked"})
