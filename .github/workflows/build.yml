@@ -24,13 +24,30 @@ jobs:
       - name: Verify and build
         run: chmod +x gradlew && ./gradlew clean check build
       - name: Upload PR test JAR
-        if: github.event_name == 'pull_request'
+        if: github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: MSM-Fabric-1.14.4-pr-${{ github.event.pull_request.number }}
           path: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
           if-no-files-found: error
           retention-days: 7
+      - name: Publish manually triggered test JAR release
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.2-test.${{ github.run_number }}
+          name: MSM Fabric 1.14.4 test build #${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          files: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
+          fail_on_unmatched_files: true
+          prerelease: true
+          make_latest: false
+          body: |
+            Test build from feat/secondary-java-session-1.14.4.
+            Built from commit ${{ github.sha }}.
+            Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
+            OFFLINE_LOCAL secondary sessions only; use only on servers that allow offline-mode accounts.
+
       - name: Publish single JAR Beta release
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
