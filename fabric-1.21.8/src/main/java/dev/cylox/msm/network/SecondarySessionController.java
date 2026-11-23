@@ -12,6 +12,7 @@ import org.geysermc.mcprotocollib.network.ClientSession;
 import org.geysermc.mcprotocollib.network.Session;
 import org.geysermc.mcprotocollib.network.event.session.ConnectedEvent;
 import org.geysermc.mcprotocollib.network.event.session.DisconnectedEvent;
+import org.geysermc.mcprotocollib.network.event.session.PacketErrorEvent;
 import org.geysermc.mcprotocollib.network.event.session.SessionAdapter;
 import org.geysermc.mcprotocollib.network.factory.ClientNetworkSessionFactory;
 import org.geysermc.mcprotocollib.network.packet.Packet;
@@ -127,6 +128,7 @@ public final class SecondarySessionController {
 
                 @Override
                 public void packetReceived(Session source, Packet packet) {
+                    connection.lastPacket = packet.getClass().getSimpleName();
                     if (packet instanceof ClientboundLoginFinishedPacket) {
                         connection.loginAccepted.set(true);
                         connection.stage = "CONFIGURATION";
@@ -178,8 +180,33 @@ public final class SecondarySessionController {
                 }
 
                 @Override
+                public void packetError(PacketErrorEvent event) {
+                    String packetType = event.getPacketClass() == null
+                            ? "unknown packet" : event.getPacketClass().getSimpleName();
+                    Throwable cause = event.getCause();
+                    String detail = cause == null ? "Unknown packet error."
+                            : cause.getClass().getSimpleName() + ": " + safeMessage(cause);
+                    connection.lastPacketError = packetType + " | " + detail;
+                    appendMessage(sessionId, "[MSM] Protocol packet error: "
+                            + connection.lastPacketError);
+                    if (cause != null) {
+                        LOGGER.error("Secondary session {} packet error in {} during {}",
+                                sessionId, packetType, connection.stage, cause);
+                    }
+                }
+
+                @Override
                 public void disconnected(DisconnectedEvent event) {
-                    finishConnection(connection, plain(event.getReason()));
+                    String reason = plain(event.getReason());
+                    Throwable cause = event.getCause();
+                    if (cause != null) {
+                        LOGGER.error("Secondary session {} disconnected during {}; reason={}; lastPacket={}",
+                                sessionId, connection.stage, reason, connection.lastPacket, cause);
+                        reason = (reason.isEmpty() ? "Disconnected" : reason)
+                                + " | Cause: " + cause.getClass().getSimpleName()
+                                + ": " + safeMessage(cause);
+                    }
+                    finishConnection(connection, reason);
                 }
             });
 
@@ -384,7 +411,10 @@ public final class SecondarySessionController {
         String detail = reason == null || reason.trim().isEmpty() ? "Connection closed." : reason.trim();
         appendMessage(connection.sessionId, "[MSM] Disconnected during " + connection.stage
                 + ". loginAccepted=" + connection.loginAccepted.get()
-                + ", joinedGame=" + connection.joined.get() + ". Reason: " + detail);
+                + ", joinedGame=" + connection.joined.get()
+                + ", lastPacket=" + connection.lastPacket
+                + (connection.lastPacketError == null ? "" : ", packetError=" + connection.lastPacketError)
+                + ". Reason: " + detail);
         SessionLifecycleListener listener = lifecycleListener;
         if (listener != null) {
             listener.onDisconnected(connection.sessionId, connection.stopping.get(), detail);
@@ -434,6 +464,8 @@ public final class SecondarySessionController {
         private final AtomicBoolean finished = new AtomicBoolean(false);
         private volatile ScheduledFuture<?> handshakeTimeout;
         private volatile String stage = "CREATED";
+        private volatile String lastPacket = "none";
+        private volatile String lastPacketError;
 
         private Connection(long sessionId, ClientSession session) {
             this.sessionId = sessionId;
