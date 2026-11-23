@@ -40,9 +40,8 @@ public abstract class MsmScreen extends Screen {
 
     protected void drawGlassPanel(DrawContext context, int left, int top, int right, int bottom) {
         if (right - left < 2 || bottom - top < 2) return;
-        context.fill(left, top, right, bottom, 0xFF303A49);
-        context.fill(left + 1, top + 1, right - 1, bottom - 1, 0xF018202C);
-        context.fill(left + 1, top + 1, left + 3, bottom - 1, 0xFF3C91AF);
+        context.fill(left, top, right, bottom, 0xB5303A49);
+        context.fill(left + 1, top + 1, right - 1, bottom - 1, 0xD918202C);
     }
 
     protected void drawGlassDivider(DrawContext context, int left, int top, int right) {
