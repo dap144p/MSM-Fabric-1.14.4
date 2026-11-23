@@ -21,6 +21,7 @@ import org.geysermc.mcprotocollib.protocol.data.status.PlayerInfo;
 import org.geysermc.mcprotocollib.protocol.data.status.ServerStatusInfo;
 import org.geysermc.mcprotocollib.protocol.data.status.VersionInfo;
 import org.geysermc.mcprotocollib.protocol.packet.common.clientbound.ClientboundDisconnectPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundDisguisedChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundSystemChatPacket;
@@ -149,6 +150,11 @@ public final class SecondarySessionController {
                         Component content = chat.getUnsignedContent();
                         String message = content == null ? chat.getContent() : plain(content);
                         appendMessage(sessionId, plain(chat.getName()) + ": " + message);
+                    } else if (packet instanceof ClientboundDisguisedChatPacket) {
+                        ClientboundDisguisedChatPacket chat = (ClientboundDisguisedChatPacket) packet;
+                        String sender = plain(chat.getName());
+                        String message = plain(chat.getMessage());
+                        appendMessage(sessionId, sender.isEmpty() ? message : sender + ": " + message);
                     } else if (packet instanceof ClientboundHelloPacket) {
                         ClientboundHelloPacket hello = (ClientboundHelloPacket) packet;
                         if (hello.isShouldAuthenticate()) {
