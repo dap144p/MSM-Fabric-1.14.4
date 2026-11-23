@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-public final class ServerTemplatePickerScreen extends Screen {
+public final class ServerTemplatePickerScreen extends MsmScreen {
     private static final int MAX_PAGE_SIZE = 7;
 
     private final Screen parent;
@@ -65,7 +65,7 @@ public final class ServerTemplatePickerScreen extends Screen {
         for (int index = start; index < end; index++) {
             final ServerTemplateRepository.ServerTemplate server = this.servers.get(index);
             String label = fitText(server.getName() + "  |  " + server.getAddress(), contentWidth - 12);
-            this.addButton(new ButtonWidget(
+            this.addButton(new MsmButtonWidget(
                     left, rowY, contentWidth, 20, label,
                     button -> choose(server)));
             rowY += 23;
@@ -115,7 +115,9 @@ public final class ServerTemplatePickerScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float delta) {
-        this.renderBackground();
+        this.renderMsmBackground();
+        drawGlassPanel(8, 6, this.width - 8, this.height - 8);
+        drawGlassPanel(16, 27, this.width - 16, this.height - 58);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 14, 0xFFFFFF);
         if (this.servers.isEmpty()) {
