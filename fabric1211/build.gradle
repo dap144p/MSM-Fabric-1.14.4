@@ -9,6 +9,12 @@ base {
     archivesName = project.archives_base_name
 }
 
+repositories {
+    mavenCentral()
+    maven { url = "https://repo.opencollab.dev/main/" }
+    maven { url = "https://jitpack.io" }
+}
+
 loom {
     mixin {
         defaultRefmapName = "msm_fabric_1_21_11.refmap.json"
