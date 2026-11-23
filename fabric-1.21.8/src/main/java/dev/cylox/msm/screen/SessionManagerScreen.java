@@ -2,12 +2,10 @@ package dev.cylox.msm.screen;
 
 import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
-import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -59,14 +57,12 @@ public final class SessionManagerScreen extends MsmScreen {
         this.serverField.setMaxLength(255);
         this.serverField.setPlaceholder(Text.literal("server.example:25565"));
 
-        int thirdWidth = Math.max(1, (contentWidth - 12) / 3);
-        this.authModeButton = this.addAction(margin, 64, thirdWidth, 20,
+        int authWidth = Math.max(1, (contentWidth - 6) / 2);
+        this.authModeButton = this.addAction(margin, 64, authWidth, 20,
                 authModeLabel(), button -> cycleAuthMode());
         this.authModeButton.active = false;
-        this.addAction(margin + thirdWidth + 6, 64, thirdWidth, 20,
-                "SAVED SERVERS", button -> openServerPicker());
-        this.addAction(margin + (thirdWidth + 6) * 2, 64,
-                contentWidth - (thirdWidth + 6) * 2, 20,
+        this.addAction(margin + authWidth + 6, 64,
+                contentWidth - authWidth - 6, 20,
                 "ADD ACCOUNT", button -> addAccount());
 
         int listTop = 108;
@@ -139,13 +135,6 @@ public final class SessionManagerScreen extends MsmScreen {
         } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
             this.status = "Could not add account: " + safeMessage(exception);
         }
-    }
-
-    private void openServerPicker() {
-        this.client.setScreen(new ServerTemplatePickerScreen(this, address -> {
-            this.serverField.setText(address);
-            this.status = "Saved server selected.";
-        }));
     }
 
     private void selectAccount(long sessionId) {
