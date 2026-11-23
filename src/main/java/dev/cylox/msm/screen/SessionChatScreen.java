@@ -11,7 +11,7 @@ import net.minecraft.text.LiteralText;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class SessionChatScreen extends Screen {
+public final class SessionChatScreen extends MsmScreen {
     private final Screen parent;
     private final SecondarySessionController controller;
     private final long sessionId;
@@ -47,7 +47,7 @@ public final class SessionChatScreen extends Screen {
                 MinecraftClient.getInstance().textRenderer,
                 left, this.height - 76, fieldWidth, 20, "Message"));
         this.messageField.setMaxLength(256);
-        this.sendButton = this.addButton(new ButtonWidget(
+        this.sendButton = this.addButton(new MsmButtonWidget(
                 left + fieldWidth + gap, this.height - 76, sendWidth, 20,
                 "SEND", button -> sendMessage()));
 
@@ -212,7 +212,10 @@ public final class SessionChatScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float delta) {
-        this.renderBackground();
+        this.renderMsmBackground();
+        drawGlassPanel(8, 6, this.width - 8, this.height - 8);
+        drawGlassPanel(16, 28, this.width - 16, this.height - 101);
+        drawGlassPanel(8, this.height - 100, this.width - 8, this.height - 52);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
