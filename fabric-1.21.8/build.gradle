@@ -6,7 +6,11 @@ group = project.maven_group
 version = project.findProperty("build_version") ?: project.mod_version
 
 base {
-    archivesName = "MSM-Fabric-1.21.8"
+    archivesName = "MSM-Fabric"
+}
+
+tasks.named("remapJar") {
+    archiveFileName.set("MSM-Fabric-${project.version}-1.21.8.jar")
 }
 
 repositories {
