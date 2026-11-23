@@ -23,6 +23,7 @@ import org.geysermc.mcprotocollib.protocol.packet.common.clientbound.Clientbound
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundSystemChatPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundChatCommandPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.login.clientbound.ClientboundHelloPacket;
 import org.geysermc.mcprotocollib.protocol.packet.login.clientbound.ClientboundLoginDisconnectPacket;
@@ -276,15 +277,21 @@ public final class SecondarySessionController {
             throw new IllegalStateException("Wait until the secondary player has joined the server.");
         }
 
-        // Offline profiles cannot sign chat; secure-chat-enforced servers may reject unsigned messages.
-        connection.session.send(new ServerboundChatPacket(
-                text,
-                System.currentTimeMillis(),
-                ThreadLocalRandom.current().nextLong(),
-                null,
-                0,
-                new BitSet(20),
-                0));
+        if (text.startsWith("/")) {
+            String command = text.substring(1).trim();
+            if (command.isEmpty()) return;
+            connection.session.send(new ServerboundChatCommandPacket(command));
+        } else {
+            // Offline profiles cannot sign chat; secure-chat-enforced servers may reject unsigned messages.
+            connection.session.send(new ServerboundChatPacket(
+                    text,
+                    System.currentTimeMillis(),
+                    ThreadLocalRandom.current().nextLong(),
+                    null,
+                    0,
+                    new BitSet(20),
+                    0));
+        }
         appendMessage(sessionId, "You: " + text);
     }
 
