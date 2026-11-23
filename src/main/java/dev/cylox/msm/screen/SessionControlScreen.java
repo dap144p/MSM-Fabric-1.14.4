@@ -13,7 +13,7 @@ import net.minecraft.text.LiteralText;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class SessionControlScreen extends Screen {
+public final class SessionControlScreen extends MsmScreen {
     private enum Tab {
         CHAT,
         AUTO_CHAT,
@@ -97,7 +97,7 @@ public final class SessionControlScreen extends Screen {
         addTabButton(left, 28, tabWidth, "CHAT", Tab.CHAT);
         addTabButton(left + tabWidth + gap, 28, tabWidth, "AUTO CHAT", Tab.AUTO_CHAT);
         addTabButton(left + (tabWidth + gap) * 2, 28, tabWidth, "SETTINGS", Tab.SETTINGS);
-        this.addButton(new ButtonWidget(
+        this.addButton(new MsmButtonWidget(
                 left + (tabWidth + gap) * 3, 28, tabWidth, 20,
                 "BACK", button -> onClose()));
 
@@ -549,7 +549,14 @@ public final class SessionControlScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float delta) {
-        this.renderBackground();
+        this.renderMsmBackground();
+        drawGlassPanel(8, 6, this.width - 8, 52);
+        drawGlassPanel(8, 54, this.width - 8, this.height - 8);
+        if (this.tab == Tab.CHAT) {
+            drawGlassPanel(16, 52, this.width - 16, this.height - 104);
+        } else if (this.tab == Tab.AUTO_CHAT) {
+            drawGlassPanel(16, 52, this.width - 16, Math.max(110, this.height - 114));
+        }
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
