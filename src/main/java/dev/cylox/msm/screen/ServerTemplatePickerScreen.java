@@ -27,6 +27,14 @@ public final class ServerTemplatePickerScreen extends Screen {
             Screen parent,
             ServerTemplateRepository repository,
             Consumer<ServerTemplateRepository.ServerTemplate> selection) {
+        this(parent, repository, selection, 0);
+    }
+
+    private ServerTemplatePickerScreen(
+            Screen parent,
+            ServerTemplateRepository repository,
+            Consumer<ServerTemplateRepository.ServerTemplate> selection,
+            int requestedPage) {
         super(new LiteralText("Select Server"));
         if (repository == null || selection == null) {
             throw new IllegalArgumentException("Server repository and selection callback are required");
@@ -34,6 +42,7 @@ public final class ServerTemplatePickerScreen extends Screen {
         this.parent = parent;
         this.repository = repository;
         this.selection = selection;
+        this.pageIndex = Math.max(0, requestedPage);
         try {
             this.servers = this.repository.loadServers();
         } catch (IOException exception) {
@@ -43,7 +52,6 @@ public final class ServerTemplatePickerScreen extends Screen {
 
     @Override
     protected void init() {
-        this.buttons.clear();
         int contentWidth = Math.max(1, this.width - 24);
         int left = (this.width - contentWidth) / 2;
         this.pageSize = Math.max(1, Math.min(MAX_PAGE_SIZE, (this.height - 110) / 24));
@@ -89,11 +97,10 @@ public final class ServerTemplatePickerScreen extends Screen {
     }
 
     private void changePage(int delta) {
-        this.pageIndex = Math.max(0, this.pageIndex + delta);
+        int nextPage = Math.max(0, this.pageIndex + delta);
         MinecraftClient.getInstance().openScreen(
-                new ServerTemplatePickerScreen(this.parent, this.repository, this.selection) {{
-                    pageIndex = ServerTemplatePickerScreen.this.pageIndex;
-                }});
+                new ServerTemplatePickerScreen(
+                        this.parent, this.repository, this.selection, nextPage));
     }
 
     @Override
