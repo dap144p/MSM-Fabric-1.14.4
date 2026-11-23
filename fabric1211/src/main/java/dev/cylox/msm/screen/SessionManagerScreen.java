@@ -674,8 +674,6 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     public void tick() {
         super.tick();
-        if (this.usernameField != null) this.usernameField.tick();
-        if (this.serverField != null) this.serverField.tick();
         snapshotFormValues();
         refreshSessions();
     }
