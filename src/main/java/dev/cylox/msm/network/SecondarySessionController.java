@@ -1,6 +1,12 @@
 package dev.cylox.msm.network;
 
 import com.github.steveice10.mc.protocol.MinecraftProtocol;
+import com.github.steveice10.mc.protocol.data.SubProtocol;
+import com.github.steveice10.mc.protocol.packet.ingame.server.ServerDisconnectPacket;
+import com.github.steveice10.mc.protocol.packet.login.server.EncryptionRequestPacket;
+import com.github.steveice10.mc.protocol.packet.login.server.LoginDisconnectPacket;
+import com.github.steveice10.mc.protocol.packet.status.server.StatusPongPacket;
+import com.github.steveice10.mc.protocol.packet.status.server.StatusResponsePacket;
 import com.github.steveice10.mc.protocol.packet.ingame.client.ClientChatPacket;
 import com.github.steveice10.mc.protocol.packet.ingame.server.ServerChatPacket;
 import com.github.steveice10.mc.protocol.packet.ingame.server.ServerJoinGamePacket;
@@ -37,6 +43,8 @@ public final class SecondarySessionController {
             new ConcurrentHashMap<Long, Connection>();
     private final ConcurrentMap<Long, ChatBuffer> chatBuffers =
             new ConcurrentHashMap<Long, ChatBuffer>();
+    private final ConcurrentMap<String, PingAttempt> pingAttempts =
+            new ConcurrentHashMap<String, PingAttempt>();
 
     public SecondarySessionController(SessionManager sessionManager) {
         if (sessionManager == null) {
@@ -50,8 +58,10 @@ public final class SecondarySessionController {
         SessionProfile profile = managed.getProfile();
 
         if (profile.getAuthMode() != SessionAuthMode.OFFLINE_LOCAL) {
-            throw new IllegalStateException(
-                    "Microsoft sign-in is not implemented yet. Select OFFLINE only for an offline-mode server.");
+            String message =
+                    "Microsoft sign-in is not implemented yet. Select OFFLINE only if the server permits offline-mode accounts.";
+            appendMessage(sessionId, "[MSM] " + message);
+            throw new IllegalStateException(message);
         }
         if (managed.getState() == SessionState.CONNECTING || managed.getState() == SessionState.ONLINE) {
             throw new IllegalStateException("This session is already connecting or online.");
@@ -88,6 +98,17 @@ public final class SecondarySessionController {
                     } else if (packet instanceof ServerChatPacket) {
                         ServerChatPacket chatPacket = (ServerChatPacket) packet;
                         appendMessage(sessionId, chatPacket.getMessage().getFullText());
+                    } else if (packet instanceof EncryptionRequestPacket) {
+                        appendMessage(sessionId,
+                                "[MSM] Server requires online-mode authentication. OFFLINE_LOCAL cannot join it.");
+                    } else if (packet instanceof LoginDisconnectPacket) {
+                        LoginDisconnectPacket disconnect = (LoginDisconnectPacket) packet;
+                        appendMessage(sessionId, "[MSM] Login rejected: "
+                                + disconnect.getReason().getFullText());
+                    } else if (packet instanceof ServerDisconnectPacket) {
+                        ServerDisconnectPacket disconnect = (ServerDisconnectPacket) packet;
+                        appendMessage(sessionId, "[MSM] Server disconnected: "
+                                + disconnect.getReason().getFullText());
                     }
                     // MCProtocolLib's default ClientListener handles keep-alive replies.
                 }
@@ -127,6 +148,77 @@ public final class SecondarySessionController {
         } finally {
             finishConnection(connection, "Disconnected from MSM.");
         }
+    }
+
+    /**
+     * Performs a Minecraft status ping without attempting to log in.
+     * This can verify DNS/TCP reachability and report the server's advertised version.
+     */
+    public void ping(String serverAddress, final PingCallback callback) {
+        if (callback == null) throw new IllegalArgumentException("Ping callback is required");
+
+        final ServerAddress address = ServerAddress.parse(serverAddress);
+        final String endpoint = address.display;
+        final MinecraftProtocol protocol = new MinecraftProtocol(SubProtocol.STATUS);
+        final Client client = new Client(address.host, address.port, protocol, new TcpSessionFactory());
+        final PingAttempt attempt = new PingAttempt(endpoint, client, callback);
+
+        if (this.pingAttempts.putIfAbsent(endpoint, attempt) != null) {
+            throw new IllegalStateException("A ping is already running for " + endpoint + ".");
+        }
+
+        client.getSession().addListener(new SessionAdapter() {
+            private String serverDetails = "status response received";
+
+            @Override
+            public void packetReceived(PacketReceivedEvent event) {
+                Object packet = event.getPacket();
+                if (packet instanceof StatusResponsePacket) {
+                    StatusResponsePacket response = (StatusResponsePacket) packet;
+                    this.serverDetails = response.getInfo().getVersionInfo().getVersionName()
+                            + " (protocol " + response.getInfo().getVersionInfo().getProtocolVersion() + "), "
+                            + response.getInfo().getPlayerInfo().getOnlinePlayers() + "/"
+                            + response.getInfo().getPlayerInfo().getMaxPlayers() + " players";
+                    String motd = response.getInfo().getDescription().getFullText();
+                    if (motd != null && !motd.trim().isEmpty()) {
+                        this.serverDetails += ", " + motd.trim().replace('\n', ' ');
+                    }
+                } else if (packet instanceof StatusPongPacket) {
+                    long pingTime = Math.max(0L,
+                            System.currentTimeMillis() - ((StatusPongPacket) packet).getPingTime());
+                    completePing(attempt, "PING OK | " + endpoint + " | "
+                            + this.serverDetails + " | " + pingTime + " ms");
+                }
+            }
+
+            @Override
+            public void disconnected(DisconnectedEvent event) {
+                String reason = event.getReason();
+                completePing(attempt, "PING FAILED | " + endpoint + " | "
+                        + (reason == null || reason.trim().isEmpty()
+                        ? "No status response received." : reason.trim()));
+            }
+        });
+
+        try {
+            client.getSession().connect(false);
+        } catch (Throwable throwable) {
+            completePing(attempt, "PING FAILED | " + endpoint + " | " + safeMessage(throwable));
+        }
+    }
+
+    private void completePing(PingAttempt attempt, String result) {
+        if (!attempt.finished.compareAndSet(false, true)) return;
+        this.pingAttempts.remove(attempt.endpoint, attempt);
+        try {
+            attempt.callback.onComplete(result);
+        } catch (Throwable ignored) {
+            // A UI callback must not interrupt the network listener.
+        }
+    }
+
+    public interface PingCallback {
+        void onComplete(String result);
     }
 
     public void sendChat(long sessionId, String message) {
@@ -220,6 +312,19 @@ public final class SecondarySessionController {
         String message = throwable.getMessage();
         return message == null || message.trim().isEmpty()
                 ? throwable.getClass().getSimpleName() : message;
+    }
+
+    private static final class PingAttempt {
+        private final String endpoint;
+        private final Client client;
+        private final PingCallback callback;
+        private final AtomicBoolean finished = new AtomicBoolean(false);
+
+        private PingAttempt(String endpoint, Client client, PingCallback callback) {
+            this.endpoint = endpoint;
+            this.client = client;
+            this.callback = callback;
+        }
     }
 
     private static final class Connection {
