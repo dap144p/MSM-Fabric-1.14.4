@@ -147,7 +147,6 @@ public final class SessionChatScreen extends MsmScreen {
     @Override
     public void tick() {
         super.tick();
-        if (this.messageField != null) this.messageField.tick();
         refreshWrappedMessages();
         updateControls();
     }
