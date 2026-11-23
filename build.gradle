@@ -132,6 +132,13 @@ tasks.register("verifyAutomationStore", JavaExec) {
     mainClass = "dev.cylox.msm.automation.SessionAutomationStoreTest"
 }
 
+tasks.register("verifyAutomationScheduler", JavaExec) {
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.cylox.msm.automation.SessionAutomationSchedulerTest"
+}
+
 check.dependsOn ":msm-core:check"
 check.dependsOn "verifyBundledCore"
 check.dependsOn "verifyAutomationStore"
+check.dependsOn "verifyAutomationScheduler"

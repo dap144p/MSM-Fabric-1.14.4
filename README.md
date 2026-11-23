@@ -12,12 +12,14 @@ The Fabric project supplies Minecraft-specific UI and network integration. Share
 - Saves a per-profile authentication-mode choice: Microsoft or local/offline-mode.
 - Saves, edits, deletes, and searches profiles.
 - Shows the selected profile and session state, with a summary of all slot states.
-- Displays up to **20 session slots** managed by MSM Core, with pagination that adapts to screen height.
+- Manages saved account profiles without an artificial 20-session cap; the list paginates to fit the screen.
 - Supports an independent secondary Java connection using the Minecraft 1.14.4 protocol (protocol 498) for `OFFLINE_LOCAL` profiles.
 - Marks a secondary session ONLINE only after the server's Join Game packet is received.
 - Handles the protocol keep-alive flow and provides per-session chat receive/send.
 - Uses no secondary Minecraft world renderer; the main Minecraft client remains unchanged.
-- Stores profiles in `.minecraft/config/msm-fabric.properties`.
+- Provides per-account AutoChat rules with `ONCE` after the initial Join Game packet and configurable `REPEAT` intervals. Automated sends share a serial queue; Once rules are processed in account-list order before repeat tasks.
+- Provides per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized in account-list order; manual disconnect disables the account's reconnect intent.
+- Stores profiles in `.minecraft/config/msm-fabric.properties` and per-account automation settings in `.minecraft/config/msm-automation.properties`.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
 
 ## Current limitations
@@ -25,8 +27,8 @@ The Fabric project supplies Minecraft-specific UI and network integration. Share
 - Secondary connections currently support **Minecraft Java 1.14.4 protocol 498 only**. The server must accept 1.14.4 clients directly or provide compatible server-side protocol support.
 - `OFFLINE_LOCAL` only works when the destination server is configured for offline-mode and permits that account name. It does not bypass online-mode authentication.
 - Microsoft sign-in for secondary sessions is not implemented yet. Selecting Microsoft is profile metadata only, and Connect reports that limitation instead of attempting an unauthenticated login.
-- Secondary sessions do not have a separate world renderer, movement controller, inventory controller, or task automation.
-- Automatic reconnect and protocol translation for secondary sessions are not implemented.
+- Secondary sessions do not have a separate world renderer, movement controller, or inventory controller.
+- Automatic protocol translation for secondary sessions is not implemented. AutoChat and AutoReconnect manage protocol sessions only; they do not simulate world movement or gameplay actions.
 - Each active secondary connection currently owns its own PacketLib network event loop. Multi-session resource use still needs device testing, especially on low-memory Android devices.
 
 Editing a profile is unavailable while its slot is CONNECTING or ONLINE. A successfully edited profile is reset to OFFLINE because it represents a new profile record.

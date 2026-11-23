@@ -1,7 +1,6 @@
 package dev.cylox.msm.automation;
 
 import dev.cylox.msm.network.SecondarySessionController;
-import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
 import org.apache.logging.log4j.LogManager;
@@ -9,8 +8,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -334,15 +331,13 @@ public final class SessionAutomationScheduler
     private void pumpChatQueue() {
         this.chatTask = null;
         long now = System.currentTimeMillis();
-        PendingChat next = null;
+        PendingChat next = selectNextPendingChat(
+                this.pendingChats, this.sessionManager.getSessions(), now);
+        if (next == null) return;
 
-        for (PendingChat pending : this.pendingChats) {
-            if (pending.dueAt > now) continue;
-            if (next == null || compareChatOrder(pending, next) < 0) next = pending;
-        }
-
-        if (next == null) {
-            scheduleChatPump();
+        if (next.dueAt > now) {
+            this.chatTask = this.worker.schedule(
+                    this::pumpChatQueue, next.dueAt - now, TimeUnit.MILLISECONDS);
             return;
         }
 
@@ -402,16 +397,52 @@ public final class SessionAutomationScheduler
         scheduleChatPump();
     }
 
-    private int compareChatOrder(PendingChat left, PendingChat right) {
-        int leftAccount = accountOrder(left.sessionId);
-        int rightAccount = accountOrder(right.sessionId);
+    static PendingChat selectNextPendingChat(List<PendingChat> pendingChats,
+                                             List<SessionManager.Session> sessions,
+                                             long now) {
+        PendingChat nextOnce = null;
+        PendingChat nextDueRepeat = null;
+        PendingChat nextFutureRepeat = null;
+
+        for (PendingChat pending : pendingChats) {
+            if (!pending.repeat) {
+                if (nextOnce == null || compareOnceOrder(pending, nextOnce, sessions) < 0) {
+                    nextOnce = pending;
+                }
+            } else if (pending.dueAt <= now) {
+                if (nextDueRepeat == null
+                        || compareRepeatOrder(pending, nextDueRepeat, sessions) < 0) {
+                    nextDueRepeat = pending;
+                }
+            } else if (nextFutureRepeat == null
+                    || compareRepeatOrder(pending, nextFutureRepeat, sessions) < 0) {
+                nextFutureRepeat = pending;
+            }
+        }
+
+        if (nextOnce != null) return nextOnce;
+        return nextDueRepeat != null ? nextDueRepeat : nextFutureRepeat;
+    }
+
+    private static int compareOnceOrder(PendingChat left, PendingChat right,
+                                        List<SessionManager.Session> sessions) {
+        int leftAccount = accountOrder(left.sessionId, sessions);
+        int rightAccount = accountOrder(right.sessionId, sessions);
         if (leftAccount != rightAccount) return Integer.compare(leftAccount, rightAccount);
         if (left.ruleIndex != right.ruleIndex) return Integer.compare(left.ruleIndex, right.ruleIndex);
         return Long.compare(left.dueAt, right.dueAt);
     }
 
-    private int accountOrder(long sessionId) {
-        List<SessionManager.Session> sessions = this.sessionManager.getSessions();
+    private static int compareRepeatOrder(PendingChat left, PendingChat right,
+                                          List<SessionManager.Session> sessions) {
+        if (left.dueAt != right.dueAt) return Long.compare(left.dueAt, right.dueAt);
+        int leftAccount = accountOrder(left.sessionId, sessions);
+        int rightAccount = accountOrder(right.sessionId, sessions);
+        if (leftAccount != rightAccount) return Integer.compare(leftAccount, rightAccount);
+        return Integer.compare(left.ruleIndex, right.ruleIndex);
+    }
+
+    private static int accountOrder(long sessionId, List<SessionManager.Session> sessions) {
         for (int index = 0; index < sessions.size(); index++) {
             if (sessions.get(index).getId() == sessionId) return index;
         }
@@ -555,13 +586,13 @@ public final class SessionAutomationScheduler
                 ? throwable.getClass().getSimpleName() : message;
     }
 
-    private static final class PendingChat {
-        private final long sessionId;
-        private final int ruleIndex;
-        private final boolean repeat;
-        private long dueAt;
+    static final class PendingChat {
+        final long sessionId;
+        final int ruleIndex;
+        final boolean repeat;
+        long dueAt;
 
-        private PendingChat(long sessionId, int ruleIndex, boolean repeat, long dueAt) {
+        PendingChat(long sessionId, int ruleIndex, boolean repeat, long dueAt) {
             this.sessionId = sessionId;
             this.ruleIndex = ruleIndex;
             this.repeat = repeat;

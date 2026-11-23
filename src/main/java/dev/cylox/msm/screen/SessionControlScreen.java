@@ -361,9 +361,12 @@ public final class SessionControlScreen extends Screen {
     private void saveRule() {
         try {
             int delay = parseNumber(this.ruleDelayField, 0);
+            boolean enabled = this.selectedRuleIndex >= 0
+                    && this.selectedRuleIndex < this.draft.getRules().size()
+                    ? this.draft.getRules().get(this.selectedRuleIndex).isEnabled() : true;
             SessionAutomationSettings.AutoChatRule rule =
                     new SessionAutomationSettings.AutoChatRule(
-                            this.ruleMessageField.getText(), this.editingMode, delay, true);
+                            this.ruleMessageField.getText(), this.editingMode, delay, enabled);
             if (this.selectedRuleIndex >= 0
                     && this.selectedRuleIndex < this.draft.getRules().size()) {
                 this.draft.updateRule(this.selectedRuleIndex, rule);
