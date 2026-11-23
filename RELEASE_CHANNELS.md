@@ -1,25 +1,26 @@
 # Release channels
 
-MSM uses staged releases so an in-progress build is not presented as a stable mod.
+Multi Sessions Manager (MSM) uses staged releases so an in-progress build is not presented as a stable mod.
 
 ## Channel definitions
 
 | Channel | Source | Distribution | Readiness |
 |---|---|---|---|
-| Development | Pull requests, feature branches, and ordinary CI builds | Temporary GitHub Actions artifact containing separate versioned JARs | Active development; may be incomplete |
-| Nightly | `development` branch | Automatically created GitHub prerelease with one JAR per supported Minecraft version | Latest development snapshot; may regress |
-| Beta | `vX.Y.Z-beta.N` tag | GitHub prerelease with one JAR per supported Minecraft version | Main features are implemented and initial in-game tests have passed |
-| Release Candidate | `vX.Y.Z-rc.N` tag | GitHub prerelease with one JAR per supported Minecraft version | Final compatibility and regression validation |
-| Stable | `vX.Y.Z` tag | Regular GitHub release with one JAR per supported Minecraft version | Tested release suitable for normal use |
+| Development | Pull requests, feature branches, and ordinary CI builds | Two separate GitHub Actions artifacts, one JAR per Minecraft version | Active development; may be incomplete |
+| Nightly | `development` branch | Automatically created GitHub prerelease with two separate JAR assets | Latest development snapshot; may regress |
+| Beta | `vX.Y.Z-beta.N` tag | GitHub prerelease with two separate JAR assets | Main features are implemented and initial in-game tests have passed |
+| Release Candidate | `vX.Y.Z-rc.N` tag | GitHub prerelease with two separate JAR assets | Final compatibility and regression validation |
+| Stable | `vX.Y.Z` tag | Regular GitHub release with two separate JAR assets | Tested release suitable for normal use |
 
 ## Build behavior
 
-- Every pull request targeting `main` or `development` runs `clean check build` and uploads a Development artifact.
-- Pushes to `feat/**` and `main` run the same checks and produce a Development artifact.
+- Every pull request targeting `main` or `development` runs `clean check build` and uploads two Development artifacts: one 1.14.4 JAR and one 1.21.8 JAR.
+- Pushes to `feat/**` and `main` run the same checks and produce the same two separate Development artifacts.
 - Every push to `development` builds a Nightly version and publishes it as a prerelease. A manual workflow run with the `development` branch selected also publishes a Nightly build.
 - A normal push to `main` does **not** create a Beta or Stable release.
 - Version tags are validated by CI. Unsupported tag formats fail the build instead of publishing a misleading release.
 - A local build uses `mod_version` from `gradle.properties`. CI sets the version suffix so the JAR filename and Fabric mod metadata identify the channel.
+- No combined multi-version mod ZIP is produced or published; the two installable files remain separate JARs.
 
 ## Version tag format
 
@@ -64,11 +65,11 @@ Before creating a Stable tag, confirm that the RC has passed real in-game testin
 
 ## Download and install
 
-Each release contains separate installable JARs:
+Each release publishes exactly two separate installable JAR assets:
 
-- `MSM-Fabric-1.14.4-<version>.jar` — Minecraft 1.14.4 Fabric profile; Java 8 runtime.
-- `MSM-Fabric-1.21.8-<version>.jar` — Minecraft 1.21.8 Fabric profile; Java 21 runtime.
+- `MSM-Fabric-<version>-1.14.4.jar` — Minecraft 1.14.4 Fabric profile; Java 8 runtime.
+- `MSM-Fabric-<version>-1.21.8.jar` — Minecraft 1.21.8 Fabric profile; Java 21 runtime.
 
-Install only the JAR matching the selected Minecraft profile. Do not place both JARs in the same profile. Development artifacts are packaged as a ZIP containing both version-specific JARs; extract the archive and install the matching file.
+Install only the JAR matching the selected Minecraft profile. Do not place both JARs in the same profile. There is no combined ZIP distribution.
 
 All prerelease channels are explicitly marked as prereleases. Stable is published as a normal GitHub release and becomes the latest release.
