@@ -146,7 +146,7 @@ public final class SessionControlScreen extends MsmScreen {
         int fieldWidth = Math.max(1, width - sendWidth - gap);
         this.chatField = this.addDrawableChild(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                left, this.height - 76, fieldWidth, 20, "Message"));
+                left, this.height - 76, fieldWidth, 20, Text.literal("Message")));
         this.chatField.setMaxLength(256);
         this.sendButton = this.addDrawableChild(new MsmButtonWidget(
                 left + fieldWidth + gap, this.height - 76, sendWidth, 20,
@@ -211,7 +211,7 @@ public final class SessionControlScreen extends MsmScreen {
         int editorY = Math.min(this.height - 118, Math.max(112, rowY + 5));
         this.ruleMessageField = this.addDrawableChild(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                left, editorY, width, 20, "Chat or command"));
+                left, editorY, width, 20, Text.literal("Chat or command")));
         this.ruleMessageField.setMaxLength(256);
 
         int delayWidth = Math.min(90, Math.max(58, width / 4));
@@ -221,7 +221,7 @@ public final class SessionControlScreen extends MsmScreen {
                 button -> cycleRuleMode()));
         this.ruleDelayField = this.addDrawableChild(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                left + modeWidth + gap, editorY + 25, delayWidth, 20, "Delay"));
+                left + modeWidth + gap, editorY + 25, delayWidth, 20, Text.literal("Delay")));
         this.ruleDelayField.setMaxLength(5);
 
         int editorButtonWidth = Math.max(1, (width - gap * 2) / 3);
@@ -307,7 +307,7 @@ public final class SessionControlScreen extends MsmScreen {
 
     private TextFieldWidget addNumberField(int x, int y, int width, int value) {
         TextFieldWidget field = this.addDrawableChild(new TextFieldWidget(
-                MinecraftClient.getInstance().textRenderer, x, y, width, 20, ""));
+                MinecraftClient.getInstance().textRenderer, x, y, width, 20, Text.literal("")));
         field.setMaxLength(5);
         field.setText(Integer.toString(value));
         return field;
