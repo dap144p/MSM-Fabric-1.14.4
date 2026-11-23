@@ -241,7 +241,7 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     protected void init() {
         this.rowButtons.clear();
-        this.compactLayout = this.width < 640 || this.width <= this.height;
+        this.compactLayout = this.width <= this.height;
 
         int margin = this.compactLayout ? 10 : 16;
         int contentLeft = margin;
@@ -293,7 +293,7 @@ public final class SessionManagerScreen extends MsmScreen {
         } else {
             this.formPanelLeft = contentLeft;
             this.formPanelWidth = Math.min(330,
-                    Math.max(250, (contentWidth - gap) * 34 / 100));
+                    Math.max(190, (contentWidth - gap) * 34 / 100));
             this.accountsPanelLeft = this.formPanelLeft + this.formPanelWidth + gap;
             this.accountsPanelWidth = Math.max(1,
                     contentLeft + contentWidth - this.accountsPanelLeft);
@@ -382,11 +382,11 @@ public final class SessionManagerScreen extends MsmScreen {
             int secondRowY = this.height - 50;
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     contentLeft, firstRowY, actionWidth, 20,
-                    "JOIN / CONNECT", button -> toggleConnection()));
+                    (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"), button -> toggleConnection()));
             this.controlButton = this.addButton(new MsmButtonWidget(
                     contentLeft + actionWidth + actionGap, firstRowY,
                     contentWidth - actionWidth - actionGap, 20,
-                    "CONTROL MANAGE", button -> openControlManage()));
+                    (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"), button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft, secondRowY, actionWidth, 20,
                     "REMOVE ACCOUNT", button -> requestRemoveAccount()));
@@ -407,7 +407,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     "CONTROL MANAGE", button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft + (actionWidth + actionGap) * 2, actionY,
-                    actionWidth, 20, "REMOVE ACCOUNT",
+                    actionWidth, 20, (contentWidth < 540 ? "REMOVE" : "REMOVE ACCOUNT"),
                     button -> requestRemoveAccount()));
             ((MsmButtonWidget) this.removeButton).setDanger(true);
             this.addButton(new MsmButtonWidget(
@@ -733,7 +733,7 @@ public final class SessionManagerScreen extends MsmScreen {
         Optional<SessionManager.Session> selected = getSelectedSession();
         String selectedText = selected.isPresent()
                 ? "SELECTED  " + selected.get().getProfile().getUsername()
-                    + "  •  " + selected.get().getState().name()
+                    + "  |  " + selected.get().getState().name()
                 : "NO ACCOUNT SELECTED";
         int selectedY = this.compactLayout ? this.height - 119 : this.height - 79;
         int statusY = this.compactLayout ? this.height - 102 : this.height - 65;
