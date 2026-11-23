@@ -150,6 +150,17 @@ public final class SecondarySessionController {
         appendMessage(sessionId, "You: " + text);
     }
 
+    /**
+     * Clears cached chat history after a profile slot is permanently removed.
+     * Active network sessions must be disconnected before this is called.
+     */
+    public void forgetSession(long sessionId) {
+        if (connections.containsKey(sessionId)) {
+            throw new IllegalStateException("Disconnect the secondary session before removing its data.");
+        }
+        chatBuffers.remove(sessionId);
+    }
+
     public List<String> getMessages(long sessionId) {
         ChatBuffer buffer = chatBuffers.get(sessionId);
         return buffer == null ? Collections.<String>emptyList() : buffer.snapshot();
