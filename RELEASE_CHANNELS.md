@@ -6,11 +6,11 @@ MSM uses staged releases so an in-progress build is not presented as a stable mo
 
 | Channel | Source | Distribution | Readiness |
 |---|---|---|---|
-| Development | Pull requests, feature branches, and ordinary CI builds | Temporary GitHub Actions artifact | Active development; may be incomplete |
-| Nightly | `development` branch | Automatically created GitHub prerelease with one JAR | Latest development snapshot; may regress |
-| Beta | `vX.Y.Z-beta.N` tag | GitHub prerelease with one JAR | Main features are implemented and initial in-game tests have passed |
-| Release Candidate | `vX.Y.Z-rc.N` tag | GitHub prerelease with one JAR | Final compatibility and regression validation |
-| Stable | `vX.Y.Z` tag | Regular GitHub release with one JAR | Tested release suitable for normal use |
+| Development | Pull requests, feature branches, and ordinary CI builds | Temporary GitHub Actions artifact containing separate versioned JARs | Active development; may be incomplete |
+| Nightly | `development` branch | Automatically created GitHub prerelease with one JAR per supported Minecraft version | Latest development snapshot; may regress |
+| Beta | `vX.Y.Z-beta.N` tag | GitHub prerelease with one JAR per supported Minecraft version | Main features are implemented and initial in-game tests have passed |
+| Release Candidate | `vX.Y.Z-rc.N` tag | GitHub prerelease with one JAR per supported Minecraft version | Final compatibility and regression validation |
+| Stable | `vX.Y.Z` tag | Regular GitHub release with one JAR per supported Minecraft version | Tested release suitable for normal use |
 
 ## Build behavior
 
@@ -49,19 +49,26 @@ Do not reuse an existing tag. Increment the prerelease number for another Beta o
 
 Before creating a Beta tag:
 
-- The build passes the repository CI checks.
-- A secondary account can connect and reach ONLINE in Minecraft 1.14.4.
-- Account joins and reconnects follow the configured account order.
-- AutoChat ONCE and REPEAT behavior is verified in-game.
+- The root Minecraft 1.14.4 build and `fabric-1.21.8/` build both pass repository CI checks.
+- Install the matching JAR and runtime for each supported Minecraft version.
+- A secondary account can connect and reach ONLINE on an offline-mode test server for each supported version.
+- Manual connection and reconnect attempts follow the saved account order.
+- AutoChat ONCE runs after Join Game, then ONCE and REPEAT rules follow account/rule order.
 - Manual Disconnect prevents automatic reconnection.
-- Main Minecraft session behavior remains unaffected.
+- Removing an account clears its saved profile and automation settings.
+- The primary Minecraft session remains unaffected.
 
-Before creating an RC tag, repeat the checks on the supported launcher/device combination and verify there are no known release-blocking regressions.
+Before creating an RC tag, repeat the checks on the supported launcher/device combination for both game versions and verify there are no known release-blocking regressions.
 
 Before creating a Stable tag, confirm that the RC has passed real in-game testing. A successful CI build alone is not sufficient to mark a release Stable.
 
 ## Download and install
 
-Release assets contain one installable `.jar`. Put that JAR in the Minecraft 1.14.4 Fabric profile's `mods` folder. Development artifacts are packaged by GitHub Actions as an artifact download; extract that artifact archive and install the JAR inside it.
+Each release contains separate installable JARs:
+
+- `MSM-Fabric-1.14.4-<version>.jar` — Minecraft 1.14.4 Fabric profile; Java 8 runtime.
+- `MSM-Fabric-1.21.8-<version>.jar` — Minecraft 1.21.8 Fabric profile; Java 21 runtime.
+
+Install only the JAR matching the selected Minecraft profile. Do not place both JARs in the same profile. Development artifacts are packaged as a ZIP containing both version-specific JARs; extract the archive and install the matching file.
 
 All prerelease channels are explicitly marked as prereleases. Stable is published as a normal GitHub release and becomes the latest release.
