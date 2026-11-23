@@ -1,12 +1,14 @@
 package dev.cylox.msm.screen;
 
 import dev.cylox.msm.network.SecondarySessionController;
+import dev.cylox.msm.session.SessionState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.LiteralText;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class SessionChatScreen extends Screen {
@@ -17,12 +19,13 @@ public final class SessionChatScreen extends Screen {
 
     private TextFieldWidget messageField;
     private ButtonWidget sendButton;
-    private String status = "Messages are logged in latest.log. Use UP/DOWN to scroll; END returns to newest.";
+    private ButtonWidget connectionButton;
+    private volatile String status = "Connect the account to start chatting.";
     private int scrollOffset;
 
     public SessionChatScreen(Screen parent, SecondarySessionController controller,
                              long sessionId, String username) {
-        super(new LiteralText("MSM Chat - " + username));
+        super(new LiteralText("Chat - " + username));
         if (controller == null) throw new IllegalArgumentException("Session controller is required");
         this.parent = parent;
         this.controller = controller;
@@ -34,18 +37,26 @@ public final class SessionChatScreen extends Screen {
     protected void init() {
         int left = 12;
         int width = Math.max(80, this.width - 24);
-        int sendWidth = Math.min(54, Math.max(42, width / 5));
-        int fieldWidth = Math.max(30, width - sendWidth - 4);
+        int gap = 4;
+        int sendWidth = Math.min(64, Math.max(48, width / 6));
+        int fieldWidth = Math.max(30, width - sendWidth - gap);
+        int actionWidth = (width - gap) / 2;
 
         this.messageField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                left, this.height - 48, fieldWidth, 20, "Message"));
+                left, this.height - 76, fieldWidth, 20, "Message"));
         this.messageField.setMaxLength(256);
         this.sendButton = this.addButton(new ButtonWidget(
-                left + fieldWidth + 4, this.height - 48, sendWidth, 20,
+                left + fieldWidth + gap, this.height - 76, sendWidth, 20,
                 "SEND", button -> sendMessage()));
+
+        this.connectionButton = this.addButton(new ButtonWidget(
+                left, this.height - 24, actionWidth, 20,
+                "JOIN / CONNECT", button -> toggleConnection()));
         this.addButton(new ButtonWidget(
-                left, this.height - 23, width, 20, "BACK", button -> onClose()));
+                left + actionWidth + gap, this.height - 24,
+                actionWidth, 20, "BACK", button -> onClose()));
+
         updateControls();
     }
 
@@ -53,6 +64,7 @@ public final class SessionChatScreen extends Screen {
         if (this.messageField == null) return;
         String message = this.messageField.getText();
         if (message == null || message.trim().isEmpty()) return;
+
         try {
             this.controller.sendChat(this.sessionId, message);
             this.messageField.setText("");
@@ -63,9 +75,32 @@ public final class SessionChatScreen extends Screen {
         updateControls();
     }
 
+    private void toggleConnection() {
+        try {
+            SessionState state = this.controller.getState(this.sessionId);
+            if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
+                this.controller.disconnect(this.sessionId);
+                this.status = "Disconnect requested for " + this.username + ".";
+            } else {
+                this.controller.connect(this.sessionId);
+                this.status = "Joining as " + this.username + "...";
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.status = exception.getMessage();
+        }
+        updateControls();
+    }
+
     private void updateControls() {
         if (this.sendButton != null) {
             this.sendButton.active = this.controller.isOnline(this.sessionId);
+        }
+        if (this.connectionButton != null) {
+            SessionState state = this.controller.getState(this.sessionId);
+            this.connectionButton.setMessage(
+                    state == SessionState.CONNECTING ? "CANCEL"
+                            : state == SessionState.ONLINE ? "DISCONNECT" : "JOIN / CONNECT");
+            this.connectionButton.active = true;
         }
     }
 
@@ -109,12 +144,12 @@ public final class SessionChatScreen extends Screen {
 
     private int getMaxScrollOffset() {
         List<String> messages = getWrappedMessages();
-        int maxLines = Math.max(1, (this.height - 105) / 11);
+        int maxLines = Math.max(1, (this.height - 130) / 11);
         return Math.max(0, messages.size() - maxLines);
     }
 
     private List<String> getWrappedMessages() {
-        List<String> wrapped = new java.util.ArrayList<String>();
+        List<String> wrapped = new ArrayList<String>();
         List<String> messages = this.controller.getMessages(this.sessionId);
         int maxCharacters = Math.max(8, (this.width - 24) / 6);
 
@@ -131,8 +166,9 @@ public final class SessionChatScreen extends Screen {
                 }
             }
         }
+
         this.scrollOffset = Math.min(this.scrollOffset,
-                Math.max(0, wrapped.size() - Math.max(1, (this.height - 105) / 11)));
+                Math.max(0, wrapped.size() - Math.max(1, (this.height - 130) / 11)));
         return wrapped;
     }
 
@@ -151,7 +187,7 @@ public final class SessionChatScreen extends Screen {
 
         List<String> messages = getWrappedMessages();
         int lineHeight = 11;
-        int maxLines = Math.max(1, (this.height - 105) / lineHeight);
+        int maxLines = Math.max(1, (this.height - 130) / lineHeight);
         int end = Math.max(0, messages.size() - this.scrollOffset);
         int start = Math.max(0, end - maxLines);
         int y = 34;
@@ -162,11 +198,8 @@ public final class SessionChatScreen extends Screen {
             y += lineHeight;
         }
 
-        String scrollStatus = this.scrollOffset == 0
-                ? this.status
-                : "Viewing older messages (" + this.scrollOffset + " lines back). Press END for newest.";
         drawString(MinecraftClient.getInstance().textRenderer,
-                fitText(scrollStatus, this.width - 24), 12, this.height - 62, 0xA0A0A0);
+                fitText(this.status, this.width - 24), 12, this.height - 93, 0xA0A0A0);
         super.render(mouseX, mouseY, delta);
     }
 }
