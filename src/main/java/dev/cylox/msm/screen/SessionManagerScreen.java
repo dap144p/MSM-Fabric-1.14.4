@@ -96,15 +96,11 @@ public final class SessionManagerScreen extends Screen {
 
     private void synchronizeSessions() {
         for (SessionProfile profile : this.profiles) {
-            if (!this.sessionManager.findByProfile(profile).isPresent()
-                    && this.sessionManager.remainingCapacity() > 0) {
+            if (!this.sessionManager.findByProfile(profile).isPresent()) {
                 this.sessionManager.create(profile);
             }
         }
         refreshSessions();
-        if (this.profiles.size() > SessionManager.MAX_SESSIONS) {
-            this.status = "Only the first 20 saved profiles can occupy session slots.";
-        }
     }
 
     private void refreshSessions() {
@@ -334,12 +330,6 @@ public final class SessionManagerScreen extends Screen {
                 this.status = "That username and server are already saved.";
                 return;
             }
-            if (this.profiles.size() >= SessionManager.MAX_SESSIONS
-                    || this.sessionManager.remainingCapacity() <= 0) {
-                this.status = "Session limit reached (20).";
-                return;
-            }
-
             created = this.sessionManager.create(profile);
             this.profiles.add(profile);
             try {
@@ -617,7 +607,7 @@ public final class SessionManagerScreen extends Screen {
                 default: break;
             }
         }
-        String summary = "SLOTS " + this.sessions.size() + "/20"
+        String summary = "SESSIONS " + this.sessions.size()
                 + "  |  OFFLINE " + offline
                 + "  CONNECTING " + connecting
                 + "  ONLINE " + online
@@ -633,7 +623,7 @@ public final class SessionManagerScreen extends Screen {
         List<SessionManager.Session> filtered = getFilteredSessions();
         int pageCount = Math.max(1, (filtered.size() + this.pageSize - 1) / this.pageSize);
         drawString(MinecraftClient.getInstance().textRenderer,
-                "SLOTS " + filtered.size() + "/" + this.sessions.size()
+                "SHOWING " + filtered.size() + "/" + this.sessions.size()
                         + "  |  PAGE " + (this.pageIndex + 1) + "/" + pageCount,
                 12, 155, 0x8CCBFF);
 
