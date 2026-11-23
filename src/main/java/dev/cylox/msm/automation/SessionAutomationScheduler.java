@@ -411,11 +411,11 @@ public final class SessionAutomationScheduler
                 }
             } else if (pending.dueAt <= now) {
                 if (nextDueRepeat == null
-                        || compareRepeatOrder(pending, nextDueRepeat, sessions) < 0) {
+                        || compareReadyRepeatOrder(pending, nextDueRepeat, sessions) < 0) {
                     nextDueRepeat = pending;
                 }
             } else if (nextFutureRepeat == null
-                    || compareRepeatOrder(pending, nextFutureRepeat, sessions) < 0) {
+                    || compareFutureRepeatOrder(pending, nextFutureRepeat, sessions) < 0) {
                 nextFutureRepeat = pending;
             }
         }
@@ -433,8 +433,17 @@ public final class SessionAutomationScheduler
         return Long.compare(left.dueAt, right.dueAt);
     }
 
-    private static int compareRepeatOrder(PendingChat left, PendingChat right,
-                                          List<SessionManager.Session> sessions) {
+    private static int compareReadyRepeatOrder(PendingChat left, PendingChat right,
+                                               List<SessionManager.Session> sessions) {
+        int leftAccount = accountOrder(left.sessionId, sessions);
+        int rightAccount = accountOrder(right.sessionId, sessions);
+        if (leftAccount != rightAccount) return Integer.compare(leftAccount, rightAccount);
+        if (left.dueAt != right.dueAt) return Long.compare(left.dueAt, right.dueAt);
+        return Integer.compare(left.ruleIndex, right.ruleIndex);
+    }
+
+    private static int compareFutureRepeatOrder(PendingChat left, PendingChat right,
+                                                List<SessionManager.Session> sessions) {
         if (left.dueAt != right.dueAt) return Long.compare(left.dueAt, right.dueAt);
         int leftAccount = accountOrder(left.sessionId, sessions);
         int rightAccount = accountOrder(right.sessionId, sessions);

@@ -44,12 +44,12 @@ public final class SessionAutomationSchedulerTest {
         // Once work is complete; Repeat work is then selected by due time.
         pending.add(new SessionAutomationScheduler.PendingChat(first.getId(), 1, true, 3_000L));
         pending.add(new SessionAutomationScheduler.PendingChat(third.getId(), 2, true, 2_000L));
-        selected = SessionAutomationScheduler.selectNextPendingChat(pending, orderedSessions, 2_500L);
-        expect(selected, third.getId(), 2, true, "earliest due Repeat rule");
+        selected = SessionAutomationScheduler.selectNextPendingChat(pending, orderedSessions, 3_500L);
+        expect(selected, first.getId(), 1, true, "first account among ready Repeat rules");
         pending.remove(selected);
 
-        selected = SessionAutomationScheduler.selectNextPendingChat(pending, orderedSessions, 2_500L);
-        expect(selected, first.getId(), 1, true, "remaining Repeat rule");
+        selected = SessionAutomationScheduler.selectNextPendingChat(pending, orderedSessions, 3_500L);
+        expect(selected, third.getId(), 2, true, "next account among ready Repeat rules");
 
         // When no task is due yet, the scheduler exposes the nearest future Repeat
         // task so the worker can sleep until its due time instead of polling.

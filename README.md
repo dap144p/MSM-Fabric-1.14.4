@@ -17,7 +17,7 @@ The Fabric project supplies Minecraft-specific UI and network integration. Share
 - Marks a secondary session ONLINE only after the server's Join Game packet is received.
 - Handles the protocol keep-alive flow and provides per-session chat receive/send.
 - Uses no secondary Minecraft world renderer; the main Minecraft client remains unchanged.
-- Provides per-account AutoChat rules with `ONCE` after the initial Join Game packet and configurable `REPEAT` intervals. Automated sends share a serial queue; Once rules are processed in account-list order before repeat tasks.
+- Provides per-account AutoChat rules with `ONCE` after the initial Join Game packet and configurable `REPEAT` intervals. Automated sends share a serial queue; Once rules are processed in account-list order before Repeat tasks, and simultaneously due Repeat tasks are sent in account-list order.
 - Provides per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized in account-list order; manual disconnect disables the account's reconnect intent.
 - Stores profiles in `.minecraft/config/msm-fabric.properties` and per-account automation settings in `.minecraft/config/msm-automation.properties`.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
