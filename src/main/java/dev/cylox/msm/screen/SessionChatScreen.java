@@ -17,7 +17,8 @@ public final class SessionChatScreen extends Screen {
 
     private TextFieldWidget messageField;
     private ButtonWidget sendButton;
-    private String status = "Messages are received from this secondary Java session.";
+    private String status = "Messages are logged in latest.log. Use UP/DOWN to scroll; END returns to newest.";
+    private int scrollOffset;
 
     public SessionChatScreen(Screen parent, SecondarySessionController controller,
                              long sessionId, String username) {
@@ -81,6 +82,18 @@ public final class SessionChatScreen extends Screen {
             sendMessage();
             return true;
         }
+        if (keyCode == 265) {
+            this.scrollOffset = Math.min(this.scrollOffset + 3, getMaxScrollOffset());
+            return true;
+        }
+        if (keyCode == 264) {
+            this.scrollOffset = Math.max(0, this.scrollOffset - 3);
+            return true;
+        }
+        if (keyCode == 269) {
+            this.scrollOffset = 0;
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -94,30 +107,66 @@ public final class SessionChatScreen extends Screen {
         return false;
     }
 
+    private int getMaxScrollOffset() {
+        List<String> messages = getWrappedMessages();
+        int maxLines = Math.max(1, (this.height - 105) / 11);
+        return Math.max(0, messages.size() - maxLines);
+    }
+
+    private List<String> getWrappedMessages() {
+        List<String> wrapped = new java.util.ArrayList<String>();
+        List<String> messages = this.controller.getMessages(this.sessionId);
+        int maxCharacters = Math.max(8, (this.width - 24) / 6);
+
+        for (String message : messages) {
+            String[] paragraphs = (message == null ? "" : message).split("\\n", -1);
+            for (String paragraph : paragraphs) {
+                if (paragraph.isEmpty()) {
+                    wrapped.add("");
+                    continue;
+                }
+                for (int offset = 0; offset < paragraph.length(); offset += maxCharacters) {
+                    wrapped.add(paragraph.substring(offset,
+                            Math.min(paragraph.length(), offset + maxCharacters)));
+                }
+            }
+        }
+        this.scrollOffset = Math.min(this.scrollOffset,
+                Math.max(0, wrapped.size() - Math.max(1, (this.height - 105) / 11)));
+        return wrapped;
+    }
+
+    private String fitText(String value, int pixelWidth) {
+        if (value == null) return "";
+        int maxCharacters = Math.max(8, pixelWidth / 6);
+        if (value.length() <= maxCharacters) return value;
+        return value.substring(0, maxCharacters - 3) + "...";
+    }
+
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderBackground();
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
-        List<String> messages = this.controller.getMessages(this.sessionId);
+        List<String> messages = getWrappedMessages();
         int lineHeight = 11;
         int maxLines = Math.max(1, (this.height - 105) / lineHeight);
-        int start = Math.max(0, messages.size() - maxLines);
+        int end = Math.max(0, messages.size() - this.scrollOffset);
+        int start = Math.max(0, end - maxLines);
         int y = 34;
 
-        for (int index = start; index < messages.size(); index++) {
-            String line = messages.get(index);
-            int maxCharacters = Math.max(8, (this.width - 24) / 6);
-            if (line.length() > maxCharacters) {
-                line = line.substring(0, maxCharacters - 3) + "...";
-            }
-            drawString(MinecraftClient.getInstance().textRenderer, line, 12, y, 0xE0E0E0);
+        for (int index = start; index < end; index++) {
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    messages.get(index), 12, y, 0xE0E0E0);
             y += lineHeight;
         }
 
+        String scrollStatus = this.scrollOffset == 0
+                ? this.status
+                : "Viewing older messages (" + this.scrollOffset + " lines back). Press END for newest.";
         drawString(MinecraftClient.getInstance().textRenderer,
-                this.status, 12, this.height - 62, 0xA0A0A0);
+                fitText(scrollStatus, this.width - 24), 12, this.height - 62, 0xA0A0A0);
         super.render(mouseX, mouseY, delta);
     }
 }
