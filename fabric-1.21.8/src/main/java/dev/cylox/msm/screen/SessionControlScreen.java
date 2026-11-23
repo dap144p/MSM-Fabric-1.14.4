@@ -370,8 +370,25 @@ public final class SessionControlScreen extends MsmScreen {
     private void refreshState() {
         try {
             SessionState state = MsmClient.getSecondarySessions().getState(this.sessionId);
-            if (state == SessionState.CONNECTING) this.status = "CONNECTING as " + this.username + "...";
-            else if (state == SessionState.ONLINE) this.status = "ONLINE as " + this.username + ".";
+            if (state == SessionState.CONNECTING) {
+                this.status = "CONNECTING as " + this.username + "...";
+            } else if (state == SessionState.ONLINE) {
+                this.status = "ONLINE as " + this.username + ".";
+            } else {
+                List<String> messages = MsmClient.getSecondarySessions().getMessages(this.sessionId);
+                String latest = null;
+                for (int index = messages.size() - 1; index >= 0; index--) {
+                    String message = messages.get(index);
+                    if (message.startsWith("[MSM] Disconnected during ")
+                            || message.startsWith("[MSM] Login rejected:")
+                            || message.startsWith("[MSM] Server disconnected:")
+                            || message.startsWith("[MSM] AutoReconnect")) {
+                        latest = message;
+                        break;
+                    }
+                }
+                this.status = latest == null ? "OFFLINE as " + this.username + "." : latest;
+            }
         } catch (RuntimeException exception) {
             this.status = "This account is no longer available.";
         }
