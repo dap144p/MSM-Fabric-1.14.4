@@ -9,6 +9,10 @@ base {
     archivesName = project.archives_base_name
 }
 
+tasks.named("remapJar") {
+    archiveFileName.set("MSM-Fabric-${project.version}-1.14.4.jar")
+}
+
 repositories {
     mavenCentral()
     maven { url = "https://jitpack.io" }
