@@ -138,8 +138,14 @@ public final class SecondarySessionController {
                         ClientboundHelloPacket hello = (ClientboundHelloPacket) packet;
                         if (hello.isShouldAuthenticate()) {
                             connection.stage = "ONLINE_AUTH_REQUIRED";
+                            String reason = "MSM OFFLINE_LOCAL cannot authenticate to online-mode servers.";
                             appendMessage(sessionId,
-                                    "[MSM] Server requires online-mode authentication. This account is OFFLINE_LOCAL.");
+                                    "[MSM] Server requires online-mode authentication. Disconnecting this offline-only session.");
+                            try {
+                                source.disconnect(reason);
+                            } catch (Throwable throwable) {
+                                finishConnection(connection, reason);
+                            }
                         } else {
                             connection.stage = "ENCRYPTION_HANDSHAKE";
                             appendMessage(sessionId,
