@@ -409,6 +409,7 @@ public final class SessionControlScreen extends MsmScreen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
         panel(context, 8, 8, this.width - 8, this.height - 8);
+        context.fill(12, 27, this.width - 12, 28, 0x503E4A58);
         centered(context, "CONTROL MANAGE  |  " + this.username,
                 this.width / 2, 17, 0xFFF1F5FA);
 
@@ -453,18 +454,25 @@ public final class SessionControlScreen extends MsmScreen {
 
     private void renderChat(DrawContext context) {
         List<String> messages = this.cachedMessages;
-        int lineHeight = 11;
-        int visibleLines = Math.max(1, (this.height - 180) / lineHeight);
+        int left = 12;
+        int right = Math.max(left + 1, this.width - 12);
+        int top = 64;
+        int bottom = Math.max(top + 1, this.height - 112);
+        context.fill(left, top, right, bottom, 0x35101820);
+        context.fill(left, top, right, top + 1, 0x503E4A58);
+
+        int lineHeight = 12;
+        int y = top + 11;
+        int visibleLines = Math.max(1, (bottom - y - 4) / lineHeight);
         int end = messages.size();
         int start = Math.max(0, end - visibleLines);
-        int y = 88;
         for (int i = start; i < end; i++) {
-            text(context, fit(messages.get(i), this.width - 24), 12, y, 0xFFE1E7EF);
+            text(context, fit(messages.get(i), this.width - 40), left + 8, y, 0xFFE1E7EF);
             y += lineHeight;
         }
         if (messages.isEmpty()) {
             text(context, "Chat history will appear here after the session connects.",
-                    12, y, 0xFF9EADBD);
+                    left + 8, y, 0xFF9EADBD);
         }
     }
 
