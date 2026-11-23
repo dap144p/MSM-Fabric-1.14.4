@@ -2,9 +2,11 @@ name: Build
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main, development, "feat/**"]
+    tags: ["v*"]
   pull_request:
-    branches: [main]
+    branches: [main, development]
+  create:
   workflow_dispatch:
 
 permissions:
@@ -12,63 +14,107 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name != 'create' || (github.event.ref_type == 'branch' && github.event.ref == 'development')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Determine build channel and version
+        id: meta
+        shell: bash
+        run: |
+          BASE_VERSION="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          if [[ -z "$BASE_VERSION" ]]; then
+            echo "mod_version is missing from gradle.properties"
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            BUILD_VERSION="${GITHUB_REF_NAME#v}"
+            if [[ "$BUILD_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
+              CHANNEL="beta"
+            elif [[ "$BUILD_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+              CHANNEL="rc"
+            elif [[ "$BUILD_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              CHANNEL="stable"
+            else
+              echo "Unsupported release tag: $GITHUB_REF_NAME"
+              echo "Use vX.Y.Z-beta.N, vX.Y.Z-rc.N, or vX.Y.Z."
+              exit 1
+            fi
+          elif [[ "$GITHUB_REF" == "refs/heads/development" ]]; then
+            CHANNEL="nightly"
+            BUILD_VERSION="${BASE_VERSION}-nightly.${GITHUB_RUN_NUMBER}"
+          else
+            CHANNEL="development"
+            BUILD_VERSION="${BASE_VERSION}-dev.${GITHUB_RUN_NUMBER}"
+          fi
+
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "build_version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building channel=$CHANNEL version=$BUILD_VERSION"
+
       - name: Verify and build
-        run: chmod +x gradlew && ./gradlew clean check build
-      - name: Upload PR test JAR
-        if: github.ref != 'refs/heads/main'
+        run: |
+          chmod +x gradlew
+          ./gradlew "-Pbuild_version=${{ steps.meta.outputs.build_version }}" clean check build
+
+      - name: Upload development build artifact
+        if: steps.meta.outputs.channel == 'development' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: MSM-Fabric-1.14.4-pr-${{ github.event.pull_request.number }}
-          path: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
+          name: MSM-Fabric-1.14.4-${{ steps.meta.outputs.channel }}-${{ github.run_number }}
+          path: build/libs/MSM-Fabric-1.14.4-${{ steps.meta.outputs.build_version }}.jar
           if-no-files-found: error
-          retention-days: 7
-      - name: Publish manually triggered test JAR release
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+          retention-days: 14
+
+      - name: Publish Nightly prerelease
+        if: steps.meta.outputs.channel == 'nightly' && (github.event_name == 'push' || github.event_name == 'create')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.2-test.${{ github.run_number }}
-          name: MSM Fabric 1.14.4 test build #${{ github.run_number }}
+          tag_name: nightly-${{ github.run_number }}-${{ github.run_attempt }}
+          name: MSM Fabric 1.14.4 Nightly #${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          files: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
+          files: build/libs/MSM-Fabric-1.14.4-${{ steps.meta.outputs.build_version }}.jar
           fail_on_unmatched_files: true
           prerelease: true
           make_latest: false
           body: |
-            Test build from feat/secondary-java-session-1.14.4.
-            Built from commit ${{ github.sha }}.
-            Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
-            OFFLINE_LOCAL secondary sessions only; use only on servers that allow offline-mode accounts.
+            MSM Fabric 1.14.4 — Nightly Development Build
 
-      - name: Publish single JAR Beta release
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.2-beta.${{ github.run_number }}
-          name: MSM Fabric 1.14.4 v0.1.2-beta.${{ github.run_number }}
-          target_commitish: main
-          files: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
-          fail_on_unmatched_files: true
-          overwrite_files: true
-          prerelease: true
-          make_latest: false
-          body: |
-            MSM Fabric 1.14.4 — Beta Test
-
-            Build: #${{ github.run_number }}
+            Version: ${{ steps.meta.outputs.build_version }}
             Commit: ${{ github.sha }}
 
-            Download the single JAR asset and place it in your Minecraft `mods` folder.
-            Requires Fabric Loader and Fabric API for Minecraft 1.14.4.
+            This is an automatically published development snapshot from the development branch.
+            It may contain incomplete features or regressions. It is not a Beta or Stable release.
 
-            This build adds independent secondary Java 1.14.4 protocol sessions for OFFLINE_LOCAL profiles,
-            including Join Game status detection and per-session chat. It does not implement Microsoft
-            authentication, secondary protocol translation, inventory control, or world rendering.
+            Install the single JAR in the Minecraft 1.14.4 Fabric profile's mods folder.
+            Requires Fabric Loader and Fabric API compatible with Minecraft 1.14.4.
+
+      - name: Publish versioned Beta, RC, or Stable release
+        if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: MSM Fabric 1.14.4 ${{ github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          files: build/libs/MSM-Fabric-1.14.4-${{ steps.meta.outputs.build_version }}.jar
+          fail_on_unmatched_files: true
+          prerelease: ${{ steps.meta.outputs.channel != 'stable' }}
+          make_latest: ${{ steps.meta.outputs.channel == 'stable' }}
+          generate_release_notes: true
+          body: |
+            MSM Fabric 1.14.4 — ${{ steps.meta.outputs.channel }} release
+
+            Version: ${{ steps.meta.outputs.build_version }}
+            Commit: ${{ github.sha }}
+
+            Download the single JAR asset and place it in your Minecraft 1.14.4 Fabric profile's mods folder.
+            Requires Fabric Loader and Fabric API compatible with Minecraft 1.14.4.
