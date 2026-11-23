@@ -44,7 +44,7 @@ public final class SessionManagerScreen extends Screen {
     private ButtonWidget chatButton;
     private ButtonWidget editButton;
     private ButtonWidget removeButton;
-    private String status = DEFAULT_STATUS;
+    private volatile String status = DEFAULT_STATUS;
     private long selectedSessionId = -1L;
     private int pageIndex;
     private int pageSize = PAGE_SIZE;
