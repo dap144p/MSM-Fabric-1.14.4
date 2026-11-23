@@ -134,7 +134,9 @@ public final class SecondarySessionController {
                                 "[MSM] Server requested online-mode authentication. Disconnecting this offline-only session.");
                         try {
                             connection.client.getSession().disconnect(reason, false);
-                        } catch (Throwable throwable) {
+                        } catch (Throwable ignored) {
+                            // The connection state is finalized below even if the transport is already closed.
+                        } finally {
                             finishConnection(connection, reason);
                         }
                     } else if (packet instanceof LoginDisconnectPacket) {
