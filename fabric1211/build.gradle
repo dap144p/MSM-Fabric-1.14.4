@@ -30,7 +30,10 @@ dependencies {
 
     implementation project(":msm-core")
 
-    include(implementation("org.geysermc.mcprotocollib:protocol:1.21.11-1"))
+    include(implementation("org.geysermc.mcprotocollib:protocol:1.21.11-1") {
+        exclude group: "io.netty"
+        exclude group: "org.slf4j"
+    })
     include(implementation("org.cloudburstmc:nbt:3.0.4.Final"))
     include(implementation("com.google.code.gson:gson:2.11.0"))
     include(implementation("net.raphimc:MinecraftAuth:5.0.0"))
@@ -108,13 +111,13 @@ tasks.register("verifyBundledCore") {
                     nestedJars.add(entry.name.toLowerCase(java.util.Locale.ROOT))
                 }
             }
-            ["mcprotocollib", "nbt", "minecraftauth", "adventure", "opennbt"].each { library ->
+            ["protocol", "nbt", "minecraftauth", "adventure", "opennbt"].each { library ->
                 if (!nestedJars.any { it.contains(library) }) {
                     throw new GradleException("Required nested library is missing: ${library}")
                 }
             }
-            if (nestedJars.any { it.contains("netty-all") }) {
-                throw new GradleException("Do not bundle Netty; Minecraft supplies the runtime transport.")
+            if (nestedJars.any { it.contains("netty") || it.contains("slf4j-api") }) {
+                throw new GradleException("Do not bundle Netty or SLF4J; Minecraft/Fabric supply these runtime APIs.")
             }
         } finally {
             archive.close()
