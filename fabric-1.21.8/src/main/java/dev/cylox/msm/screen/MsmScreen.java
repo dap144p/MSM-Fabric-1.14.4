@@ -2,6 +2,7 @@ package dev.cylox.msm.screen;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
@@ -19,7 +20,7 @@ public abstract class MsmScreen extends Screen {
     }
 
     protected MsmButtonWidget addAction(int x, int y, int width, int height,
-                                        String label, MsmButtonWidget.PressAction action) {
+                                        String label, ButtonWidget.PressAction action) {
         return this.addDrawableChild(new MsmButtonWidget(
                 x, y, Math.max(1, width), Math.max(1, height), label, action));
     }
