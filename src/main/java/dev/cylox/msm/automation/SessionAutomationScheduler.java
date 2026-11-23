@@ -20,6 +20,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * Serializes reconnect attempts and automated chat across all managed accounts.
@@ -175,14 +176,37 @@ public final class SessionAutomationScheduler
     }
 
     public void forgetSession(long sessionId) {
+        forgetSession(sessionId, null);
+    }
+
+    public void forgetSession(long sessionId, Consumer<Throwable> completion) {
+        SessionManager.Session session = requireSession(sessionId);
         this.worker.execute(() -> {
             this.reconnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
             cancelChatTasks(sessionId);
-            this.settingsBySession.remove(sessionId);
             if (this.activeReconnectSession == sessionId) {
                 this.activeReconnectSession = -1L;
                 cancelReconnectTask();
+            }
+
+            SessionState state = this.controller.getState(sessionId);
+            if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
+                if (completion != null) {
+                    completion.accept(new IllegalStateException(
+                            "Disconnect the account before removing it."));
+                }
+                return;
+            }
+
+            try {
+                this.store.delete(session.getProfile());
+                this.settingsBySession.remove(sessionId);
+                if (completion != null) completion.accept(null);
+            } catch (IOException exception) {
+                LOGGER.warn("Could not remove automation settings for session {}: {}",
+                        sessionId, exception.getMessage());
+                if (completion != null) completion.accept(exception);
             }
         });
     }
