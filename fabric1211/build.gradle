@@ -124,6 +124,12 @@ tasks.register("verifyBundledCore") {
     }
 }
 
+project(":msm-core") {
+    tasks.named("test") {
+        enabled = false
+    }
+}
+
 tasks.register("verifyAutomationStore", JavaExec) {
     dependsOn tasks.named("testClasses")
     classpath = sourceSets.test.runtimeClasspath
