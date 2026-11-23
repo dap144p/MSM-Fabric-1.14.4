@@ -266,10 +266,10 @@ public final class SessionManagerScreen extends MsmScreen {
                 button -> openServerPicker()));
         this.serverListButton.active = this.serverTemplateRepository != null;
 
-        this.authModeButton = this.addButton(new ButtonWidget(
+        this.authModeButton = this.addButton(new MsmButtonWidget(
                 formLeft, authY, formWidth, 20,
                 getAuthModeLabel(), button -> cycleAuthMode()));
-        this.addButton(new ButtonWidget(
+        this.addButton(new MsmButtonWidget(
                 formLeft, addY, formWidth, 20, "ADD ACCOUNT",
                 button -> addAccount()));
 
@@ -286,7 +286,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
         for (int index = start; index < end; index++) {
             final SessionManager.Session session = this.sessions.get(index);
-            ButtonWidget row = new ButtonWidget(
+            ButtonWidget row = new MsmButtonWidget(
                     contentLeft, rowY, contentWidth, 20,
                     getAccountLabel(session, session.getId()),
                     button -> selectAccount(session));
@@ -298,10 +298,10 @@ public final class SessionManagerScreen extends MsmScreen {
         if (pageCount > 1) {
             int pageButtonWidth = Math.min(100, Math.max(1, (contentWidth - 8) / 2));
             int pageLeft = (this.width - (pageButtonWidth * 2 + 8)) / 2;
-            ButtonWidget previous = new ButtonWidget(
+            ButtonWidget previous = new MsmButtonWidget(
                     pageLeft, this.height - 50, pageButtonWidth, 18,
                     "PREVIOUS", button -> openPage(this.pageIndex - 1));
-            ButtonWidget next = new ButtonWidget(
+            ButtonWidget next = new MsmButtonWidget(
                     pageLeft + pageButtonWidth + 8, this.height - 50,
                     pageButtonWidth, 18, "NEXT", button -> openPage(this.pageIndex + 1));
             previous.active = this.pageIndex > 0;
@@ -313,13 +313,13 @@ public final class SessionManagerScreen extends MsmScreen {
         int gap = 4;
         int actionWidth = Math.max(1, (contentWidth - gap * 2) / 3);
         int actionY = this.height - 24;
-        this.connectionButton = this.addButton(new ButtonWidget(
+        this.connectionButton = this.addButton(new MsmButtonWidget(
                 contentLeft, actionY, actionWidth, 20,
                 "JOIN / CONNECT", button -> toggleConnection()));
-        this.controlButton = this.addButton(new ButtonWidget(
+        this.controlButton = this.addButton(new MsmButtonWidget(
                 contentLeft + actionWidth + gap, actionY, actionWidth, 20,
                 "CONTROL MANAGE", button -> openControlManage()));
-        this.addButton(new ButtonWidget(
+        this.addButton(new MsmButtonWidget(
                 contentLeft + (actionWidth + gap) * 2, actionY,
                 actionWidth, 20, "CLOSE", button -> onClose()));
 
