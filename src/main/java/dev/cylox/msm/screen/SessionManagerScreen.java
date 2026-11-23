@@ -1,9 +1,11 @@
 package dev.cylox.msm.screen;
 
+import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
+import dev.cylox.msm.server.ServerTemplateRepository;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
 import net.minecraft.client.MinecraftClient;
@@ -21,12 +23,14 @@ import java.util.Optional;
 
 public final class SessionManagerScreen extends Screen {
     private static final int PAGE_SIZE = 6;
-    private static final String DEFAULT_STATUS = "Add an account, select it, then JOIN / CONNECT.";
+    private static final String DEFAULT_STATUS = "Add an account, select it, then CONNECT or CONTROL MANAGE.";
 
     private final Screen parent;
     private final SessionProfileStore store;
     private final SessionManager sessionManager;
     private final SecondarySessionController secondarySessions;
+    private final SessionAutomationScheduler automationScheduler;
+    private final ServerTemplateRepository serverTemplateRepository;
     private final List<SessionProfile> profiles = new ArrayList<SessionProfile>();
     private final List<SessionManager.Session> sessions = new ArrayList<SessionManager.Session>();
     private final Map<Long, ButtonWidget> rowButtons = new LinkedHashMap<Long, ButtonWidget>();
@@ -38,14 +42,18 @@ public final class SessionManagerScreen extends Screen {
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private ButtonWidget authModeButton;
+    private ButtonWidget serverListButton;
     private ButtonWidget connectionButton;
-    private ButtonWidget chatButton;
+    private ButtonWidget controlButton;
     private volatile String status;
     private SessionState lastObservedState;
     private long selectedSessionId;
     private int pageIndex;
     private int pageSize;
     private SessionAuthMode authMode;
+    private String usernameValue;
+    private String serverValue;
+    private String selectedServerName;
 
     public SessionManagerScreen(Screen parent, SessionProfileStore store) {
         this(parent, store, new SessionManager());
@@ -58,15 +66,27 @@ public final class SessionManagerScreen extends Screen {
     public SessionManagerScreen(Screen parent, SessionProfileStore store,
                                 SessionManager sessionManager,
                                 SecondarySessionController secondarySessions) {
-        this(parent, store, sessionManager, secondarySessions,
-                DEFAULT_STATUS, 0, -1L, SessionAuthMode.OFFLINE_LOCAL);
+        this(parent, store, sessionManager, secondarySessions, null, null);
+    }
+
+    public SessionManagerScreen(Screen parent, SessionProfileStore store,
+                                SessionManager sessionManager,
+                                SecondarySessionController secondarySessions,
+                                SessionAutomationScheduler automationScheduler,
+                                ServerTemplateRepository serverTemplateRepository) {
+        this(parent, store, sessionManager, secondarySessions, automationScheduler,
+                serverTemplateRepository, DEFAULT_STATUS, 0, -1L,
+                SessionAuthMode.OFFLINE_LOCAL, "", "", "");
     }
 
     private SessionManagerScreen(Screen parent, SessionProfileStore store,
                                  SessionManager sessionManager,
                                  SecondarySessionController secondarySessions,
+                                 SessionAutomationScheduler automationScheduler,
+                                 ServerTemplateRepository serverTemplateRepository,
                                  String status, int page, long selectedSessionId,
-                                 SessionAuthMode authMode) {
+                                 SessionAuthMode authMode, String usernameValue,
+                                 String serverValue, String selectedServerName) {
         super(new LiteralText("Multi Session Manager"));
         if (store == null || sessionManager == null || secondarySessions == null) {
             throw new IllegalArgumentException("Profile store, session manager, and network controller are required");
@@ -76,10 +96,15 @@ public final class SessionManagerScreen extends Screen {
         this.store = store;
         this.sessionManager = sessionManager;
         this.secondarySessions = secondarySessions;
+        this.automationScheduler = automationScheduler;
+        this.serverTemplateRepository = serverTemplateRepository;
         this.status = status == null ? DEFAULT_STATUS : status;
         this.requestedPage = Math.max(0, page);
         this.selectedSessionId = selectedSessionId;
         this.authMode = authMode == null ? SessionAuthMode.OFFLINE_LOCAL : authMode;
+        this.usernameValue = usernameValue == null ? "" : usernameValue;
+        this.serverValue = serverValue == null ? "" : serverValue;
+        this.selectedServerName = selectedServerName == null ? "" : selectedServerName;
 
         try {
             this.profiles.addAll(this.store.load());
@@ -100,6 +125,9 @@ public final class SessionManagerScreen extends Screen {
         if (this.selectedSessionId >= 0L
                 && !this.sessionManager.find(this.selectedSessionId).isPresent()) {
             this.selectedSessionId = -1L;
+        }
+        if (this.automationScheduler != null) {
+            this.automationScheduler.restoreDesiredSessions();
         }
     }
 
@@ -169,8 +197,8 @@ public final class SessionManagerScreen extends Screen {
                 this.connectionButton.active = true;
             }
         }
-        if (this.chatButton != null) {
-            this.chatButton.active = selected.isPresent();
+        if (this.controlButton != null) {
+            this.controlButton.active = selected.isPresent();
         }
     }
 
@@ -180,11 +208,12 @@ public final class SessionManagerScreen extends Screen {
             String message = messages.get(index);
             if (message.startsWith("[MSM] Disconnected during ")
                     || message.startsWith("[MSM] Login rejected:")
-                    || message.startsWith("[MSM] Server disconnected:")) {
+                    || message.startsWith("[MSM] Server disconnected:")
+                    || message.startsWith("[MSM] AutoReconnect")) {
                 return message;
             }
         }
-        return "Session is disconnected. Open CHAT for connection details.";
+        return "Session is disconnected. Open CONTROL MANAGE for details.";
     }
 
     @Override
@@ -196,34 +225,53 @@ public final class SessionManagerScreen extends Screen {
         boolean compactForm = formWidth < 230;
 
         this.rowButtons.clear();
-        this.pageSize = PAGE_SIZE;
-        this.accountsLabelY = compactForm ? 153 : 137;
-        this.rowStartY = this.accountsLabelY + 21;
 
-        int usernameY = compactForm ? 42 : 48;
-        int serverY = compactForm ? 70 : 78;
-        int authY = compactForm ? 98 : serverY;
-        int addY = compactForm ? 126 : 108;
-        int authWidth = compactForm
-                ? formWidth
-                : Math.min(100, Math.max(82, formWidth / 3));
-        int serverWidth = compactForm ? formWidth : Math.max(1, formWidth - authWidth - 4);
+        int usernameY = 46;
+        int serverY = 75;
+        int authY = 103;
+        int addY = 131;
+        int serverButtonWidth = compactForm ? formWidth : Math.min(84, Math.max(64, formWidth / 4));
+        int serverFieldWidth = compactForm ? formWidth : Math.max(1, formWidth - serverButtonWidth - 4);
+
+        if (compactForm) {
+            usernameY = 42;
+            serverY = 70;
+            authY = 126;
+            addY = 154;
+            this.accountsLabelY = 184;
+        } else {
+            this.accountsLabelY = 162;
+        }
+        this.rowStartY = this.accountsLabelY + 21;
 
         this.usernameField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
                 formLeft, usernameY, formWidth, 20, "Account username"));
         this.usernameField.setMaxLength(16);
+        this.usernameField.setText(this.usernameValue);
 
         this.serverField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                formLeft, serverY, serverWidth, 20, "Server address"));
+                formLeft, serverY, serverFieldWidth, 20, "Server address"));
         this.serverField.setMaxLength(255);
+        if (this.serverValue.isEmpty()) {
+            applyLastSelectedServer();
+        }
+        this.serverField.setText(this.serverValue);
+
+        this.serverListButton = this.addButton(new ButtonWidget(
+                compactForm ? formLeft : formLeft + serverFieldWidth + 4,
+                compactForm ? serverY + 28 : serverY,
+                serverButtonWidth, 20, compactForm ? "SERVER LIST" : "SERVERS",
+                button -> openServerPicker()));
+        this.serverListButton.active = this.serverTemplateRepository != null;
 
         this.authModeButton = this.addButton(new ButtonWidget(
-                compactForm ? formLeft : formLeft + serverWidth + 4,
-                authY, authWidth, 20, getAuthModeLabel(), button -> cycleAuthMode()));
+                formLeft, authY, formWidth, 20,
+                getAuthModeLabel(), button -> cycleAuthMode()));
         this.addButton(new ButtonWidget(
-                formLeft, addY, formWidth, 20, "ADD ACCOUNT", button -> addAccount()));
+                formLeft, addY, formWidth, 20, "ADD ACCOUNT",
+                button -> addAccount()));
 
         int reservedBottom = this.height - 96;
         int availableRows = Math.max(1,
@@ -268,9 +316,9 @@ public final class SessionManagerScreen extends Screen {
         this.connectionButton = this.addButton(new ButtonWidget(
                 contentLeft, actionY, actionWidth, 20,
                 "JOIN / CONNECT", button -> toggleConnection()));
-        this.chatButton = this.addButton(new ButtonWidget(
+        this.controlButton = this.addButton(new ButtonWidget(
                 contentLeft + actionWidth + gap, actionY, actionWidth, 20,
-                "OPEN CHAT", button -> openChat()));
+                "CONTROL MANAGE", button -> openControlManage()));
         this.addButton(new ButtonWidget(
                 contentLeft + (actionWidth + gap) * 2, actionY,
                 actionWidth, 20, "CLOSE", button -> onClose()));
@@ -278,12 +326,48 @@ public final class SessionManagerScreen extends Screen {
         refreshControls();
     }
 
+    private void applyLastSelectedServer() {
+        if (this.serverTemplateRepository == null) return;
+        try {
+            List<ServerTemplateRepository.ServerTemplate> servers =
+                    this.serverTemplateRepository.loadServers();
+            Optional<ServerTemplateRepository.ServerTemplate> last =
+                    this.serverTemplateRepository.getLastSelected(servers);
+            if (last.isPresent()) {
+                this.serverValue = last.get().getAddress();
+                this.selectedServerName = last.get().getName();
+            }
+        } catch (IOException exception) {
+            this.status = "Could not read saved server list: " + exception.getMessage();
+        }
+    }
+
+    private void snapshotFormValues() {
+        if (this.usernameField != null) this.usernameValue = this.usernameField.getText();
+        if (this.serverField != null) this.serverValue = this.serverField.getText();
+    }
+
+    private void openServerPicker() {
+        if (this.serverTemplateRepository == null) {
+            this.status = "Saved server list is unavailable.";
+            return;
+        }
+        snapshotFormValues();
+        MinecraftClient.getInstance().openScreen(new ServerTemplatePickerScreen(
+                this, this.serverTemplateRepository, server -> {
+                    this.serverValue = server.getAddress();
+                    this.selectedServerName = server.getName();
+                    this.status = "Selected server: " + server.getName();
+                }));
+    }
+
     private void addAccount() {
         SessionManager.Session created = null;
+        snapshotFormValues();
         try {
             SessionProfile profile = new SessionProfile(
-                    this.usernameField.getText(),
-                    this.serverField.getText(),
+                    this.usernameValue,
+                    this.serverValue,
                     this.authMode);
 
             if (this.profiles.contains(profile)) {
@@ -313,8 +397,10 @@ public final class SessionManagerScreen extends Screen {
     }
 
     private void selectAccount(SessionManager.Session session) {
-        openScreen("Selected " + session.getProfile().getUsername() + ".",
-                this.pageIndex, session.getId());
+        this.selectedSessionId = session.getId();
+        this.lastObservedState = null;
+        this.status = "Selected " + session.getProfile().getUsername() + ".";
+        refreshSessions();
     }
 
     private void toggleConnection() {
@@ -328,10 +414,18 @@ public final class SessionManagerScreen extends Screen {
         try {
             SessionState state = session.getState();
             if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
-                this.secondarySessions.disconnect(session.getId());
-                this.status = "Disconnect requested for " + session.getProfile().getUsername() + ".";
+                if (this.automationScheduler != null) {
+                    this.automationScheduler.disconnectManually(session.getId());
+                } else {
+                    this.secondarySessions.disconnect(session.getId());
+                }
+                this.status = "Manual disconnect requested for " + session.getProfile().getUsername() + ".";
             } else {
-                this.secondarySessions.connect(session.getId());
+                if (this.automationScheduler != null) {
+                    this.automationScheduler.connectManually(session.getId());
+                } else {
+                    this.secondarySessions.connect(session.getId());
+                }
                 this.status = "Joining as " + session.getProfile().getUsername() + "...";
             }
         } catch (IllegalArgumentException | IllegalStateException exception) {
@@ -340,16 +434,20 @@ public final class SessionManagerScreen extends Screen {
         refreshSessions();
     }
 
-    private void openChat() {
+    private void openControlManage() {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (!selected.isPresent()) {
             this.status = "Select an account first.";
             return;
         }
+        if (this.automationScheduler == null) {
+            this.status = "Automation scheduler is unavailable.";
+            return;
+        }
 
-        MinecraftClient.getInstance().openScreen(new SessionChatScreen(
-                this, this.secondarySessions, selected.get().getId(),
-                selected.get().getProfile().getUsername()));
+        MinecraftClient.getInstance().openScreen(new SessionControlScreen(
+                this, this.secondarySessions, this.automationScheduler,
+                selected.get().getId(), selected.get().getProfile().getUsername()));
     }
 
     private void cycleAuthMode() {
@@ -364,13 +462,17 @@ public final class SessionManagerScreen extends Screen {
     }
 
     private void openPage(int page) {
+        snapshotFormValues();
         openScreen(this.status, page, this.selectedSessionId);
     }
 
     private void openScreen(String newStatus, int page, long selectedId) {
+        snapshotFormValues();
         MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
                 this.parent, this.store, this.sessionManager, this.secondarySessions,
-                newStatus, page, selectedId, this.authMode));
+                this.automationScheduler, this.serverTemplateRepository,
+                newStatus, page, selectedId, this.authMode,
+                this.usernameValue, this.serverValue, this.selectedServerName));
     }
 
     @Override
@@ -378,6 +480,7 @@ public final class SessionManagerScreen extends Screen {
         super.tick();
         if (this.usernameField != null) this.usernameField.tick();
         if (this.serverField != null) this.serverField.tick();
+        snapshotFormValues();
         refreshSessions();
     }
 
