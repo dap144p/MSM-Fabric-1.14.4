@@ -28,7 +28,7 @@ jobs:
         id: meta
         shell: bash
         run: |
-          BASE_VERSION="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          BASE_VERSION="$(sed -n 's/^mod_version=//p' gradle.properties | sed 's/-dev$//')"
           if [[ -z "$BASE_VERSION" ]]; then
             echo "mod_version is missing from gradle.properties"
             exit 1
