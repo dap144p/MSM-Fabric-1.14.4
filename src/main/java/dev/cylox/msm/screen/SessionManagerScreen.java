@@ -23,7 +23,7 @@ import java.util.Optional;
 public final class SessionManagerScreen extends Screen {
     private static final int PAGE_SIZE = 5;
     private static final String DEFAULT_STATUS =
-            "Select a profile, then CONNECT. OFFLINE is for offline-mode servers only.";
+            "Add or select a profile. PING checks reachability; OFFLINE login requires an offline-mode server.";
 
     private final Screen parent;
     private final SessionProfileStore store;
@@ -48,7 +48,7 @@ public final class SessionManagerScreen extends Screen {
     private long selectedSessionId = -1L;
     private int pageIndex;
     private int pageSize = PAGE_SIZE;
-    private SessionAuthMode authMode = SessionAuthMode.MICROSOFT;
+    private SessionAuthMode authMode = SessionAuthMode.OFFLINE_LOCAL;
 
     public SessionManagerScreen(Screen parent, SessionProfileStore store) {
         this(parent, store, new SessionManager());
@@ -62,7 +62,7 @@ public final class SessionManagerScreen extends Screen {
                                 SessionManager sessionManager,
                                 SecondarySessionController secondarySessions) {
         this(parent, store, sessionManager, secondarySessions, DEFAULT_STATUS, 0, -1L, "",
-                false, false, SessionAuthMode.MICROSOFT);
+                false, false, SessionAuthMode.OFFLINE_LOCAL);
     }
 
     private SessionManagerScreen(Screen parent, SessionProfileStore store,
@@ -84,7 +84,7 @@ public final class SessionManagerScreen extends Screen {
         this.requestedSearch = searchQuery == null ? "" : searchQuery.trim();
         this.editing = editing;
         this.confirmRemoval = confirmRemoval;
-        this.authMode = authMode == null ? SessionAuthMode.MICROSOFT : authMode;
+        this.authMode = authMode == null ? SessionAuthMode.OFFLINE_LOCAL : authMode;
 
         try {
             this.profiles.addAll(store.load());
@@ -208,8 +208,12 @@ public final class SessionManagerScreen extends Screen {
         }
 
         String saveLabel = this.editing ? "SAVE CHANGES" : "ADD SESSION SLOT";
-        this.addButton(new ButtonWidget(contentLeft, 107, contentWidth, 20,
+        int pingWidth = Math.min(64, Math.max(50, contentWidth / 4));
+        int saveWidth = contentWidth - pingWidth - 4;
+        this.addButton(new ButtonWidget(contentLeft, 107, saveWidth, 20,
                 saveLabel, button -> saveProfile()));
+        this.addButton(new ButtonWidget(contentLeft + saveWidth + 4, 107,
+                pingWidth, 20, "PING", button -> pingServer()));
 
         int smallButtonWidth = Math.min(54, Math.max(44, contentWidth / 4));
         int searchFieldWidth = Math.max(50, contentWidth - (smallButtonWidth * 2) - 8);
@@ -314,6 +318,28 @@ public final class SessionManagerScreen extends Screen {
         MinecraftClient.getInstance().openScreen(new SessionChatScreen(
                 this, this.secondarySessions, selected.get().getId(),
                 selected.get().getProfile().getUsername()));
+    }
+
+    private void pingServer() {
+        String address = this.serverField == null ? "" : this.serverField.getText().trim();
+        if (address.isEmpty()) {
+            Optional<SessionManager.Session> selected = getSelectedSession();
+            if (selected.isPresent()) {
+                address = selected.get().getProfile().getServerAddress();
+            }
+        }
+        if (address.isEmpty()) {
+            this.status = "Enter a server address before pinging.";
+            return;
+        }
+
+        final String target = address;
+        this.status = "Pinging " + target + "...";
+        try {
+            this.secondarySessions.ping(target, result -> this.status = result);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.status = exception.getMessage();
+        }
     }
 
     private void saveProfile() {
