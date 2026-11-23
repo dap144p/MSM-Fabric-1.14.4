@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.cylox.msm.mixin",
+  "refmap": "msm_fabric_1_21_11.refmap.json",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MultiplayerScreenAccessor",
+    "MultiplayerScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
