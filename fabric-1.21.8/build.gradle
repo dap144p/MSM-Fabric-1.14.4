@@ -41,6 +41,7 @@ dependencies {
     include(implementation("net.raphimc:MinecraftAuth:4.1.1"))
     include(implementation("net.kyori:adventure-api:4.17.0"))
     include(implementation("net.kyori:adventure-key:4.17.0"))
+    include(implementation("net.kyori:adventure-nbt:4.17.0"))
     include(implementation("net.kyori:adventure-text-serializer-gson:4.17.0"))
     include(implementation("net.kyori:adventure-text-serializer-json:4.17.0"))
     include(implementation("net.kyori:adventure-text-serializer-json-legacy-impl:4.17.0"))
@@ -124,6 +125,7 @@ tasks.register("verifyBundledCore") {
                 "minecraftauth",
                 "adventure",
                 "adventure-text-serializer-json-4.17.0",
+                "adventure-nbt-4.17.0",
                 "option-1.0.0",
                 "checker-qual"
             ].each { library ->
@@ -152,6 +154,27 @@ tasks.register("verifyBundledCore") {
                 }
             } finally {
                 serializerJar.close()
+            }
+
+            def adventureNbtEntry = archive.getEntry("META-INF/jars/adventure-nbt-4.17.0.jar")
+            if (adventureNbtEntry == null) {
+                throw new GradleException("Adventure NBT library is not bundled.")
+            }
+            def adventureNbtJar = new java.util.jar.JarInputStream(archive.getInputStream(adventureNbtEntry))
+            try {
+                boolean tagStringIoFound = false
+                def nbtEntry
+                while ((nbtEntry = adventureNbtJar.nextJarEntry) != null) {
+                    if (nbtEntry.name == "net/kyori/adventure/nbt/TagStringIO.class") {
+                        tagStringIoFound = true
+                        break
+                    }
+                }
+                if (!tagStringIoFound) {
+                    throw new GradleException("TagStringIO.class is missing from the bundled Adventure NBT library.")
+                }
+            } finally {
+                adventureNbtJar.close()
             }
 
             if (nested.any { it.contains("netty") || it.contains("slf4j-api") }) {
