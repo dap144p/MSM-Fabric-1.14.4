@@ -605,11 +605,6 @@ public final class SessionControlScreen extends MsmScreen {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
         this.drawGlassPanel(context, 8, 6, this.width - 8, 52);
         this.drawGlassPanel(context, 8, 54, this.width - 8, this.height - 8);
-        if (this.tab == Tab.CHAT) {
-            this.drawGlassPanel(context, 16, 52, this.width - 16, this.height - 104);
-        } else if (this.tab == Tab.AUTO_CHAT) {
-            this.drawGlassPanel(context, 16, 52, this.width - 16, Math.max(110, this.height - 114));
-        }
         context.drawCenteredTextWithShadow(this.textRenderer,
                 this.title, this.width / 2, 10, 0xFFFFFF);
 
