@@ -286,6 +286,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.authModeButton = this.addButton(new MsmButtonWidget(
                     innerLeft, 126, halfWidth, 20,
                     getAuthModeLabel(), button -> cycleAuthMode()));
+            this.authModeButton.active = false;
             this.addButton(new MsmButtonWidget(
                     innerLeft + halfWidth + fieldGap, 126,
                     innerWidth - halfWidth - fieldGap, 20, "ADD ACCOUNT",
@@ -329,6 +330,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.authModeButton = this.addButton(new MsmButtonWidget(
                     innerLeft, 174, halfWidth, 20,
                     getAuthModeLabel(), button -> cycleAuthMode()));
+            this.authModeButton.active = false;
             this.addButton(new MsmButtonWidget(
                     innerLeft + halfWidth + fieldGap, 174,
                     innerWidth - halfWidth - fieldGap, 20, "ADD ACCOUNT",
