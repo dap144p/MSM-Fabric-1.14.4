@@ -41,7 +41,9 @@ public final class SessionAutomationSchedulerTest {
         expect(selected, second.getId(), 0, false, "second account's Once rule");
         pending.remove(selected);
 
-        // Once work is complete; Repeat work is then selected by due time.
+        // Start the Repeat phase with a clean fixture; the previous phase deliberately
+        // left an old Repeat item pending to verify Once priority.
+        pending.clear();
         pending.add(new SessionAutomationScheduler.PendingChat(first.getId(), 1, true, 3_000L));
         pending.add(new SessionAutomationScheduler.PendingChat(third.getId(), 2, true, 2_000L));
         selected = SessionAutomationScheduler.selectNextPendingChat(pending, orderedSessions, 3_500L);
