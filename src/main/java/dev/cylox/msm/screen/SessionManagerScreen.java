@@ -150,6 +150,10 @@ public final class SessionManagerScreen extends MsmScreen {
             Optional<SessionManager.Session> session = this.sessionManager.find(entry.getKey());
             if (session.isPresent() && this.profiles.contains(session.get().getProfile())) {
                 entry.getValue().setMessage(getAccountLabel(session.get(), entry.getKey()));
+                if (entry.getValue() instanceof MsmButtonWidget) {
+                    ((MsmButtonWidget) entry.getValue())
+                            .setSelected(entry.getKey() == this.selectedSessionId);
+                }
             }
         }
         refreshControls();
@@ -159,7 +163,9 @@ public final class SessionManagerScreen extends MsmScreen {
         String prefix = id == this.selectedSessionId ? "> " : "";
         String label = prefix + session.getProfile().getUsername()
                 + "  [" + session.getState().name() + "]";
-        int maxCharacters = Math.max(8, (this.width - 42) / 6);
+        int availableWidth = this.accountsPanelWidth > 0
+                ? this.accountsPanelWidth - 34 : this.width - 42;
+        int maxCharacters = Math.max(8, availableWidth / 6);
         return label.length() > maxCharacters
                 ? label.substring(0, maxCharacters - 3) + "..." : label;
     }
@@ -206,6 +212,15 @@ public final class SessionManagerScreen extends MsmScreen {
         }
         if (this.controlButton != null) {
             this.controlButton.active = selected.isPresent();
+        }
+
+        if (this.removeButton != null) {
+            boolean removable = false;
+            if (selected.isPresent()) {
+                SessionState state = selected.get().getState();
+                removable = state != SessionState.CONNECTING && state != SessionState.ONLINE;
+            }
+            this.removeButton.active = removable;
         }
     }
 
@@ -471,6 +486,107 @@ public final class SessionManagerScreen extends MsmScreen {
         } catch (IOException exception) {
             this.status = "Could not save account: " + exception.getMessage();
         }
+    }
+
+    private void requestRemoveAccount() {
+        Optional<SessionManager.Session> selected = getSelectedSession();
+        if (!selected.isPresent()) {
+            this.status = "Select an account first.";
+            return;
+        }
+
+        SessionManager.Session session = selected.get();
+        SessionState state = session.getState();
+        if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
+            this.status = "Disconnect this account before removing it.";
+            return;
+        }
+
+        SessionProfile profile = session.getProfile();
+        MinecraftClient.getInstance().openScreen(new ConfirmRemoveAccountScreen(
+                this, profile.getUsername(), profile.getServerAddress(),
+                () -> removeAccount(session.getId())));
+    }
+
+    private void removeAccount(long sessionId) {
+        if (this.automationScheduler == null) {
+            finishRemoveAccount(sessionId, null);
+            return;
+        }
+
+        this.status = "Removing account and saved automation settings...";
+        this.automationScheduler.forgetSession(sessionId, failure ->
+                MinecraftClient.getInstance().execute(
+                        () -> finishRemoveAccount(sessionId, failure)));
+    }
+
+    private void finishRemoveAccount(long sessionId, Throwable failure) {
+        if (failure != null) {
+            this.status = "Account was not removed: " + safeMessage(failure);
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+
+        Optional<SessionManager.Session> selected = this.sessionManager.find(sessionId);
+        if (!selected.isPresent()) {
+            this.status = "This account is no longer available.";
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+
+        SessionManager.Session session = selected.get();
+        SessionState state = session.getState();
+        if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
+            this.status = "Disconnect this account before removing it.";
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+
+        SessionProfile profile = session.getProfile();
+        List<SessionProfile> updatedProfiles = new ArrayList<SessionProfile>(this.profiles);
+        if (!updatedProfiles.remove(profile)) {
+            this.status = "The saved account profile could not be found.";
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+
+        try {
+            this.store.save(updatedProfiles);
+        } catch (IOException exception) {
+            this.status = "Could not save account removal: " + exception.getMessage();
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+
+        try {
+            this.sessionManager.remove(sessionId);
+        } catch (IllegalStateException exception) {
+            try {
+                this.store.save(this.profiles);
+            } catch (IOException rollbackException) {
+                this.status = "Could not remove account or restore its profile: "
+                        + rollbackException.getMessage();
+                MinecraftClient.getInstance().openScreen(this);
+                return;
+            }
+            this.status = exception.getMessage();
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+
+        this.profiles.clear();
+        this.profiles.addAll(updatedProfiles);
+        this.selectedSessionId = -1L;
+        this.lastObservedState = null;
+        int pageCount = Math.max(1, (this.profiles.size() + this.pageSize - 1) / this.pageSize);
+        int targetPage = Math.min(this.pageIndex, pageCount - 1);
+        openScreen("Removed account " + profile.getUsername() + ".", targetPage, -1L);
+    }
+
+    private static String safeMessage(Throwable throwable) {
+        String message = throwable.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? throwable.getClass().getSimpleName() : message;
     }
 
     private void selectAccount(SessionManager.Session session) {
