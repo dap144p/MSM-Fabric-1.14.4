@@ -108,6 +108,19 @@ public final class SessionAutomationStore {
         writeAtomically(properties);
     }
 
+    public synchronized void delete(SessionProfile profile) throws IOException {
+        if (profile == null) throw new IllegalArgumentException("Session profile is required");
+
+        Properties properties = readProperties();
+        String prefix = "account." + profileKey(profile) + ".";
+        for (String key : new ArrayList<String>(properties.stringPropertyNames())) {
+            if (key.startsWith(prefix)) {
+                properties.remove(key);
+            }
+        }
+        writeAtomically(properties);
+    }
+
     private Properties readProperties() throws IOException {
         Properties properties = new Properties();
         if (!Files.exists(file)) return properties;
