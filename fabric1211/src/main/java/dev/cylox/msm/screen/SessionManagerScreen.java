@@ -266,14 +266,14 @@ public final class SessionManagerScreen extends MsmScreen {
 
             this.usernameField = this.addDrawableChild(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 54, innerWidth, 20, "Account username"));
+                    innerLeft, 54, innerWidth, 20, Text.literal("Account username")));
             this.usernameField.setMaxLength(16);
             this.usernameField.setText(this.usernameValue);
 
             if (this.serverValue.isEmpty()) applyLastSelectedServer();
             this.serverField = this.addDrawableChild(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 94, serverFieldWidth, 20, "Server address"));
+                    innerLeft, 94, serverFieldWidth, 20, Text.literal("Server address")));
             this.serverField.setMaxLength(255);
             this.serverField.setText(this.serverValue);
 
@@ -309,14 +309,14 @@ public final class SessionManagerScreen extends MsmScreen {
 
             this.usernameField = this.addDrawableChild(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 88, innerWidth, 20, "Account username"));
+                    innerLeft, 88, innerWidth, 20, Text.literal("Account username")));
             this.usernameField.setMaxLength(16);
             this.usernameField.setText(this.usernameValue);
 
             if (this.serverValue.isEmpty()) applyLastSelectedServer();
             this.serverField = this.addDrawableChild(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 132, serverFieldWidth, 20, "Server address"));
+                    innerLeft, 132, serverFieldWidth, 20, Text.literal("Server address")));
             this.serverField.setMaxLength(255);
             this.serverField.setText(this.serverValue);
 
