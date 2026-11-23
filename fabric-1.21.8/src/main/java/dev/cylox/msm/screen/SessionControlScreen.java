@@ -10,6 +10,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
+import java.util.Collections;
 import java.util.List;
 
 public final class SessionControlScreen extends MsmScreen {
@@ -34,6 +35,10 @@ public final class SessionControlScreen extends MsmScreen {
     private int selectedRule = -1;
     private int rulePage;
     private int scrollOffset;
+    private List<String> cachedMessages = Collections.emptyList();
+    private int cachedMessageCount = -1;
+    private String cachedFirstMessage;
+    private String cachedLastMessage;
     private String status = "";
     private boolean autoChatEnabled;
     private boolean autoReconnectEnabled;
@@ -82,6 +87,7 @@ public final class SessionControlScreen extends MsmScreen {
 
         if (this.page == Page.CHAT) {
             initChat(margin, width);
+            refreshChatMessages();
         } else if (this.page == Page.AUTO_CHAT) {
             initAutoChat(margin, width);
         } else {
@@ -364,8 +370,26 @@ public final class SessionControlScreen extends MsmScreen {
     private void refreshState() {
         try {
             SessionState state = MsmClient.getSecondarySessions().getState(this.sessionId);
-            if (state == SessionState.CONNECTING) this.status = "CONNECTING as " + this.username + "...";
-            else if (state == SessionState.ONLINE) this.status = "ONLINE as " + this.username + ".";
+            if (state == SessionState.CONNECTING) {
+                this.status = "CONNECTING as " + this.username + "...";
+            } else if (state == SessionState.ONLINE) {
+                this.status = "ONLINE as " + this.username + ".";
+            } else {
+                List<String> messages = this.page == Page.CHAT
+                        ? this.cachedMessages : Collections.<String>emptyList();
+                String latest = null;
+                for (int index = messages.size() - 1; index >= 0; index--) {
+                    String message = messages.get(index);
+                    if (message.startsWith("[MSM] Disconnected during ")
+                            || message.startsWith("[MSM] Login rejected:")
+                            || message.startsWith("[MSM] Server disconnected:")
+                            || message.startsWith("[MSM] AutoReconnect")) {
+                        latest = message;
+                        break;
+                    }
+                }
+                this.status = latest == null ? "OFFLINE as " + this.username + "." : latest;
+            }
         } catch (RuntimeException exception) {
             this.status = "This account is no longer available.";
         }
@@ -374,6 +398,7 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void tick() {
         super.tick();
+        if (this.page == Page.CHAT) refreshChatMessages();
         refreshState();
     }
 
@@ -402,8 +427,31 @@ public final class SessionControlScreen extends MsmScreen {
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void renderChat(DrawContext context) {
+    private void refreshChatMessages() {
         List<String> messages = MsmClient.getSecondarySessions().getMessages(this.sessionId);
+        int count = messages.size();
+        String first = count == 0 ? null : messages.get(0);
+        String last = count == 0 ? null : messages.get(count - 1);
+        int visibleLines = Math.max(1, (this.height - 180) / 11);
+        this.scrollOffset = Math.min(this.scrollOffset, Math.max(0, count - visibleLines));
+        if (count == this.cachedMessageCount
+                && equal(first, this.cachedFirstMessage)
+                && equal(last, this.cachedLastMessage)) {
+            return;
+        }
+
+        this.cachedMessages = messages;
+        this.cachedMessageCount = count;
+        this.cachedFirstMessage = first;
+        this.cachedLastMessage = last;
+    }
+
+    private static boolean equal(String first, String second) {
+        return first == null ? second == null : first.equals(second);
+    }
+
+    private void renderChat(DrawContext context) {
+        List<String> messages = this.cachedMessages;
         int lineHeight = 11;
         int visibleLines = Math.max(1, (this.height - 180) / lineHeight);
         int end = Math.max(0, messages.size() - this.scrollOffset);

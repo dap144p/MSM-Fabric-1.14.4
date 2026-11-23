@@ -38,12 +38,24 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class SecondarySessionController {
     private static final Logger LOGGER = LogManager.getLogger("MSM-Secondary");
     private static final int DEFAULT_PORT = 25565;
+    private static final int HANDSHAKE_TIMEOUT_SECONDS = 30;
+    private static final int PING_TIMEOUT_SECONDS = 10;
+    private static final ScheduledExecutorService TIMEOUTS =
+            Executors.newSingleThreadScheduledExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "MSM-Network-Timeouts");
+                thread.setDaemon(true);
+                return thread;
+            });
 
     private final SessionManager sessionManager;
     private final ConcurrentMap<Long, Connection> connections = new ConcurrentHashMap<>();
@@ -121,6 +133,7 @@ public final class SecondarySessionController {
                         appendMessage(sessionId, "[MSM] Login accepted. Waiting for Join Game.");
                     } else if (packet instanceof ClientboundLoginPacket) {
                         connection.joined.set(true);
+                        cancelTimeout(connection.handshakeTimeout);
                         connection.stage = "IN_GAME";
                         markOnline(connection);
                         appendMessage(sessionId, "[MSM] Join Game received. Secondary player is ONLINE.");
@@ -170,6 +183,16 @@ public final class SecondarySessionController {
                 }
             });
 
+            connection.handshakeTimeout = TIMEOUTS.schedule(() -> {
+                if (connection.joined.get() || connection.finished.get()) return;
+                String reason = "Timed out waiting for Join Game.";
+                try {
+                    connection.session.disconnect(reason);
+                } catch (Throwable ignored) {
+                } finally {
+                    finishConnection(connection, reason);
+                }
+            }, HANDSHAKE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             session.connect(false);
         } catch (Throwable throwable) {
             finishConnection(connection, safeMessage(throwable));
@@ -249,6 +272,10 @@ public final class SecondarySessionController {
         });
 
         try {
+            attempt.timeout = TIMEOUTS.schedule(
+                    () -> completePing(attempt, "PING FAILED | " + endpoint
+                            + " | Timed out waiting for status response."),
+                    PING_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             session.connect(false);
         } catch (Throwable throwable) {
             completePing(attempt, "PING FAILED | " + endpoint + " | " + safeMessage(throwable));
@@ -257,6 +284,7 @@ public final class SecondarySessionController {
 
     private void completePing(PingAttempt attempt, String result) {
         if (!attempt.finished.compareAndSet(false, true)) return;
+        cancelTimeout(attempt.timeout);
         pingAttempts.remove(attempt.endpoint, attempt);
         try {
             attempt.session.disconnect("Status ping completed.");
@@ -339,6 +367,7 @@ public final class SecondarySessionController {
 
     private void finishConnection(Connection connection, String reason) {
         if (!connection.finished.compareAndSet(false, true)) return;
+        cancelTimeout(connection.handshakeTimeout);
         connections.remove(connection.sessionId, connection);
 
         Optional<SessionManager.Session> managed = sessionManager.find(connection.sessionId);
@@ -368,6 +397,10 @@ public final class SecondarySessionController {
         chatBuffers.computeIfAbsent(sessionId, ignored -> new ChatBuffer()).add(entry);
     }
 
+    private static void cancelTimeout(ScheduledFuture<?> timeout) {
+        if (timeout != null) timeout.cancel(false);
+    }
+
     private static String plain(Component component) {
         return component == null ? "" : PlainTextComponentSerializer.plainText().serialize(component);
     }
@@ -383,6 +416,7 @@ public final class SecondarySessionController {
         private final ClientSession session;
         private final PingCallback callback;
         private final AtomicBoolean finished = new AtomicBoolean(false);
+        private volatile ScheduledFuture<?> timeout;
 
         private PingAttempt(String endpoint, ClientSession session, PingCallback callback) {
             this.endpoint = endpoint;
@@ -398,6 +432,7 @@ public final class SecondarySessionController {
         private final AtomicBoolean loginAccepted = new AtomicBoolean(false);
         private final AtomicBoolean stopping = new AtomicBoolean(false);
         private final AtomicBoolean finished = new AtomicBoolean(false);
+        private volatile ScheduledFuture<?> handshakeTimeout;
         private volatile String stage = "CREATED";
 
         private Connection(long sessionId, ClientSession session) {
