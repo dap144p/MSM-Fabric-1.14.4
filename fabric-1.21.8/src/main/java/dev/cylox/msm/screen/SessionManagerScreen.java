@@ -62,6 +62,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int thirdWidth = Math.max(1, (contentWidth - 12) / 3);
         this.authModeButton = this.addAction(margin, 64, thirdWidth, 20,
                 authModeLabel(), button -> cycleAuthMode());
+        this.authModeButton.active = false;
         this.addAction(margin + thirdWidth + 6, 64, thirdWidth, 20,
                 "SAVED SERVERS", button -> openServerPicker());
         this.addAction(margin + (thirdWidth + 6) * 2, 64,
