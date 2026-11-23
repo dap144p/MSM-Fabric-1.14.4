@@ -79,8 +79,11 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
                 fitText(this.serverAddress, panelWidth - 28),
                 this.width / 2, top + 52, 0xFFB3BFCD);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "Saved AutoChat and AutoReconnect settings will also be deleted.",
-                this.width / 2, top + 76, 0xFF9EADBD);
+                "AutoChat and AutoReconnect settings",
+                this.width / 2, top + 70, 0xFF9EADBD);
+        drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                "for this account will also be deleted.",
+                this.width / 2, top + 82, 0xFF9EADBD);
 
         super.render(mouseX, mouseY, delta);
     }
