@@ -36,11 +36,12 @@ public final class SessionChatScreen extends Screen {
     @Override
     protected void init() {
         int left = 12;
-        int width = Math.max(80, this.width - 24);
+        int width = Math.max(1, this.width - 24);
         int gap = 4;
-        int sendWidth = Math.min(64, Math.max(48, width / 6));
-        int fieldWidth = Math.max(30, width - sendWidth - gap);
-        int actionWidth = (width - gap) / 2;
+        int sendWidth = Math.min(64, Math.max(40, width / 5));
+        sendWidth = Math.min(sendWidth, Math.max(1, width - gap - 1));
+        int fieldWidth = Math.max(1, width - sendWidth - gap);
+        int actionWidth = Math.max(1, (width - gap) / 2);
 
         this.messageField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
@@ -92,7 +93,16 @@ public final class SessionChatScreen extends Screen {
     }
 
     private void updateControls() {
-        SessionState state = this.controller.getState(this.sessionId);
+        SessionState state;
+        try {
+            state = this.controller.getState(this.sessionId);
+        } catch (IllegalArgumentException exception) {
+            if (this.sendButton != null) this.sendButton.active = false;
+            if (this.connectionButton != null) this.connectionButton.active = false;
+            this.status = "This account is no longer available.";
+            return;
+        }
+
         if (this.sendButton != null) {
             this.sendButton.active = state == SessionState.ONLINE;
         }
@@ -100,7 +110,7 @@ public final class SessionChatScreen extends Screen {
             this.connectionButton.setMessage(
                     state == SessionState.CONNECTING ? "CANCEL"
                             : state == SessionState.ONLINE ? "DISCONNECT" : "JOIN / CONNECT");
-            this.connectionButton.active = true;
+            this.connectionButton.active = state != null;
         }
 
         if (state == SessionState.CONNECTING) {
