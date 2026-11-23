@@ -129,8 +129,14 @@ public final class SecondarySessionController {
                         appendMessage(sessionId, chatPacket.getMessage().getFullText());
                     } else if (packet instanceof EncryptionRequestPacket) {
                         connection.stage = "ONLINE_AUTH_REQUIRED";
+                        String reason = "MSM OFFLINE_LOCAL cannot authenticate to online-mode servers.";
                         appendMessage(sessionId,
-                                "[MSM] Server requested online-mode authentication. OFFLINE_LOCAL cannot complete this login.");
+                                "[MSM] Server requested online-mode authentication. Disconnecting this offline-only session.");
+                        try {
+                            connection.client.getSession().disconnect(reason, false);
+                        } catch (Throwable throwable) {
+                            finishConnection(connection, reason);
+                        }
                     } else if (packet instanceof LoginDisconnectPacket) {
                         connection.stage = "LOGIN_REJECTED";
                         LoginDisconnectPacket disconnect = (LoginDisconnectPacket) packet;
