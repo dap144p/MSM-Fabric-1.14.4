@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public final class SessionManagerScreen extends Screen {
+public final class SessionManagerScreen extends MsmScreen {
     private static final int PAGE_SIZE = 6;
     private static final String DEFAULT_STATUS = "Add an account, select it, then CONNECT or CONTROL MANAGE.";
 
@@ -259,7 +259,7 @@ public final class SessionManagerScreen extends Screen {
         }
         this.serverField.setText(this.serverValue);
 
-        this.serverListButton = this.addButton(new ButtonWidget(
+        this.serverListButton = this.addButton(new MsmButtonWidget(
                 compactForm ? formLeft : formLeft + serverFieldWidth + 4,
                 compactForm ? serverY + 28 : serverY,
                 serverButtonWidth, 20, compactForm ? "SERVER LIST" : "SERVERS",
@@ -496,7 +496,17 @@ public final class SessionManagerScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float delta) {
-        this.renderBackground();
+        this.renderMsmBackground();
+        int contentWidth = Math.max(1, this.width - 24);
+        int contentLeft = (this.width - contentWidth) / 2;
+        int formWidth = Math.min(340, contentWidth);
+        int formLeft = (this.width - formWidth) / 2;
+        drawGlassPanel(formLeft - 8, 20, formLeft + formWidth + 8,
+                this.accountsLabelY - 10);
+        drawGlassPanel(contentLeft, this.accountsLabelY - 7,
+                contentLeft + contentWidth, this.height - 96);
+        drawGlassPanel(contentLeft, this.height - 91,
+                contentLeft + contentWidth, this.height - 57);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
