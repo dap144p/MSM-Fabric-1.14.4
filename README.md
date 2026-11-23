@@ -1,6 +1,6 @@
-# MSM Fabric Multi-Version
+# MSM Fabric
 
-**Cylox Multi Session Manager** is a client-side Fabric mod for Minecraft Java. The repository builds two separate mod JARs:
+**Multi Session Manager** is a client-side Fabric mod for Minecraft Java. The repository builds two separate mod JARs:
 
 | Minecraft | Module | Java runtime | Secondary-session protocol |
 |---|---|---:|---:|
