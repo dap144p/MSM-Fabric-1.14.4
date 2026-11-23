@@ -125,7 +125,7 @@ tasks.register("verifyBundledCore") {
 }
 
 project(":msm-core") {
-    tasks.named("test") {
+    tasks.matching { it.name == "test" }.configureEach {
         enabled = false
     }
 }
