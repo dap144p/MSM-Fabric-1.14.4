@@ -45,6 +45,7 @@ public final class SessionControlScreen extends Screen {
     private ButtonWidget ruleModeButton;
     private ButtonWidget autoChatEnabledButton;
     private ButtonWidget ruleSaveButton;
+    private ButtonWidget ruleToggleButton;
     private ButtonWidget ruleDeleteButton;
 
     private ButtonWidget autoReconnectButton;
@@ -176,13 +177,16 @@ public final class SessionControlScreen extends Screen {
 
         if (pageCount > 1) {
             int pageWidth = Math.min(90, Math.max(1, (width - gap) / 2));
-            this.addButton(new ButtonWidget(left, rowY, pageWidth, 18,
-                    "PREVIOUS", button -> openRulePage(this.rulePage - 1, this.selectedRuleIndex))
-                    .setActive(this.rulePage > 0));
-            this.addButton(new ButtonWidget(left + pageWidth + gap, rowY,
-                    pageWidth, 18, "NEXT",
-                    button -> openRulePage(this.rulePage + 1, this.selectedRuleIndex))
-                    .setActive(this.rulePage + 1 < pageCount));
+            ButtonWidget previous = new ButtonWidget(
+                    left, rowY, pageWidth, 18,
+                    "PREVIOUS", button -> openRulePage(this.rulePage - 1, this.selectedRuleIndex));
+            ButtonWidget next = new ButtonWidget(
+                    left + pageWidth + gap, rowY, pageWidth, 18,
+                    "NEXT", button -> openRulePage(this.rulePage + 1, this.selectedRuleIndex));
+            previous.active = this.rulePage > 0;
+            next.active = this.rulePage + 1 < pageCount;
+            this.addButton(previous);
+            this.addButton(next);
             rowY += 22;
         }
 
@@ -207,14 +211,18 @@ public final class SessionControlScreen extends Screen {
                 left, editorY + 50, editorButtonWidth, 20,
                 this.selectedRuleIndex >= 0 ? "SAVE RULE" : "ADD RULE",
                 button -> saveRule()));
-        this.ruleDeleteButton = this.addButton(new ButtonWidget(
+        this.ruleToggleButton = this.addButton(new ButtonWidget(
                 left + editorButtonWidth + gap, editorY + 50, editorButtonWidth, 20,
-                "DELETE", button -> deleteRule()));
-        this.addButton(new ButtonWidget(
+                getSelectedRuleEnabledLabel(), button -> toggleSelectedRule()));
+        this.ruleDeleteButton = this.addButton(new ButtonWidget(
                 left + (editorButtonWidth + gap) * 2, editorY + 50,
-                editorButtonWidth, 20, "SAVE ALL", button -> saveSettings()));
+                editorButtonWidth, 20, "DELETE", button -> deleteRule()));
 
         this.ruleDeleteButton.active = this.selectedRuleIndex >= 0;
+        this.ruleToggleButton.active = this.selectedRuleIndex >= 0;
+        this.addButton(new ButtonWidget(
+                left, this.height - 24, width, 20,
+                "SAVE ALL", button -> saveSettings()));
         if (this.selectedRuleIndex >= 0 && this.selectedRuleIndex < rules.size()) {
             loadRuleIntoEditor(rules.get(this.selectedRuleIndex));
         } else {
@@ -315,6 +323,28 @@ public final class SessionControlScreen extends Screen {
         this.editingMode = rule.getMode();
         this.ruleModeButton.setMessage(this.editingMode.name());
         this.ruleSaveButton.setMessage("SAVE RULE");
+        this.ruleToggleButton.setMessage(getSelectedRuleEnabledLabel());
+        this.ruleToggleButton.active = true;
+    }
+
+    private String getSelectedRuleEnabledLabel() {
+        if (this.selectedRuleIndex < 0 || this.selectedRuleIndex >= this.draft.getRules().size()) {
+            return "ENABLE RULE";
+        }
+        return this.draft.getRules().get(this.selectedRuleIndex).isEnabled()
+                ? "DISABLE RULE" : "ENABLE RULE";
+    }
+
+    private void toggleSelectedRule() {
+        if (this.selectedRuleIndex < 0 || this.selectedRuleIndex >= this.draft.getRules().size()) return;
+        SessionAutomationSettings.AutoChatRule current =
+                this.draft.getRules().get(this.selectedRuleIndex);
+        this.draft.updateRule(this.selectedRuleIndex,
+                new SessionAutomationSettings.AutoChatRule(
+                        current.getMessage(), current.getMode(),
+                        current.getDelaySeconds(), !current.isEnabled()));
+        this.status = "Rule enable state changed in draft. Press SAVE ALL.";
+        openAutoChatPage(this.rulePage, this.selectedRuleIndex);
     }
 
     private void cycleRuleMode() {
@@ -434,6 +464,20 @@ public final class SessionControlScreen extends Screen {
             this.status = "CONNECTING as " + this.username + "...";
         } else if (state == SessionState.ONLINE) {
             this.status = "ONLINE as " + this.username + ".";
+        } else {
+            List<String> messages = this.controller.getMessages(this.sessionId);
+            String latest = null;
+            for (int index = messages.size() - 1; index >= 0; index--) {
+                String message = messages.get(index);
+                if (message.startsWith("[MSM] Disconnected during ")
+                        || message.startsWith("[MSM] Login rejected:")
+                        || message.startsWith("[MSM] Server disconnected:")
+                        || message.startsWith("[MSM] AutoReconnect")) {
+                    latest = message;
+                    break;
+                }
+            }
+            this.status = latest == null ? "OFFLINE as " + this.username + "." : latest;
         }
     }
 
@@ -515,17 +559,16 @@ public final class SessionControlScreen extends Screen {
             drawCenteredString(MinecraftClient.getInstance().textRenderer,
                     this.status, this.width / 2, this.height - 48, 0xA0A0A0);
         } else {
-            int labelY = 61;
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "RECONNECT DELAY (sec)", 12, labelY, 0xA0A0A0);
+                    "RECONNECT DELAY (sec)", 12, 82, 0xA0A0A0);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "MAX ATTEMPTS", Math.max(12, this.width / 2 - 30), labelY, 0xA0A0A0);
+                    "MAX ATTEMPTS", Math.max(12, this.width / 2 - 30), 82, 0xA0A0A0);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "MAX DELAY (sec)", this.width - 112, labelY, 0xA0A0A0);
+                    "MAX DELAY (sec)", this.width - 112, 82, 0xA0A0A0);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "INITIAL AUTOCHAT DELAY", 12, 159, 0xA0A0A0);
+                    "INITIAL AUTOCHAT DELAY", 12, 148, 0xA0A0A0);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "GLOBAL CHAT INTERVAL", this.width / 2 + 8, 159, 0xA0A0A0);
+                    "GLOBAL CHAT INTERVAL", this.width / 2 + 8, 148, 0xA0A0A0);
             drawCenteredString(MinecraftClient.getInstance().textRenderer,
                     this.status, this.width / 2, this.height - 48, 0xA0A0A0);
         }
