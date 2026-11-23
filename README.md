@@ -1,82 +1,112 @@
-# MSM-Fabric-1.14.4
+# MSM Fabric Multi-Version
 
-**Cylox Multi Session Manager** — Fabric client mod for Minecraft Java 1.14.4, including MJ Launcher Android.
+**Cylox Multi Session Manager** is a client-side Fabric mod for Minecraft Java. The repository builds two separate mod JARs:
 
-The Fabric project supplies Minecraft-specific UI and network integration. Shared domain logic is maintained in [MSM-Core](https://github.com/dap144p/MSM-Core) as a Git submodule and is merged into the final mod JAR. Players install **one mod JAR**, not a separate Core mod.
+| Minecraft | Module | Java runtime | Secondary-session protocol |
+|---|---|---:|---:|
+| 1.14.4 | Repository root | Java 8 | 498 |
+| 1.21.8 | \`fabric-1.21.8/\` | Java 21 | 772 |
+
+The JARs are version-specific. Install only the JAR matching the Minecraft profile; a single Fabric JAR cannot safely target both game versions because their runtime and client APIs differ.
+
+The Minecraft-specific UI and networking live in each version module. Shared profile/session logic comes from [MSM-Core](https://github.com/dap144p/MSM-Core), and the version-independent AutoChat / AutoReconnect scheduler is reused from the root source tree. Players install one MSM JAR per Minecraft profile, not a separate Core mod.
 
 ## Release stage
 
-**Current stage: Development / Nightly.** Features and long-running multi-account behavior are still being validated in Minecraft. This project is not marked Beta, Release Candidate, or Stable yet.
+**Current stage: Development / Nightly.** Multi-account behavior still needs in-game validation on both supported versions. This project is not marked Beta, Release Candidate, or Stable yet.
 
 | Channel | What it means |
 |---|---|
 | Development | Temporary CI builds from pull requests and feature branches. Intended for active development and testing. |
-| Nightly | Automatically published prerelease builds from the `development` branch. May contain regressions or unfinished work. |
-| Beta | Versioned prerelease created from a `vX.Y.Z-beta.N` tag after the main features pass initial testing. |
-| Release Candidate | Versioned prerelease created from a `vX.Y.Z-rc.N` tag, used for final validation before Stable. |
-| Stable | Final release created from a `vX.Y.Z` tag only after the release candidate is validated. |
+| Nightly | Automatically published prerelease builds from the \`development\` branch. May contain regressions or unfinished work. |
+| Beta | Versioned prerelease created from a \`vX.Y.Z-beta.N\` tag after the main features pass initial testing. |
+| Release Candidate | Versioned prerelease created from a \`vX.Y.Z-rc.N\` tag for final validation before Stable. |
+| Stable | Final release created from a \`vX.Y.Z\` tag only after the release candidate is validated. |
 
 See [RELEASE_CHANNELS.md](RELEASE_CHANNELS.md) for the branch, tag, build, and promotion rules.
 
-## Current implementation
+## Features
 
-- Adds an `MSM` button to the in-game Pause Menu.
-- Opens the manager as a normal Minecraft screen; closing it returns to the previous menu.
-- Adds and validates local profiles using Minecraft username and server address.
-- Saves a per-profile authentication-mode choice: Microsoft or local/offline-mode.
-- Saves, edits, deletes, and searches profiles.
-- Shows the selected profile and session state, with a summary of all slot states.
-- Manages saved account profiles without an artificial 20-session cap; the list paginates to fit the screen.
-- Uses a clean, responsive dark UI with a two-column account manager on wide screens and a stacked layout on narrow screens.
-- Allows a selected offline account to be removed after confirmation; its saved profile and per-account AutoChat/AutoReconnect settings are removed together. Active accounts must be disconnected first.
-- Supports an independent secondary Java connection using the Minecraft 1.14.4 protocol (protocol 498) for `OFFLINE_LOCAL` profiles.
-- Marks a secondary session ONLINE only after the server's Join Game packet is received.
-- Handles the protocol keep-alive flow and provides per-session chat receive/send.
-- Uses no secondary Minecraft world renderer; the main Minecraft client remains unchanged.
-- Provides per-account AutoChat rules with `ONCE` after the initial Join Game packet and configurable `REPEAT` intervals. Automated sends share a serial queue; Once rules are processed in account-list order before Repeat tasks, and simultaneously due Repeat tasks are sent in account-list order.
-- Provides per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized in account-list order; manual disconnect disables the account's reconnect intent.
-- Stores profiles in `.minecraft/config/msm-fabric.properties` and per-account automation settings in `.minecraft/config/msm-automation.properties`.
+- Adds an **MSM** button to the in-game Pause Menu.
+- Responsive account manager with saved server selection, per-account status, and account removal confirmation.
+- Supports multiple independent protocol-only secondary Java sessions.
+- Marks a session ONLINE only after the Minecraft Join Game packet is received.
+- Per-account chat history and chat sending.
+- Per-account AutoChat rules with \`ONCE\` and \`REPEAT\` modes. ONCE tasks are scheduled after Join Game; queued automated sends are serialized.
+- Per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized.
+- Removing an account clears its profile and saved AutoChat / AutoReconnect settings together. Active sessions must be disconnected first.
+- Uses no secondary Minecraft world renderer; the primary Minecraft client remains unchanged.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
+- Keeps profiles in the shared MSM-Core format so the two game-version builds can read the same profile configuration when they use the same Minecraft config directory.
+
+## Version-specific details
+
+### Minecraft 1.14.4
+
+The original Fabric project remains at the repository root and retains its existing client integration and protocol 498 secondary-session implementation.
+
+- Build: \`./gradlew clean check build\`
+- Output: \`build/libs/MSM-Fabric-1.14.4-<version>.jar\`
+- Requires a Minecraft 1.14.4 Fabric profile and compatible Fabric Loader / Fabric API.
+- Java 8 is the target runtime for Minecraft 1.14.4.
+
+### Minecraft 1.21.8
+
+The new Fabric project is isolated in \`fabric-1.21.8/\`. Its client UI and networking use the 1.21.8 Yarn/Fabric APIs and Java 21. The independent secondary-session connection uses MCProtocolLib's 1.21.7 release codec because Minecraft 1.21.7 and 1.21.8 share protocol 772.
+
+- Build: \`cd fabric-1.21.8 && ./gradlew clean check build\`
+- Output: \`fabric-1.21.8/build/libs/MSM-Fabric-1.21.8-<version>.jar\`
+- Requires a Minecraft 1.21.8 Fabric profile, compatible Fabric Loader / Fabric API, and Java 21 runtime.
+
+The new version keeps the Manager and Control Manage workflow: account list, connect / disconnect, chat, AutoChat, AutoReconnect, saved-server picker, and remove-account confirmation.
 
 ## Current limitations
 
-- Secondary connections currently support **Minecraft Java 1.14.4 protocol 498 only**. The server must accept 1.14.4 clients directly or provide compatible server-side protocol support.
-- `OFFLINE_LOCAL` only works when the destination server is configured for offline-mode and permits that account name. It does not bypass online-mode authentication.
-- Microsoft sign-in for secondary sessions is not implemented yet. Selecting Microsoft is profile metadata only, and Connect reports that limitation instead of attempting an unauthenticated login.
-- Secondary sessions do not have a separate world renderer, movement controller, or inventory controller.
-- Automatic protocol translation for secondary sessions is not implemented. AutoChat and AutoReconnect manage protocol sessions only; they do not simulate world movement or gameplay actions.
-- Each active secondary connection currently owns its own PacketLib network event loop. Multi-session resource use still needs device testing, especially on low-memory Android devices.
+- Secondary connections currently support only the protocol listed for the selected build: protocol 498 for 1.14.4 and protocol 772 for 1.21.8. The destination server must accept that protocol directly or provide compatible server-side protocol support.
+- \`OFFLINE_LOCAL\` works only when the destination server is configured for offline-mode and permits that account name. It does not bypass online-mode authentication.
+- Microsoft sign-in for secondary sessions is not implemented yet. Selecting Microsoft is profile metadata only; Connect reports the limitation.
+- Offline secondary chat is unsigned. Servers that enforce signed secure chat may reject messages.
+- Secondary sessions have no separate world renderer, movement controller, or inventory controller.
+- Automatic protocol translation for secondary sessions is not implemented. ViaFabric/ViaVersion on the primary client does not automatically translate the independent secondary connection.
+- Multiple live connections still require real-device testing, especially on low-memory Android devices.
 
-Editing a profile is unavailable while its slot is CONNECTING or ONLINE. A successfully edited profile is reset to OFFLINE because it represents a new profile record.
+## Build requirements
 
-## Build
+- Minecraft 1.14.4 module: JDK 17 for building, with Java 8 bytecode target.
+- Minecraft 1.21.8 module: JDK 21 and its included Gradle 8.14.3 wrapper.
+- Initialize the Core submodule when cloning:
 
-Requirements: JDK 17 and the included Gradle wrapper.
-
-```sh
+~~~sh
 git clone --recurse-submodules https://github.com/dap144p/MSM-Fabric-1.14.4.git
-cd MSM-Fabric-1.14.4
-./gradlew clean check build
-```
+~~~
 
-For an existing clone, initialize or update Core with:
+For an existing clone:
 
-```sh
+~~~sh
 git submodule update --init --recursive
-```
+~~~
 
-The build resolves `com.github.GeyserMC:MCProtocolLib:1.14.4-2` from JitPack and nests it with its runtime dependencies in the mod JAR. The remapped mod JAR is generated in `build/libs/`. MSM Core classes are included in that JAR and verified by the `check` task.
+Build 1.14.4:
 
-## Install on MJ Launcher
+~~~sh
+./gradlew clean check build
+~~~
 
-1. Create or select a Fabric profile for Minecraft **1.14.4**.
-2. Install Fabric Loader and Fabric API compatible with 1.14.4.
-3. Download the JAR for the channel you are testing. For Development builds, download the workflow artifact from GitHub Actions and extract the single JAR inside it; Nightly, Beta, RC, and Stable releases attach the JAR directly.
-4. Copy that JAR into that profile's `mods` folder.
-5. Launch the game, enter a world or server, and open the Pause Menu.
-6. Tap **MSM**, add a profile with **OFFLINE** authentication only when the target server uses offline-mode, select it, and press **CONNECT**.
-7. Wait for the slot to show **ONLINE**. Open **CHAT** to read and send messages through the secondary account.
+Build 1.21.8:
 
-## ViaFabric note
+~~~sh
+cd fabric-1.21.8
+./gradlew clean check build
+~~~
 
-ViaFabric is a separate protocol-translation mod and is not bundled into this project. It may translate the main 1.14.4 connection to supported server protocols. It does not automatically translate the secondary connection; the secondary currently speaks protocol 498 directly.
+GitHub Actions builds both versions and publishes two separate JAR assets for Nightly, Beta, RC, and Stable releases. Development workflow artifacts contain both version-specific JARs.
+
+## Install on MJ Launcher or another Fabric launcher
+
+1. Create a Fabric profile for **Minecraft 1.14.4** or **Minecraft 1.21.8**.
+2. Install Fabric Loader and Fabric API matching that exact game version.
+3. Select the correct Java runtime: Java 8 for 1.14.4 or Java 21 for 1.21.8.
+4. Download the matching MSM JAR. Do not put the 1.14.4 JAR into a 1.21.8 profile, or vice versa.
+5. Copy that single JAR into the profile's \`mods\` folder.
+6. Launch Minecraft and open the Pause Menu, then select **MSM**.
+7. Add an account, choose **OFFLINE** only when the destination server accepts offline-mode accounts, then connect.

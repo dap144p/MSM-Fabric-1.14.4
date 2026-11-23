@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        maven { url = "https://maven.fabricmc.net/" }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "MSM-Fabric-1.21.8"
+
+include ":msm-core"
+project(":msm-core").projectDir = file("../msm-core")
