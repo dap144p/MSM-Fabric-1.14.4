@@ -375,7 +375,8 @@ public final class SessionControlScreen extends MsmScreen {
             } else if (state == SessionState.ONLINE) {
                 this.status = "ONLINE as " + this.username + ".";
             } else {
-                List<String> messages = MsmClient.getSecondarySessions().getMessages(this.sessionId);
+                List<String> messages = this.page == Page.CHAT
+                        ? this.cachedMessages : Collections.<String>emptyList();
                 String latest = null;
                 for (int index = messages.size() - 1; index >= 0; index--) {
                     String message = messages.get(index);
@@ -397,8 +398,8 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void tick() {
         super.tick();
-        refreshState();
         if (this.page == Page.CHAT) refreshChatMessages();
+        refreshState();
     }
 
     @Override
