@@ -401,10 +401,12 @@ public final class SessionManagerScreen extends MsmScreen {
             int actionY = this.height - 28;
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     contentLeft, actionY, actionWidth, 20,
-                    "JOIN / CONNECT", button -> toggleConnection()));
+                    (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"),
+                    button -> toggleConnection()));
             this.controlButton = this.addButton(new MsmButtonWidget(
                     contentLeft + actionWidth + actionGap, actionY, actionWidth, 20,
-                    "CONTROL MANAGE", button -> openControlManage()));
+                    (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"),
+                    button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft + (actionWidth + actionGap) * 2, actionY,
                     actionWidth, 20, (contentWidth < 540 ? "REMOVE" : "REMOVE ACCOUNT"),
