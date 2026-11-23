@@ -11,6 +11,14 @@ import java.util.Set;
 
 public final class SessionAutomationSchedulerTest {
     public static void main(String[] args) {
+        if (!SessionAutomationScheduler.isServerRejection(
+                "MSM OFFLINE_LOCAL cannot authenticate to online-mode servers.")) {
+            throw new AssertionError("Offline sessions must stop reconnecting to online-mode servers.");
+        }
+        if (SessionAutomationScheduler.isServerRejection("Connection reset by peer")) {
+            throw new AssertionError("A transient network failure must not be classified as a server rejection.");
+        }
+
         SessionManager manager = new SessionManager();
         SessionManager.Session first = manager.create(new SessionProfile(
                 "dap7000", "play.example.net", SessionAuthMode.OFFLINE_LOCAL));
