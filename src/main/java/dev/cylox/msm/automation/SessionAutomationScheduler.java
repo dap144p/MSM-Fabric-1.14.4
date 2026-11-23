@@ -624,7 +624,7 @@ public final class SessionAutomationScheduler
                 || state == SessionState.FAILED;
     }
 
-    private boolean isServerRejection(String reason) {
+    static boolean isServerRejection(String reason) {
         if (reason == null) return false;
         String normalized = reason.toLowerCase(java.util.Locale.ROOT);
         return normalized.contains("banned")
@@ -633,6 +633,9 @@ public final class SessionAutomationScheduler
                 || normalized.contains("not whitelisted")
                 || normalized.contains("invalid session")
                 || normalized.contains("not authenticated")
+                || normalized.contains("online-mode authentication")
+                || normalized.contains("offline_local cannot authenticate")
+                || normalized.contains("requires online mode")
                 || normalized.contains("already logged in")
                 || normalized.contains("logged in from another location");
     }
