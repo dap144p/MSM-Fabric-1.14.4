@@ -279,6 +279,10 @@ public final class SecondarySessionController {
         return managed.isPresent() && managed.get().getState() == SessionState.ONLINE;
     }
 
+    public SessionState getState(long sessionId) {
+        return requireSession(sessionId).getState();
+    }
+
     private SessionManager.Session requireSession(long sessionId) {
         Optional<SessionManager.Session> managed = sessionManager.find(sessionId);
         if (!managed.isPresent()) {
