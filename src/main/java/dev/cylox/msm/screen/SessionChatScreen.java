@@ -92,15 +92,36 @@ public final class SessionChatScreen extends Screen {
     }
 
     private void updateControls() {
+        SessionState state = this.controller.getState(this.sessionId);
         if (this.sendButton != null) {
-            this.sendButton.active = this.controller.isOnline(this.sessionId);
+            this.sendButton.active = state == SessionState.ONLINE;
         }
         if (this.connectionButton != null) {
-            SessionState state = this.controller.getState(this.sessionId);
             this.connectionButton.setMessage(
                     state == SessionState.CONNECTING ? "CANCEL"
                             : state == SessionState.ONLINE ? "DISCONNECT" : "JOIN / CONNECT");
             this.connectionButton.active = true;
+        }
+
+        if (state == SessionState.CONNECTING) {
+            this.status = "CONNECTING as " + this.username + "...";
+        } else if (state == SessionState.ONLINE) {
+            this.status = "ONLINE as " + this.username + ". Chat is ready.";
+        } else {
+            List<String> messages = this.controller.getMessages(this.sessionId);
+            String latestConnectionMessage = null;
+            for (int index = messages.size() - 1; index >= 0; index--) {
+                String message = messages.get(index);
+                if (message.startsWith("[MSM] Disconnected during ")
+                        || message.startsWith("[MSM] Login rejected:")
+                        || message.startsWith("[MSM] Server disconnected:")) {
+                    latestConnectionMessage = message;
+                    break;
+                }
+            }
+            this.status = latestConnectionMessage == null
+                    ? "OFFLINE. Press JOIN / CONNECT to start this account."
+                    : latestConnectionMessage;
         }
     }
 
