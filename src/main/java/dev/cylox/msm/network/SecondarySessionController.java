@@ -5,6 +5,7 @@ import com.github.steveice10.mc.protocol.data.SubProtocol;
 import com.github.steveice10.mc.protocol.packet.ingame.server.ServerDisconnectPacket;
 import com.github.steveice10.mc.protocol.packet.login.server.EncryptionRequestPacket;
 import com.github.steveice10.mc.protocol.packet.login.server.LoginDisconnectPacket;
+import com.github.steveice10.mc.protocol.packet.login.server.LoginSuccessPacket;
 import com.github.steveice10.mc.protocol.packet.status.server.StatusPongPacket;
 import com.github.steveice10.mc.protocol.packet.status.server.StatusResponsePacket;
 import com.github.steveice10.mc.protocol.packet.ingame.client.ClientChatPacket;
@@ -21,6 +22,8 @@ import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * It does not impersonate Microsoft authentication or translate other protocol versions.
  */
 public final class SecondarySessionController {
+    private static final Logger LOGGER = LogManager.getLogger("MSM-Secondary");
     private static final int DEFAULT_PORT = 25565;
     private final SessionManager sessionManager;
     private final ConcurrentMap<Long, Connection> connections =
@@ -79,33 +83,44 @@ public final class SecondarySessionController {
 
         try {
             sessionManager.updateState(sessionId, SessionState.CONNECTING);
-            appendMessage(sessionId, "[MSM] Connecting to " + address.display + " as "
+            connection.stage = "TCP_CONNECTING";
+            appendMessage(sessionId, "[MSM] Starting connection to " + address.display + " as "
                     + profile.getUsername() + " (offline-mode).");
 
             client.getSession().addListener(new SessionAdapter() {
                 @Override
                 public void connected(ConnectedEvent event) {
-                    appendMessage(sessionId, "[MSM] TCP connected; waiting for Minecraft Join Game.");
+                    connection.stage = "LOGIN_HANDSHAKE";
+                    appendMessage(sessionId, "[MSM] TCP connected. Sending Minecraft login handshake.");
                 }
 
                 @Override
                 public void packetReceived(PacketReceivedEvent event) {
                     Object packet = event.getPacket();
-                    if (packet instanceof ServerJoinGamePacket) {
+                    if (packet instanceof LoginSuccessPacket) {
+                        connection.stage = "WAITING_FOR_JOIN_GAME";
+                        connection.loginAccepted.set(true);
+                        appendMessage(sessionId,
+                                "[MSM] Login accepted by server. Waiting for Join Game packet.");
+                    } else if (packet instanceof ServerJoinGamePacket) {
+                        connection.stage = "IN_GAME";
                         connection.joined.set(true);
                         markOnline(connection);
-                        appendMessage(sessionId, "[MSM] Joined the server. Secondary session is online.");
+                        appendMessage(sessionId, "[MSM] Join Game received. Secondary player is ONLINE.");
                     } else if (packet instanceof ServerChatPacket) {
                         ServerChatPacket chatPacket = (ServerChatPacket) packet;
                         appendMessage(sessionId, chatPacket.getMessage().getFullText());
                     } else if (packet instanceof EncryptionRequestPacket) {
+                        connection.stage = "ONLINE_AUTH_REQUIRED";
                         appendMessage(sessionId,
-                                "[MSM] Server requires online-mode authentication. OFFLINE_LOCAL cannot join it.");
+                                "[MSM] Server requested online-mode authentication. OFFLINE_LOCAL cannot complete this login.");
                     } else if (packet instanceof LoginDisconnectPacket) {
+                        connection.stage = "LOGIN_REJECTED";
                         LoginDisconnectPacket disconnect = (LoginDisconnectPacket) packet;
                         appendMessage(sessionId, "[MSM] Login rejected: "
                                 + disconnect.getReason().getFullText());
                     } else if (packet instanceof ServerDisconnectPacket) {
+                        connection.stage = "SERVER_DISCONNECT";
                         ServerDisconnectPacket disconnect = (ServerDisconnectPacket) packet;
                         appendMessage(sessionId, "[MSM] Server disconnected: "
                                 + disconnect.getReason().getFullText());
@@ -209,6 +224,7 @@ public final class SecondarySessionController {
 
     private void completePing(PingAttempt attempt, String result) {
         if (!attempt.finished.compareAndSet(false, true)) return;
+        LOGGER.info(result);
         this.pingAttempts.remove(attempt.endpoint, attempt);
         try {
             attempt.callback.onComplete(result);
@@ -295,17 +311,22 @@ public final class SecondarySessionController {
         }
 
         String detail = reason == null || reason.trim().isEmpty() ? "Connection closed." : reason.trim();
-        appendMessage(connection.sessionId, "[MSM] " + detail);
+        appendMessage(connection.sessionId, "[MSM] Disconnected during " + connection.stage
+                + ". loginAccepted=" + connection.loginAccepted.get()
+                + ", joinedGame=" + connection.joined.get()
+                + ". Reason: " + detail);
     }
 
     private void appendMessage(long sessionId, String message) {
+        String entry = message == null ? "" : message;
+        LOGGER.info("[session {}] {}", sessionId, entry);
         ChatBuffer buffer = chatBuffers.get(sessionId);
         if (buffer == null) {
             ChatBuffer created = new ChatBuffer();
             ChatBuffer existing = chatBuffers.putIfAbsent(sessionId, created);
             buffer = existing == null ? created : existing;
         }
-        buffer.add(message == null ? "" : message);
+        buffer.add(entry);
     }
 
     private static String safeMessage(Throwable throwable) {
@@ -331,6 +352,8 @@ public final class SecondarySessionController {
         private final long sessionId;
         private final Client client;
         private final AtomicBoolean joined = new AtomicBoolean(false);
+        private final AtomicBoolean loginAccepted = new AtomicBoolean(false);
+        private volatile String stage = "CREATED";
         private final AtomicBoolean stopping = new AtomicBoolean(false);
         private final AtomicBoolean finished = new AtomicBoolean(false);
 
@@ -341,7 +364,7 @@ public final class SecondarySessionController {
     }
 
     private static final class ChatBuffer {
-        private static final int MAX_MESSAGES = 60;
+        private static final int MAX_MESSAGES = 200;
         private final List<String> messages = new ArrayList<String>();
 
         private synchronized void add(String message) {
