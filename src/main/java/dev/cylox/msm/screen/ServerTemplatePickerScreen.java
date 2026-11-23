@@ -74,10 +74,10 @@ public final class ServerTemplatePickerScreen extends MsmScreen {
         if (pageCount > 1) {
             int pageWidth = Math.min(100, Math.max(1, (contentWidth - 8) / 2));
             int pageLeft = (this.width - (pageWidth * 2 + 8)) / 2;
-            ButtonWidget previous = new ButtonWidget(
+            ButtonWidget previous = new MsmButtonWidget(
                     pageLeft, this.height - 50, pageWidth, 18,
                     "PREVIOUS", button -> changePage(-1));
-            ButtonWidget next = new ButtonWidget(
+            ButtonWidget next = new MsmButtonWidget(
                     pageLeft + pageWidth + 8, this.height - 50, pageWidth, 18,
                     "NEXT", button -> changePage(1));
             previous.active = this.pageIndex > 0;
@@ -86,7 +86,7 @@ public final class ServerTemplatePickerScreen extends MsmScreen {
             this.addButton(next);
         }
 
-        this.addButton(new ButtonWidget(
+        this.addButton(new MsmButtonWidget(
                 left, this.height - 24, contentWidth, 20,
                 "BACK", button -> onClose()));
     }
