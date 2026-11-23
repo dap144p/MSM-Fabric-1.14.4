@@ -16,7 +16,7 @@ MSM uses staged releases so an in-progress build is not presented as a stable mo
 
 - Every pull request targeting `main` or `development` runs `clean check build` and uploads a Development artifact.
 - Pushes to `feat/**` and `main` run the same checks and produce a Development artifact.
-- Every push to `development` builds a Nightly version and publishes it as a prerelease. Creating the `development` branch also produces its first Nightly build.
+- Every push to `development` builds a Nightly version and publishes it as a prerelease. A manual workflow run with the `development` branch selected also publishes a Nightly build.
 - A normal push to `main` does **not** create a Beta or Stable release.
 - Version tags are validated by CI. Unsupported tag formats fail the build instead of publishing a misleading release.
 - A local build uses `mod_version` from `gradle.properties`. CI sets the version suffix so the JAR filename and Fabric mod metadata identify the channel.
