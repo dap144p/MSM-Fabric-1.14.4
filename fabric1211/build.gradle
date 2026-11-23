@@ -53,16 +53,13 @@ dependencies {
 sourceSets {
     main {
         java.srcDirs = [
-            "src/main/java",
-            "../src/main/java/dev/cylox/msm/automation",
-            "../src/main/java/dev/cylox/msm/server"
+"src/main/java"
         ]
         resources.srcDirs = ["src/main/resources"]
     }
     test {
         java.srcDirs = [
-            "src/test/java",
-            "../src/test/java/dev/cylox/msm/automation"
+"src/test/java"
         ]
     }
 }
