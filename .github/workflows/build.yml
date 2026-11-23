@@ -1,4 +1,4 @@
-name: Build Multi-Version
+name: Build MSM Fabric
 
 on:
   push:
@@ -75,63 +75,72 @@ jobs:
           chmod +x gradlew
           ./gradlew "-Pbuild_version=${{ steps.meta.outputs.build_version }}" clean check build
 
-      - name: Upload development builds
+      - name: Upload Minecraft 1.14.4 Development JAR
         if: steps.meta.outputs.channel == 'development' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: MSM-Fabric-multi-${{ steps.meta.outputs.channel }}-${{ github.run_number }}
-          path: |
-            build/libs/MSM-Fabric-1.14.4-${{ steps.meta.outputs.build_version }}.jar
-            fabric-1.21.8/build/libs/MSM-Fabric-1.21.8-${{ steps.meta.outputs.build_version }}.jar
+          name: MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4
+          path: build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish Nightly multi-version prerelease
+      - name: Upload Minecraft 1.21.8 Development JAR
+        if: steps.meta.outputs.channel == 'development' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8
+          path: fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish MSM Nightly prerelease
         if: steps.meta.outputs.channel == 'nightly' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nightly-${{ github.run_number }}-${{ github.run_attempt }}
-          name: "MSM Fabric Multi-Version Nightly #${{ github.run_number }}"
+          name: "Multi Sessions Manager (MSM) Nightly #${{ github.run_number }}"
           target_commitish: ${{ github.sha }}
           files: |
-            build/libs/MSM-Fabric-1.14.4-${{ steps.meta.outputs.build_version }}.jar
-            fabric-1.21.8/build/libs/MSM-Fabric-1.21.8-${{ steps.meta.outputs.build_version }}.jar
+            build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
+            fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
           fail_on_unmatched_files: true
           prerelease: true
           make_latest: false
           body: |
-            MSM Fabric Multi-Version — Nightly Development Build
+            Multi Sessions Manager (MSM) — Nightly Development Build
 
             Version: ${{ steps.meta.outputs.build_version }}
             Commit: ${{ github.sha }}
 
-            This build contains separate mod JARs for Minecraft 1.14.4 and 1.21.8.
+            This release provides two separate mod JAR downloads:
+            - MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar — Minecraft 1.14.4 (Java 8).
+            - MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar — Minecraft 1.21.8 (Java 21).
+
             Install only the JAR matching the Minecraft profile. The two JARs are not interchangeable.
-            The 1.14.4 JAR targets Java 8; the 1.21.8 JAR targets Java 21.
             This is a development snapshot and may contain regressions. It is not a Beta or Stable release.
 
-      - name: Publish versioned Beta, RC, or Stable multi-version release
+      - name: Publish versioned Beta, RC, or Stable release
         if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: MSM Fabric Multi-Version ${{ github.ref_name }}
+          name: Multi Sessions Manager (MSM) ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
           files: |
-            build/libs/MSM-Fabric-1.14.4-${{ steps.meta.outputs.build_version }}.jar
-            fabric-1.21.8/build/libs/MSM-Fabric-1.21.8-${{ steps.meta.outputs.build_version }}.jar
+            build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
+            fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
           fail_on_unmatched_files: true
           prerelease: ${{ steps.meta.outputs.channel != 'stable' }}
           make_latest: ${{ steps.meta.outputs.channel == 'stable' }}
           generate_release_notes: true
           body: |
-            MSM Fabric Multi-Version — ${{ steps.meta.outputs.channel }} release
+            Multi Sessions Manager (MSM) — ${{ steps.meta.outputs.channel }} release
 
             Version: ${{ steps.meta.outputs.build_version }}
             Commit: ${{ github.sha }}
 
-            The release provides two separate single-JAR downloads:
-            - MSM-Fabric-1.14.4: install only in a Minecraft 1.14.4 Fabric profile (Java 8 runtime).
-            - MSM-Fabric-1.21.8: install only in a Minecraft 1.21.8 Fabric profile (Java 21 runtime).
+            The release provides exactly two separate single-JAR downloads:
+            - MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar — Minecraft 1.14.4 Fabric profile (Java 8 runtime).
+            - MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar — Minecraft 1.21.8 Fabric profile (Java 21 runtime).
 
-            Each JAR requires Fabric Loader and Fabric API compatible with its Minecraft version.
+            Each JAR requires Fabric Loader and Fabric API compatible with its Minecraft version. No combined ZIP is published.

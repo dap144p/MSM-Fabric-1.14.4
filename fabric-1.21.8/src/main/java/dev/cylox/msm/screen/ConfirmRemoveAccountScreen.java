@@ -25,8 +25,10 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         int panelWidth = Math.min(340, this.width - 24);
         int left = (this.width - panelWidth) / 2;
         int buttonWidth = Math.max(1, (panelWidth - 34) / 2);
-        this.addAction(left + 10, this.height / 2 + 34, buttonWidth, 20,
+        MsmButtonWidget removeButton = this.addAction(left + 10, this.height / 2 + 34, buttonWidth, 20,
                 this.removing ? "REMOVING..." : "REMOVE", button -> remove());
+        removeButton.setDanger(true);
+        removeButton.active = !this.removing;
         this.addAction(left + 24 + buttonWidth, this.height / 2 + 34,
                 buttonWidth, 20, "CANCEL", button -> close());
     }
@@ -55,11 +57,11 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        this.renderMsmBackground(context, mouseX, mouseY, delta);
         int panelWidth = Math.min(340, this.width - 24);
         int left = (this.width - panelWidth) / 2;
         int top = this.height / 2 - 66;
-        panel(context, left, top, left + panelWidth, this.height / 2 + 66);
+        drawGlassPanel(context, left, top, left + panelWidth, this.height / 2 + 66);
         centered(context, "REMOVE ACCOUNT?", this.width / 2, top + 15, 0xFFFFD6D6);
         centered(context, this.username, this.width / 2, top + 37, 0xFF6FC4DE);
         centered(context, fit(this.serverAddress, panelWidth - 24),
