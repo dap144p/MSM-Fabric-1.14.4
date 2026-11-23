@@ -32,8 +32,8 @@ public final class SessionManagerScreen extends Screen {
     private final Map<Long, ButtonWidget> rowButtons = new LinkedHashMap<Long, ButtonWidget>();
 
     private final int requestedPage;
-    private final long requestedSessionId;
-    private final String initialStatus;
+    private int accountsLabelY;
+    private int rowStartY;
 
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
@@ -75,10 +75,8 @@ public final class SessionManagerScreen extends Screen {
         this.store = store;
         this.sessionManager = sessionManager;
         this.secondarySessions = secondarySessions;
-        this.initialStatus = status == null ? DEFAULT_STATUS : status;
-        this.status = this.initialStatus;
+        this.status = status == null ? DEFAULT_STATUS : status;
         this.requestedPage = Math.max(0, page);
-        this.requestedSessionId = selectedSessionId;
         this.selectedSessionId = selectedSessionId;
         this.authMode = authMode == null ? SessionAuthMode.OFFLINE_LOCAL : authMode;
 
@@ -106,11 +104,15 @@ public final class SessionManagerScreen extends Screen {
 
     private void refreshSessions() {
         this.sessions.clear();
-        this.sessions.addAll(this.sessionManager.getSessions());
+        for (SessionManager.Session session : this.sessionManager.getSessions()) {
+            if (this.profiles.contains(session.getProfile())) {
+                this.sessions.add(session);
+            }
+        }
 
         for (Map.Entry<Long, ButtonWidget> entry : this.rowButtons.entrySet()) {
             Optional<SessionManager.Session> session = this.sessionManager.find(entry.getKey());
-            if (session.isPresent()) {
+            if (session.isPresent() && this.profiles.contains(session.get().getProfile())) {
                 entry.getValue().setMessage(getAccountLabel(session.get(), entry.getKey()));
             }
         }
@@ -150,39 +152,52 @@ public final class SessionManagerScreen extends Screen {
 
     @Override
     protected void init() {
-        int contentWidth = Math.max(120, this.width - 24);
+        int contentWidth = Math.max(1, this.width - 24);
         int contentLeft = (this.width - contentWidth) / 2;
         int formWidth = Math.min(340, contentWidth);
         int formLeft = (this.width - formWidth) / 2;
-        int authWidth = Math.min(100, Math.max(82, formWidth / 3));
-        int serverWidth = formWidth - authWidth - 4;
+        boolean compactForm = formWidth < 230;
 
         this.rowButtons.clear();
-        this.pageSize = Math.max(1, Math.min(PAGE_SIZE, (this.height - 245) / 22));
-        this.pageIndex = this.requestedPage;
+        this.pageSize = PAGE_SIZE;
+        this.accountsLabelY = compactForm ? 153 : 137;
+        this.rowStartY = this.accountsLabelY + 21;
+
+        int usernameY = compactForm ? 42 : 48;
+        int serverY = compactForm ? 70 : 78;
+        int authY = compactForm ? 98 : serverY;
+        int addY = compactForm ? 126 : 108;
+        int authWidth = compactForm
+                ? formWidth
+                : Math.min(100, Math.max(82, formWidth / 3));
+        int serverWidth = compactForm ? formWidth : Math.max(1, formWidth - authWidth - 4);
 
         this.usernameField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                formLeft, 48, formWidth, 20, "Account username"));
+                formLeft, usernameY, formWidth, 20, "Account username"));
         this.usernameField.setMaxLength(16);
 
         this.serverField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                formLeft, 78, serverWidth, 20, "Server address"));
+                formLeft, serverY, serverWidth, 20, "Server address"));
         this.serverField.setMaxLength(255);
 
         this.authModeButton = this.addButton(new ButtonWidget(
-                formLeft + serverWidth + 4, 78, authWidth, 20,
-                getAuthModeLabel(), button -> cycleAuthMode()));
+                compactForm ? formLeft : formLeft + serverWidth + 4,
+                authY, authWidth, 20, getAuthModeLabel(), button -> cycleAuthMode()));
         this.addButton(new ButtonWidget(
-                formLeft, 108, formWidth, 20, "ADD ACCOUNT",
-                button -> addAccount()));
+                formLeft, addY, formWidth, 20, "ADD ACCOUNT", button -> addAccount()));
+
+        int reservedBottom = this.height - 96;
+        int availableRows = Math.max(1,
+                (reservedBottom - this.rowStartY - 20) / 23 + 1);
+        this.pageSize = Math.min(PAGE_SIZE, availableRows);
 
         int pageCount = Math.max(1, (this.sessions.size() + this.pageSize - 1) / this.pageSize);
-        this.pageIndex = Math.min(this.pageIndex, pageCount - 1);
+        this.pageIndex = Math.min(this.requestedPage, pageCount - 1);
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.sessions.size());
-        int rowY = 158;
+        int rowY = this.rowStartY;
 
         for (int index = start; index < end; index++) {
             final SessionManager.Session session = this.sessions.get(index);
@@ -195,21 +210,23 @@ public final class SessionManagerScreen extends Screen {
             rowY += 23;
         }
 
-        int pageButtonWidth = Math.min(100, (contentWidth - 8) / 2);
-        int pageLeft = (this.width - (pageButtonWidth * 2 + 8)) / 2;
-        ButtonWidget previous = new ButtonWidget(
-                pageLeft, this.height - 50, pageButtonWidth, 18,
-                "PREVIOUS", button -> openPage(this.pageIndex - 1));
-        ButtonWidget next = new ButtonWidget(
-                pageLeft + pageButtonWidth + 8, this.height - 50,
-                pageButtonWidth, 18, "NEXT", button -> openPage(this.pageIndex + 1));
-        previous.active = this.pageIndex > 0;
-        next.active = this.pageIndex + 1 < pageCount;
-        this.addButton(previous);
-        this.addButton(next);
+        if (pageCount > 1) {
+            int pageButtonWidth = Math.min(100, Math.max(1, (contentWidth - 8) / 2));
+            int pageLeft = (this.width - (pageButtonWidth * 2 + 8)) / 2;
+            ButtonWidget previous = new ButtonWidget(
+                    pageLeft, this.height - 50, pageButtonWidth, 18,
+                    "PREVIOUS", button -> openPage(this.pageIndex - 1));
+            ButtonWidget next = new ButtonWidget(
+                    pageLeft + pageButtonWidth + 8, this.height - 50,
+                    pageButtonWidth, 18, "NEXT", button -> openPage(this.pageIndex + 1));
+            previous.active = this.pageIndex > 0;
+            next.active = this.pageIndex + 1 < pageCount;
+            this.addButton(previous);
+            this.addButton(next);
+        }
 
         int gap = 4;
-        int actionWidth = (contentWidth - gap * 2) / 3;
+        int actionWidth = Math.max(1, (contentWidth - gap * 2) / 3);
         int actionY = this.height - 24;
         this.connectionButton = this.addButton(new ButtonWidget(
                 contentLeft, actionY, actionWidth, 20,
@@ -344,9 +361,15 @@ public final class SessionManagerScreen extends Screen {
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "ADD ACCOUNT", this.width / 2, 31, 0xA0A0A0);
+                "ADD ACCOUNT", this.width / 2, 25, 0xA0A0A0);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "ACCOUNTS (" + this.sessions.size() + ")", this.width / 2, 137, 0xA0A0A0);
+                "ACCOUNTS (" + this.sessions.size() + ")", this.width / 2,
+                this.accountsLabelY, 0xA0A0A0);
+        if (this.sessions.isEmpty()) {
+            drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                    "No accounts yet. Add one above.", this.width / 2,
+                    this.rowStartY + 12, 0xA0A0A0);
+        }
 
         Optional<SessionManager.Session> selected = getSelectedSession();
         String selectedText = selected.isPresent()
