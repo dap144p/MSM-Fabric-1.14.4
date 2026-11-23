@@ -11,6 +11,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.LiteralText;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class SessionControlScreen extends MsmScreen {
@@ -58,6 +59,11 @@ public final class SessionControlScreen extends MsmScreen {
 
     private int selectedRuleIndex;
     private int scrollOffset;
+    private List<String> wrappedMessages = Collections.emptyList();
+    private int cachedMessageCount = -1;
+    private int cachedMessageWidth = -1;
+    private String cachedFirstMessage;
+    private String cachedLastMessage;
 
     public SessionControlScreen(Screen parent, SecondarySessionController controller,
                                 SessionAutomationScheduler scheduler,
@@ -103,6 +109,7 @@ public final class SessionControlScreen extends MsmScreen {
 
         if (this.tab == Tab.CHAT) {
             initChat(left, contentWidth, gap);
+            refreshWrappedMessages();
         } else if (this.tab == Tab.AUTO_CHAT) {
             initAutoChat(left, contentWidth, gap);
         } else {
@@ -495,6 +502,7 @@ public final class SessionControlScreen extends MsmScreen {
         if (this.reconnectMaxDelayField != null) this.reconnectMaxDelayField.tick();
         if (this.initialChatDelayField != null) this.initialChatDelayField.tick();
         if (this.globalChatIntervalField != null) this.globalChatIntervalField.tick();
+        refreshWrappedMessages();
         updateConnectionControls();
     }
 
@@ -521,20 +529,45 @@ public final class SessionControlScreen extends MsmScreen {
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private List<String> getWrappedMessages() {
+    private void refreshWrappedMessages() {
+        List<String> messages = this.controller.getMessages(this.sessionId);
+        int count = messages.size();
+        String first = count == 0 ? null : messages.get(0);
+        String last = count == 0 ? null : messages.get(count - 1);
+        if (count == this.cachedMessageCount
+                && this.width == this.cachedMessageWidth
+                && equal(first, this.cachedFirstMessage)
+                && equal(last, this.cachedLastMessage)) {
+            return;
+        }
+
         List<String> wrapped = new ArrayList<String>();
         int maxCharacters = Math.max(8, (this.width - 24) / 6);
-        for (String message : this.controller.getMessages(this.sessionId)) {
-            String text = message == null ? "" : message;
-            for (int offset = 0; offset < text.length(); offset += maxCharacters) {
-                wrapped.add(text.substring(offset, Math.min(text.length(), offset + maxCharacters)));
+        for (String message : messages) {
+            String value = message == null ? "" : message;
+            for (int offset = 0; offset < value.length(); offset += maxCharacters) {
+                wrapped.add(value.substring(offset,
+                        Math.min(value.length(), offset + maxCharacters)));
             }
-            if (text.isEmpty()) wrapped.add("");
+            if (value.isEmpty()) wrapped.add("");
         }
+
+        this.wrappedMessages = wrapped;
+        this.cachedMessageCount = count;
+        this.cachedMessageWidth = this.width;
+        this.cachedFirstMessage = first;
+        this.cachedLastMessage = last;
         int visibleLines = Math.max(1, (this.height - 142) / 11);
         this.scrollOffset = Math.min(this.scrollOffset,
                 Math.max(0, wrapped.size() - visibleLines));
-        return wrapped;
+    }
+
+    private List<String> getWrappedMessages() {
+        return this.wrappedMessages;
+    }
+
+    private static boolean equal(String first, String second) {
+        return first == null ? second == null : first.equals(second);
     }
 
     @Override
