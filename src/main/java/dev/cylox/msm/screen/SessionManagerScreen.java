@@ -423,6 +423,7 @@ public final class SessionManagerScreen extends Screen {
                 this.store.save(updatedProfiles);
                 this.profiles.clear();
                 this.profiles.addAll(updatedProfiles);
+                this.secondarySessions.forgetSession(oldSession.getId());
                 this.sessions.remove(oldSession);
                 this.sessions.add(replacementSession);
                 List<SessionManager.Session> filtered = getFilteredSessions();
@@ -494,6 +495,7 @@ public final class SessionManagerScreen extends Screen {
             this.status = "The selected session could not be removed.";
             return;
         }
+        this.secondarySessions.forgetSession(session.getId());
 
         this.profiles.remove(profileIndex);
         try {
