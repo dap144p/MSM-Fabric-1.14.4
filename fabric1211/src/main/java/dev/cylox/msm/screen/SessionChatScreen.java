@@ -53,7 +53,7 @@ public final class SessionChatScreen extends MsmScreen {
 
         this.messageField = this.addDrawableChild(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
-                left, this.height - 76, fieldWidth, 20, "Message"));
+                left, this.height - 76, fieldWidth, 20, Text.literal("Message")));
         this.messageField.setMaxLength(256);
         this.sendButton = this.addDrawableChild(new MsmButtonWidget(
                 left + fieldWidth + gap, this.height - 76, sendWidth, 20,
