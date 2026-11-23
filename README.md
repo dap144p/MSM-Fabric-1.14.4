@@ -31,9 +31,10 @@ See [RELEASE_CHANNELS.md](RELEASE_CHANNELS.md) for the branch, tag, build, and p
 - Responsive account manager with saved server selection, per-account status, and account removal confirmation.
 - Supports multiple independent protocol-only secondary Java sessions.
 - Marks a session ONLINE only after the Minecraft Join Game packet is received.
-- Per-account chat history and chat sending.
+- Per-account chat history, normal chat messages, and slash-command sending.
+- Manual connection requests and AutoReconnect attempts are serialized in saved account-list order; the next account starts after the active connection reaches Join Game or disconnects.
 - Per-account AutoChat rules with \`ONCE\` and \`REPEAT\` modes. ONCE tasks are scheduled after Join Game; queued automated sends are serialized.
-- Per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized.
+- Per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized in saved account-list order. Manual Disconnect removes the account from the reconnect queue.
 - Removing an account clears its profile and saved AutoChat / AutoReconnect settings together. Active sessions must be disconnected first.
 - Uses no secondary Minecraft world renderer; the primary Minecraft client remains unchanged.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
