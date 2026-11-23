@@ -9,6 +9,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.LiteralText;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class SessionChatScreen extends MsmScreen {
@@ -22,6 +23,11 @@ public final class SessionChatScreen extends MsmScreen {
     private ButtonWidget connectionButton;
     private volatile String status = "Connect the account to start chatting.";
     private int scrollOffset;
+    private List<String> wrappedMessages = Collections.emptyList();
+    private int cachedMessageCount = -1;
+    private int cachedMessageWidth = -1;
+    private String cachedFirstMessage;
+    private String cachedLastMessage;
 
     public SessionChatScreen(Screen parent, SecondarySessionController controller,
                              long sessionId, String username) {
@@ -58,6 +64,7 @@ public final class SessionChatScreen extends MsmScreen {
                 left + actionWidth + gap, this.height - 24,
                 actionWidth, 20, "BACK", button -> onClose()));
 
+        refreshWrappedMessages();
         updateControls();
     }
 
@@ -139,6 +146,7 @@ public final class SessionChatScreen extends MsmScreen {
     public void tick() {
         super.tick();
         if (this.messageField != null) this.messageField.tick();
+        refreshWrappedMessages();
         updateControls();
     }
 
@@ -179,11 +187,20 @@ public final class SessionChatScreen extends MsmScreen {
         return Math.max(0, messages.size() - maxLines);
     }
 
-    private List<String> getWrappedMessages() {
-        List<String> wrapped = new ArrayList<String>();
+    private void refreshWrappedMessages() {
         List<String> messages = this.controller.getMessages(this.sessionId);
-        int maxCharacters = Math.max(8, (this.width - 24) / 6);
+        int count = messages.size();
+        String first = count == 0 ? null : messages.get(0);
+        String last = count == 0 ? null : messages.get(count - 1);
+        if (count == this.cachedMessageCount
+                && this.width == this.cachedMessageWidth
+                && equal(first, this.cachedFirstMessage)
+                && equal(last, this.cachedLastMessage)) {
+            return;
+        }
 
+        List<String> wrapped = new ArrayList<String>();
+        int maxCharacters = Math.max(8, (this.width - 24) / 6);
         for (String message : messages) {
             String[] paragraphs = (message == null ? "" : message).split("\\n", -1);
             for (String paragraph : paragraphs) {
@@ -198,9 +215,21 @@ public final class SessionChatScreen extends MsmScreen {
             }
         }
 
+        this.wrappedMessages = wrapped;
+        this.cachedMessageCount = count;
+        this.cachedMessageWidth = this.width;
+        this.cachedFirstMessage = first;
+        this.cachedLastMessage = last;
         this.scrollOffset = Math.min(this.scrollOffset,
                 Math.max(0, wrapped.size() - Math.max(1, (this.height - 130) / 11)));
-        return wrapped;
+    }
+
+    private List<String> getWrappedMessages() {
+        return this.wrappedMessages;
+    }
+
+    private static boolean equal(String first, String second) {
+        return first == null ? second == null : first.equals(second);
     }
 
     private String fitText(String value, int pixelWidth) {
