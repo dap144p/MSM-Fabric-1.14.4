@@ -42,7 +42,9 @@ dependencies {
     include(implementation("net.kyori:adventure-api:4.17.0"))
     include(implementation("net.kyori:adventure-key:4.17.0"))
     include(implementation("net.kyori:adventure-text-serializer-gson:4.17.0"))
+    include(implementation("net.kyori:adventure-text-serializer-json:4.17.0"))
     include(implementation("net.kyori:adventure-text-serializer-json-legacy-impl:4.17.0"))
+    include(implementation("net.kyori:option:1.0.0"))
     include(implementation("net.kyori:adventure-text-serializer-plain:4.17.0"))
     include(implementation("net.kyori:examination-api:1.3.0"))
     include(implementation("net.kyori:examination-string:1.3.0"))
@@ -116,11 +118,42 @@ tasks.register("verifyBundledCore") {
                     nested.add(entry.name.toLowerCase(java.util.Locale.ROOT))
                 }
             }
-            ["protocol-1.21.7-1", "nbt", "minecraftauth", "adventure", "checker-qual"].each { library ->
+            [
+                "protocol-1.21.7-1",
+                "nbt",
+                "minecraftauth",
+                "adventure",
+                "adventure-text-serializer-json-4.17.0",
+                "option-1.0.0",
+                "checker-qual"
+            ].each { library ->
                 if (!nested.any { it.contains(library) }) {
                     throw new GradleException("Required nested library is missing: " + library)
                 }
             }
+
+            def serializerEntry = archive.getEntry(
+                    "META-INF/jars/adventure-text-serializer-json-4.17.0.jar")
+            if (serializerEntry == null) {
+                throw new GradleException("Adventure JSON serializer API is not bundled.")
+            }
+            def serializerJar = new java.util.jar.JarInputStream(archive.getInputStream(serializerEntry))
+            try {
+                boolean serializerClassFound = false
+                def nestedEntry
+                while ((nestedEntry = serializerJar.nextJarEntry) != null) {
+                    if (nestedEntry.name == "net/kyori/adventure/text/serializer/json/JSONComponentSerializer.class") {
+                        serializerClassFound = true
+                        break
+                    }
+                }
+                if (!serializerClassFound) {
+                    throw new GradleException("JSONComponentSerializer.class is missing from the bundled serializer API.")
+                }
+            } finally {
+                serializerJar.close()
+            }
+
             if (nested.any { it.contains("netty") || it.contains("slf4j-api") }) {
                 throw new GradleException("Do not bundle Netty; use the Minecraft runtime library.")
             }
