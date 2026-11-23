@@ -5,6 +5,7 @@ import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.automation.SessionAutomationSettings;
 import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.session.SessionState;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
