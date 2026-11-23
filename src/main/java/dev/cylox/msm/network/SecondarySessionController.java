@@ -43,6 +43,7 @@ public final class SecondarySessionController {
     private static final Logger LOGGER = LogManager.getLogger("MSM-Secondary");
     private static final int DEFAULT_PORT = 25565;
     private final SessionManager sessionManager;
+    private volatile SessionLifecycleListener lifecycleListener;
     private final ConcurrentMap<Long, Connection> connections =
             new ConcurrentHashMap<Long, Connection>();
     private final ConcurrentMap<Long, ChatBuffer> chatBuffers =
@@ -55,6 +56,20 @@ public final class SecondarySessionController {
             throw new IllegalArgumentException("Session manager is required");
         }
         this.sessionManager = sessionManager;
+    }
+
+    public void setLifecycleListener(SessionLifecycleListener listener) {
+        this.lifecycleListener = listener;
+    }
+
+    public void addSystemMessage(long sessionId, String message) {
+        appendMessage(sessionId, "[MSM] " + (message == null ? "" : message));
+    }
+
+    public interface SessionLifecycleListener {
+        void onJoinedGame(long sessionId);
+
+        void onDisconnected(long sessionId, boolean manuallyStopped, String reason);
     }
 
     public void connect(long sessionId) {
@@ -107,6 +122,8 @@ public final class SecondarySessionController {
                         connection.joined.set(true);
                         markOnline(connection);
                         appendMessage(sessionId, "[MSM] Join Game received. Secondary player is ONLINE.");
+                        SessionLifecycleListener listener = lifecycleListener;
+                        if (listener != null) listener.onJoinedGame(sessionId);
                     } else if (packet instanceof ServerChatPacket) {
                         ServerChatPacket chatPacket = (ServerChatPacket) packet;
                         appendMessage(sessionId, chatPacket.getMessage().getFullText());
@@ -319,6 +336,10 @@ public final class SecondarySessionController {
                 + ". loginAccepted=" + connection.loginAccepted.get()
                 + ", joinedGame=" + connection.joined.get()
                 + ". Reason: " + detail);
+        SessionLifecycleListener listener = lifecycleListener;
+        if (listener != null) {
+            listener.onDisconnected(connection.sessionId, connection.stopping.get(), detail);
+        }
     }
 
     private void appendMessage(long sessionId, String message) {
