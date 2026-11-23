@@ -29,8 +29,13 @@ dependencies {
     implementation project(":msm-core")
 
     // Protocol 498 (Minecraft Java 1.14.4), used only by independent secondary sessions.
-    // Loom nests this dependency and its runtime dependencies in the single mod JAR.
+    // Loom's include configuration is not transitive, so package every runtime dependency explicitly.
     include(implementation("com.github.GeyserMC:MCProtocolLib:1.14.4-2"))
+    include(implementation("com.github.steveice10:opennbt:1.3"))
+    include(implementation("com.github.steveice10:packetlib:1.4"))
+    include(implementation("com.github.steveice10:mcauthlib:1.1"))
+    include(implementation("io.netty:netty-all:4.1.42.Final"))
+    include(implementation("com.google.code.gson:gson:2.8.2"))
 }
 
 processResources {
@@ -71,13 +76,37 @@ tasks.register("verifyBundledCore") {
                 "dev/cylox/msm/session/SessionManager.class",
                 "dev/cylox/msm/session/SessionState.class"
         ]
+        def requiredLibraries = [
+                "mcprotocollib",
+                "opennbt",
+                "packetlib",
+                "mcauthlib",
+                "netty-all",
+                "gson"
+        ]
         def missingClasses = []
+        def missingLibraries = []
         def archive = new java.util.zip.ZipFile(remappedJar)
 
         try {
             requiredClasses.each { classPath ->
                 if (archive.getEntry(classPath) == null) {
                     missingClasses.add(classPath)
+                }
+            }
+
+            def entries = archive.entries()
+            def nestedJarNames = []
+            while (entries.hasMoreElements()) {
+                def entry = entries.nextElement()
+                if (entry.name.startsWith("META-INF/jars/") && entry.name.endsWith(".jar")) {
+                    nestedJarNames.add(entry.name.toLowerCase(java.util.Locale.ROOT))
+                }
+            }
+
+            requiredLibraries.each { library ->
+                if (!nestedJarNames.any { it.contains(library) }) {
+                    missingLibraries.add(library)
                 }
             }
         } finally {
@@ -87,6 +116,10 @@ tasks.register("verifyBundledCore") {
         if (!missingClasses.isEmpty()) {
             throw new GradleException(
                     "MSM-Core classes are missing from ${remappedJar.name}: ${missingClasses.join(', ')}")
+        }
+        if (!missingLibraries.isEmpty()) {
+            throw new GradleException(
+                    "Secondary-session runtime libraries are missing from ${remappedJar.name}: ${missingLibraries.join(', ')}")
         }
     }
 }
