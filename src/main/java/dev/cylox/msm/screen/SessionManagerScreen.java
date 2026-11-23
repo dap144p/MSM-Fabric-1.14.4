@@ -41,6 +41,7 @@ public final class SessionManagerScreen extends Screen {
     private ButtonWidget connectionButton;
     private ButtonWidget chatButton;
     private volatile String status;
+    private SessionState lastObservedState;
     private long selectedSessionId;
     private int pageIndex;
     private int pageSize;
@@ -121,8 +122,11 @@ public final class SessionManagerScreen extends Screen {
 
     private String getAccountLabel(SessionManager.Session session, long id) {
         String prefix = id == this.selectedSessionId ? "> " : "";
-        return prefix + session.getProfile().getUsername()
+        String label = prefix + session.getProfile().getUsername()
                 + "  [" + session.getState().name() + "]";
+        int maxCharacters = Math.max(8, (this.width - 42) / 6);
+        return label.length() > maxCharacters
+                ? label.substring(0, maxCharacters - 3) + "..." : label;
     }
 
     private Optional<SessionManager.Session> getSelectedSession() {
@@ -133,6 +137,26 @@ public final class SessionManagerScreen extends Screen {
 
     private void refreshControls() {
         Optional<SessionManager.Session> selected = getSelectedSession();
+        if (selected.isPresent()) {
+            SessionManager.Session session = selected.get();
+            SessionState currentState = session.getState();
+            if (this.lastObservedState != currentState) {
+                SessionState previousState = this.lastObservedState;
+                this.lastObservedState = currentState;
+                if (currentState == SessionState.CONNECTING) {
+                    this.status = "CONNECTING as " + session.getProfile().getUsername() + "...";
+                } else if (currentState == SessionState.ONLINE) {
+                    this.status = "ONLINE as " + session.getProfile().getUsername() + ".";
+                } else if (previousState == SessionState.CONNECTING
+                        || previousState == SessionState.ONLINE
+                        || currentState == SessionState.FAILED) {
+                    this.status = getLatestConnectionMessage(session.getId());
+                }
+            }
+        } else {
+            this.lastObservedState = null;
+        }
+
         if (this.connectionButton != null) {
             if (!selected.isPresent()) {
                 this.connectionButton.setMessage("JOIN / CONNECT");
@@ -148,6 +172,19 @@ public final class SessionManagerScreen extends Screen {
         if (this.chatButton != null) {
             this.chatButton.active = selected.isPresent();
         }
+    }
+
+    private String getLatestConnectionMessage(long sessionId) {
+        List<String> messages = this.secondarySessions.getMessages(sessionId);
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            String message = messages.get(index);
+            if (message.startsWith("[MSM] Disconnected during ")
+                    || message.startsWith("[MSM] Login rejected:")
+                    || message.startsWith("[MSM] Server disconnected:")) {
+                return message;
+            }
+        }
+        return "Session is disconnected. Open CHAT for connection details.";
     }
 
     @Override
