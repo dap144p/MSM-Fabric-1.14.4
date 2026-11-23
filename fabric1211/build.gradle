@@ -131,15 +131,27 @@ project(":msm-core") {
     }
 }
 
+// These checks use main()-based test harnesses instead of JUnit.
+tasks.named("test") {
+    enabled = false
+}
+
+def automationTestClasspath = files(
+    sourceSets.main.output,
+    sourceSets.test.output,
+    project(":msm-core").sourceSets.main.output,
+    sourceSets.test.compileClasspath
+)
+
 tasks.register("verifyAutomationStore", JavaExec) {
-    dependsOn tasks.named("testClasses")
-    classpath = sourceSets.test.runtimeClasspath
+    dependsOn tasks.named("testClasses"), project(":msm-core").tasks.named("classes")
+    classpath = automationTestClasspath
     mainClass = "dev.cylox.msm.automation.SessionAutomationStoreTest"
 }
 
 tasks.register("verifyAutomationScheduler", JavaExec) {
-    dependsOn tasks.named("testClasses")
-    classpath = sourceSets.test.runtimeClasspath
+    dependsOn tasks.named("testClasses"), project(":msm-core").tasks.named("classes")
+    classpath = automationTestClasspath
     mainClass = "dev.cylox.msm.automation.SessionAutomationSchedulerTest"
 }
 
