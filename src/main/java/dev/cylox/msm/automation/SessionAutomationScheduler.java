@@ -43,6 +43,7 @@ public final class SessionAutomationScheduler
     private final ConcurrentMap<Long, SessionAutomationSettings> settingsBySession =
             new ConcurrentHashMap<Long, SessionAutomationSettings>();
     private final Set<Long> reconnectQueue = new HashSet<Long>();
+    private final Set<Long> manualConnectQueue = new HashSet<Long>();
     private final Map<Long, Integer> reconnectAttempts = new HashMap<Long, Integer>();
     private final List<PendingChat> pendingChats = new ArrayList<PendingChat>();
 
@@ -138,22 +139,18 @@ public final class SessionAutomationScheduler
         persistSettings(sessionId, settings);
 
         this.worker.execute(() -> {
-            this.reconnectQueue.remove(sessionId);
-            this.reconnectAttempts.remove(sessionId);
+            SessionState state = this.controller.getState(sessionId);
+            if (state == SessionState.CONNECTING || state == SessionState.ONLINE) return;
+
             if (this.activeReconnectSession == sessionId) {
                 this.activeReconnectSession = -1L;
                 cancelReconnectTask();
             }
-            try {
-                this.controller.connect(sessionId);
-            } catch (RuntimeException exception) {
-                LOGGER.warn("Manual connection failed for session {}: {}",
-                        sessionId, exception.getMessage());
-                if (isOffline(sessionId)) {
-                    this.controller.addSystemMessage(sessionId,
-                            "[MSM] Could not connect: " + safeMessage(exception));
-                }
-            }
+
+            this.reconnectAttempts.remove(sessionId);
+            this.reconnectQueue.remove(sessionId);
+            this.manualConnectQueue.add(sessionId);
+            pumpReconnectQueue();
         });
     }
 
@@ -164,6 +161,7 @@ public final class SessionAutomationScheduler
 
         this.worker.execute(() -> {
             this.reconnectQueue.remove(sessionId);
+            this.manualConnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
             cancelChatTasks(sessionId);
             if (this.activeReconnectSession == sessionId) {
@@ -183,6 +181,7 @@ public final class SessionAutomationScheduler
         SessionManager.Session session = requireSession(sessionId);
         this.worker.execute(() -> {
             this.reconnectQueue.remove(sessionId);
+            this.manualConnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
             cancelChatTasks(sessionId);
             if (this.activeReconnectSession == sessionId) {
@@ -247,6 +246,7 @@ public final class SessionAutomationScheduler
                 settings.setDesiredOnline(false);
                 persistSettings(sessionId, settings);
                 this.reconnectQueue.remove(sessionId);
+                this.manualConnectQueue.remove(sessionId);
                 this.reconnectAttempts.remove(sessionId);
                 pumpReconnectQueue();
                 return;
@@ -482,34 +482,80 @@ public final class SessionAutomationScheduler
         return Integer.MAX_VALUE;
     }
 
-    private void pumpReconnectQueue() {
-        if (this.activeReconnectSession >= 0L || this.reconnectQueue.isEmpty()) return;
-
-        for (SessionManager.Session session : this.sessionManager.getSessions()) {
+    static long selectNextQueuedSession(List<SessionManager.Session> sessions,
+                                        Set<Long> manualQueue, Set<Long> reconnectQueue) {
+        for (SessionManager.Session session : sessions) {
             long sessionId = session.getId();
-            if (!this.reconnectQueue.contains(sessionId)) continue;
-
-            SessionAutomationSettings settings = getSettings(sessionId);
-            if (!settings.isAutoReconnect() || !settings.isDesiredOnline()) {
-                this.reconnectQueue.remove(sessionId);
-                continue;
+            if (manualQueue.contains(sessionId) || reconnectQueue.contains(sessionId)) {
+                return sessionId;
             }
-            if (!isOffline(sessionId)) {
-                this.reconnectQueue.remove(sessionId);
-                continue;
-            }
+        }
+        return -1L;
+    }
 
+    private void pumpReconnectQueue() {
+        if (this.activeReconnectSession >= 0L) return;
+
+        while (true) {
+            long sessionId = selectNextQueuedSession(
+                    this.sessionManager.getSessions(),
+                    this.manualConnectQueue,
+                    this.reconnectQueue);
+            if (sessionId < 0L) return;
+
+            boolean manual = this.manualConnectQueue.remove(sessionId);
             this.reconnectQueue.remove(sessionId);
+            SessionAutomationSettings settings = getSettings(sessionId);
+
+            if (!settings.isDesiredOnline()
+                    || (!manual && !settings.isAutoReconnect())
+                    || !isOffline(sessionId)) {
+                continue;
+            }
+
             this.activeReconnectSession = sessionId;
-            int nextAttempt = this.reconnectAttempts.getOrDefault(sessionId, 0) + 1;
-            long delaySeconds = reconnectDelay(settings, nextAttempt);
-            this.controller.addSystemMessage(sessionId,
-                    "[MSM] AutoReconnect attempt " + nextAttempt + " queued in "
-                            + delaySeconds + "s.");
-            this.reconnectTask = this.worker.schedule(
-                    () -> attemptReconnect(sessionId, nextAttempt),
-                    delaySeconds, TimeUnit.SECONDS);
+            if (manual) {
+                this.reconnectAttempts.remove(sessionId);
+                this.controller.addSystemMessage(sessionId,
+                        "[MSM] Manual connection queued in account order.");
+                this.reconnectTask = this.worker.schedule(
+                        () -> attemptManualConnect(sessionId), 0L, TimeUnit.MILLISECONDS);
+            } else {
+                int nextAttempt = this.reconnectAttempts.getOrDefault(sessionId, 0) + 1;
+                long delaySeconds = reconnectDelay(settings, nextAttempt);
+                this.controller.addSystemMessage(sessionId,
+                        "[MSM] AutoReconnect attempt " + nextAttempt + " queued in "
+                                + delaySeconds + "s.");
+                this.reconnectTask = this.worker.schedule(
+                        () -> attemptReconnect(sessionId, nextAttempt),
+                        delaySeconds, TimeUnit.SECONDS);
+            }
             return;
+        }
+    }
+
+    private void attemptManualConnect(long sessionId) {
+        this.reconnectTask = null;
+        if (this.activeReconnectSession != sessionId) return;
+
+        SessionAutomationSettings settings = getSettings(sessionId);
+        if (!settings.isDesiredOnline() || !isOffline(sessionId)) {
+            this.activeReconnectSession = -1L;
+            pumpReconnectQueue();
+            return;
+        }
+
+        try {
+            this.controller.connect(sessionId);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Manual connection failed for session {}: {}",
+                    sessionId, exception.getMessage());
+            this.activeReconnectSession = -1L;
+            if (isOffline(sessionId)) {
+                this.controller.addSystemMessage(sessionId,
+                        "[MSM] Could not connect: " + safeMessage(exception));
+            }
+            pumpReconnectQueue();
         }
     }
 
