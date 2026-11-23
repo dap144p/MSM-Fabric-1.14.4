@@ -21,9 +21,11 @@ public abstract class MsmScreen extends Screen {
     }
 
     protected void panel(DrawContext context, int left, int top, int right, int bottom) {
-        context.fill(left, top, right, bottom, 0xD91A202B);
-        context.fill(left, top, right, top + 1, 0xFF354353);
-        context.fill(left, bottom - 1, right, bottom, 0xFF111720);
+        context.fill(left, top, right, bottom, 0xA91A202B);
+        context.fill(left, top, right, top + 1, 0x704C5B6B);
+        context.fill(left, bottom - 1, right, bottom, 0x50101820);
+        context.fill(left, top, left + 1, bottom, 0x403E4A58);
+        context.fill(right - 1, top, right, bottom, 0x403E4A58);
     }
 
     protected void text(DrawContext context, String value, int x, int y, int color) {
@@ -35,10 +37,15 @@ public abstract class MsmScreen extends Screen {
     }
 
     protected String fit(String value, int pixels) {
-        if (value == null) return "";
-        int characters = Math.max(8, pixels / 6);
-        if (value.length() <= characters) return value;
-        return value.substring(0, characters - 3) + "...";
+        if (value == null || pixels <= 0) return "";
+        if (this.textRenderer.getWidth(value) <= pixels) return value;
+
+        String suffix = "...";
+        int suffixWidth = this.textRenderer.getWidth(suffix);
+        if (suffixWidth >= pixels) {
+            return this.textRenderer.trimToWidth(value, pixels);
+        }
+        return this.textRenderer.trimToWidth(value, pixels - suffixWidth) + suffix;
     }
 
     @Override
