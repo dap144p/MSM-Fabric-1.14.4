@@ -23,6 +23,14 @@ jobs:
           java-version: '17'
       - name: Verify and build
         run: chmod +x gradlew && ./gradlew clean check build
+      - name: Upload PR test JAR
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSM-Fabric-1.14.4-pr-${{ github.event.pull_request.number }}
+          path: build/libs/MSM-Fabric-1.14.4-0.1.2.jar
+          if-no-files-found: error
+          retention-days: 7
       - name: Publish single JAR Beta release
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
