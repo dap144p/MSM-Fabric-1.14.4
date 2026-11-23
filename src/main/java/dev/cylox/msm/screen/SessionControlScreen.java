@@ -59,6 +59,8 @@ public final class SessionControlScreen extends MsmScreen {
 
     private int selectedRuleIndex;
     private int scrollOffset;
+    private int settingsPanelLeft;
+    private int settingsPanelWidth;
     private int settingsFirstX;
     private int settingsSecondX;
     private int settingsThirdX;
@@ -251,10 +253,14 @@ public final class SessionControlScreen extends MsmScreen {
         int columns = width >= 520 ? 3 : 2;
         this.settingsFieldWidth = Math.min(180, Math.max(60,
                 (width - gap * (columns - 1)) / columns));
-        this.settingsFirstX = left;
-        this.settingsSecondX = left + this.settingsFieldWidth + gap;
+        int fieldGroupWidth = this.settingsFieldWidth * columns + gap * (columns - 1);
+        int fieldGroupLeft = left + Math.max(0, (width - fieldGroupWidth) / 2);
+        this.settingsPanelLeft = Math.max(left, fieldGroupLeft - 20);
+        this.settingsPanelWidth = Math.min(width, fieldGroupWidth + 40);
+        this.settingsFirstX = fieldGroupLeft;
+        this.settingsSecondX = fieldGroupLeft + this.settingsFieldWidth + gap;
         this.settingsThirdX = columns == 3
-                ? this.settingsSecondX + this.settingsFieldWidth + gap : left;
+                ? this.settingsSecondX + this.settingsFieldWidth + gap : fieldGroupLeft;
         this.settingsReconnectY = 96;
         this.settingsMaxDelayY = columns == 3 ? this.settingsReconnectY : 132;
         int reconnectBottom = Math.max(this.settingsReconnectY, this.settingsMaxDelayY) + 20;
@@ -262,7 +268,7 @@ public final class SessionControlScreen extends MsmScreen {
         this.settingsChatY = retryY + 34;
 
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
-                left, 58, width, 20, getAutoReconnectLabel(),
+                this.settingsPanelLeft, 58, this.settingsPanelWidth, 20, getAutoReconnectLabel(),
                 button -> {
                     this.draft.setAutoReconnect(!this.draft.isAutoReconnect());
                     this.autoReconnectButton.setMessage(getAutoReconnectLabel());
@@ -279,7 +285,7 @@ public final class SessionControlScreen extends MsmScreen {
                 this.settingsFieldWidth, this.draft.getMaxReconnectDelaySeconds());
 
         this.retryBackoffButton = this.addButton(new MsmButtonWidget(
-                left, retryY, width, 20, getRetryBackoffLabel(),
+                this.settingsPanelLeft, retryY, this.settingsPanelWidth, 20, getRetryBackoffLabel(),
                 button -> {
                     this.draft.setRetryBackoff(!this.draft.isRetryBackoff());
                     this.retryBackoffButton.setMessage(getRetryBackoffLabel());
@@ -293,7 +299,7 @@ public final class SessionControlScreen extends MsmScreen {
                 this.settingsFieldWidth, this.draft.getGlobalChatIntervalSeconds());
 
         this.addButton(new MsmButtonWidget(
-                left, this.height - 24, width, 20,
+                this.settingsPanelLeft, this.height - 24, this.settingsPanelWidth, 20,
                 "SAVE SETTINGS", button -> saveSettings()));
     }
 
