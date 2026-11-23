@@ -67,6 +67,17 @@ public final class SessionAutomationStoreTest {
         check(!secondLoaded.isAutoReconnect(), "Account settings must not leak to another profile");
         check(secondLoaded.getRules().isEmpty(), "AutoChat rules must remain isolated per profile");
 
+        store.delete(first);
+        SessionAutomationSettings removedSettings = store.load(first);
+        check(!removedSettings.isAutoReconnect(), "Removed account must not retain AutoReconnect");
+        check(!removedSettings.isDesiredOnline(), "Removed account must not retain desired-online state");
+        check(!removedSettings.isAutoChatEnabled(), "Removed account must not retain AutoChat");
+        check(removedSettings.getRules().isEmpty(), "Removed account must not retain AutoChat rules");
+        check(store.load(second).getRules().isEmpty(),
+                "Removing one account must preserve other accounts' settings");
+
+        store.save(first, firstSettings);
+
         loaded.removeRule(0);
         check(store.load(first).getRules().size() == 2,
                 "A loaded settings copy must not mutate persisted data without save");
