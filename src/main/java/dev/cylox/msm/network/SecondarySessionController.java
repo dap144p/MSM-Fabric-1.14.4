@@ -72,7 +72,7 @@ public final class SecondarySessionController {
         }
 
         ServerAddress address = ServerAddress.parse(profile.getServerAddress());
-        MinecraftProtocol protocol = new MinecraftProtocol(profile.getUsername());
+        MinecraftProtocol protocol = new MsmMinecraftProtocol(profile.getUsername());
         Client client = new Client(address.host, address.port, protocol, new TcpSessionFactory());
         final Connection connection = new Connection(sessionId, client);
 
