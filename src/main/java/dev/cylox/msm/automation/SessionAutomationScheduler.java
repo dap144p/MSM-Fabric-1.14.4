@@ -51,6 +51,7 @@ public final class SessionAutomationScheduler
     private volatile boolean accountsRestored;
     private long activeReconnectSession = -1L;
     private long lastGlobalChatAt;
+    private int lastGlobalChatIntervalSeconds = 3;
     private ScheduledFuture<?> reconnectTask;
     private ScheduledFuture<?> chatTask;
 
@@ -136,11 +137,15 @@ public final class SessionAutomationScheduler
     public void connectManually(long sessionId) {
         SessionAutomationSettings settings = getSettings(sessionId);
         settings.setDesiredOnline(true);
-        saveSettings(sessionId, settings);
+        persistSettings(sessionId, settings);
 
         this.worker.execute(() -> {
             this.reconnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
+            if (this.activeReconnectSession == sessionId) {
+                this.activeReconnectSession = -1L;
+                cancelReconnectTask();
+            }
             try {
                 this.controller.connect(sessionId);
             } catch (RuntimeException exception) {
@@ -157,7 +162,7 @@ public final class SessionAutomationScheduler
     public void disconnectManually(long sessionId) {
         SessionAutomationSettings settings = getSettings(sessionId);
         settings.setDesiredOnline(false);
-        saveSettings(sessionId, settings);
+        persistSettings(sessionId, settings);
 
         this.worker.execute(() -> {
             this.reconnectQueue.remove(sessionId);
@@ -226,12 +231,29 @@ public final class SessionAutomationScheduler
                 return;
             }
 
-            if (!settings.isAutoReconnect() || !settings.isDesiredOnline()
-                    || isServerRejection(reason)) {
-                if (isServerRejection(reason)) {
-                    this.controller.addSystemMessage(sessionId,
-                            "[MSM] AutoReconnect paused because the server rejected this session.");
-                }
+            if (isServerRejection(reason)) {
+                settings.setDesiredOnline(false);
+                persistSettings(sessionId, settings);
+                this.reconnectAttempts.remove(sessionId);
+                this.reconnectQueue.remove(sessionId);
+                this.controller.addSystemMessage(sessionId,
+                        "[MSM] AutoReconnect paused because the server rejected this session.");
+                pumpReconnectQueue();
+                return;
+            }
+
+            if (!settings.isAutoReconnect() || !settings.isDesiredOnline()) {
+                pumpReconnectQueue();
+                return;
+            }
+
+            if (this.reconnectAttempts.getOrDefault(sessionId, 0)
+                    >= settings.getMaxReconnectAttempts()) {
+                settings.setDesiredOnline(false);
+                persistSettings(sessionId, settings);
+                this.reconnectAttempts.remove(sessionId);
+                this.controller.addSystemMessage(sessionId,
+                        "[MSM] AutoReconnect stopped after reaching the attempt limit.");
                 pumpReconnectQueue();
                 return;
             }
@@ -350,8 +372,10 @@ public final class SessionAutomationScheduler
             return;
         }
 
+        long globalInterval = Math.max(settings.getGlobalChatIntervalSeconds(),
+                this.lastGlobalChatIntervalSeconds);
         long earliestSend = this.lastGlobalChatAt
-                + TimeUnit.SECONDS.toMillis(settings.getGlobalChatIntervalSeconds());
+                + TimeUnit.SECONDS.toMillis(globalInterval);
         if (now < earliestSend) {
             this.chatTask = this.worker.schedule(this::pumpChatQueue,
                     earliestSend - now, TimeUnit.MILLISECONDS);
@@ -361,6 +385,7 @@ public final class SessionAutomationScheduler
         try {
             this.controller.sendChat(next.sessionId, rule.getMessage());
             this.lastGlobalChatAt = System.currentTimeMillis();
+            this.lastGlobalChatIntervalSeconds = settings.getGlobalChatIntervalSeconds();
             this.controller.addSystemMessage(next.sessionId,
                     "[MSM] AutoChat sent rule " + (next.ruleIndex + 1) + ".");
         } catch (RuntimeException exception) {
