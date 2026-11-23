@@ -249,8 +249,8 @@ public final class SessionControlScreen extends MsmScreen {
 
     private void initSettings(int left, int width, int gap) {
         int columns = width >= 520 ? 3 : 2;
-        this.settingsFieldWidth = Math.max(60,
-                (width - gap * (columns - 1)) / columns);
+        this.settingsFieldWidth = Math.min(180, Math.max(60,
+                (width - gap * (columns - 1)) / columns));
         this.settingsFirstX = left;
         this.settingsSecondX = left + this.settingsFieldWidth + gap;
         this.settingsThirdX = columns == 3
