@@ -5,7 +5,9 @@ import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.session.SessionManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class SessionAutomationSchedulerTest {
     public static void main(String[] args) {
@@ -28,6 +30,32 @@ public final class SessionAutomationSchedulerTest {
         pending.add(new SessionAutomationScheduler.PendingChat(third.getId(), 0, true, 100L));
 
         List<SessionManager.Session> orderedSessions = manager.getSessions();
+
+        Set<Long> manualQueue = new HashSet<Long>();
+        Set<Long> reconnectQueue = new HashSet<Long>();
+        manualQueue.add(second.getId());
+        manualQueue.add(first.getId());
+        reconnectQueue.add(third.getId());
+        expectQueuedSession(
+                SessionAutomationScheduler.selectNextQueuedSession(
+                        orderedSessions, manualQueue, reconnectQueue),
+                first.getId(), "first account across manual and reconnect queues");
+        manualQueue.remove(first.getId());
+        expectQueuedSession(
+                SessionAutomationScheduler.selectNextQueuedSession(
+                        orderedSessions, manualQueue, reconnectQueue),
+                second.getId(), "second account across manual and reconnect queues");
+        manualQueue.remove(second.getId());
+        expectQueuedSession(
+                SessionAutomationScheduler.selectNextQueuedSession(
+                        orderedSessions, manualQueue, reconnectQueue),
+                third.getId(), "reconnect account after manual connection requests");
+        reconnectQueue.clear();
+        expectQueuedSession(
+                SessionAutomationScheduler.selectNextQueuedSession(
+                        orderedSessions, manualQueue, reconnectQueue),
+                -1L, "empty connection queues");
+
         SessionAutomationScheduler.PendingChat selected =
                 SessionAutomationScheduler.selectNextPendingChat(pending, orderedSessions, 500L);
         expect(selected, first.getId(), 0, false, "first account's first Once rule");
@@ -62,6 +90,13 @@ public final class SessionAutomationSchedulerTest {
         expect(selected, first.getId(), 1, true, "nearest future Repeat rule");
 
         System.out.println("SessionAutomationSchedulerTest: PASS");
+    }
+
+    private static void expectQueuedSession(long actual, long expected, String description) {
+        if (actual != expected) {
+            throw new AssertionError("Unexpected connection order for " + description
+                    + ": expected " + expected + " but got " + actual);
+        }
     }
 
     private static void expect(SessionAutomationScheduler.PendingChat actual,
