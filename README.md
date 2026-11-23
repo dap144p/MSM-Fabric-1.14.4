@@ -27,6 +27,8 @@ See [RELEASE_CHANNELS.md](RELEASE_CHANNELS.md) for the branch, tag, build, and p
 - Saves, edits, deletes, and searches profiles.
 - Shows the selected profile and session state, with a summary of all slot states.
 - Manages saved account profiles without an artificial 20-session cap; the list paginates to fit the screen.
+- Uses a clean, responsive dark UI with a two-column account manager on wide screens and a stacked layout on narrow screens.
+- Allows a selected offline account to be removed after confirmation; its saved profile and per-account AutoChat/AutoReconnect settings are removed together. Active accounts must be disconnected first.
 - Supports an independent secondary Java connection using the Minecraft 1.14.4 protocol (protocol 498) for `OFFLINE_LOCAL` profiles.
 - Marks a secondary session ONLINE only after the server's Join Game packet is received.
 - Handles the protocol keep-alive flow and provides per-session chat receive/send.
