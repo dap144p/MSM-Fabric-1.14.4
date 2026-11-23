@@ -63,7 +63,7 @@ public final class SecondarySessionController {
     }
 
     public void addSystemMessage(long sessionId, String message) {
-        appendMessage(sessionId, "[MSM] " + (message == null ? "" : message));
+        appendMessage(sessionId, message == null ? "" : message);
     }
 
     public interface SessionLifecycleListener {
