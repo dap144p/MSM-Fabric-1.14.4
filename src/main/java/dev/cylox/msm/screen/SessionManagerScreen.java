@@ -690,39 +690,58 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        int contentWidth = Math.max(1, this.width - 24);
-        int contentLeft = (this.width - contentWidth) / 2;
-        int formWidth = Math.min(340, contentWidth);
-        int formLeft = (this.width - formWidth) / 2;
-        drawGlassPanel(formLeft - 8, 20, formLeft + formWidth + 8,
-                this.accountsLabelY - 10);
-        drawGlassPanel(contentLeft, this.accountsLabelY - 7,
-                contentLeft + contentWidth, this.height - 96);
-        drawGlassPanel(contentLeft, this.height - 91,
-                contentLeft + contentWidth, this.height - 57);
+        drawGlassDivider(12, 28, this.width - 12);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
+                "MULTI SESSION MANAGER", this.width / 2, 11, 0xFFF1F5FA);
 
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "ADD ACCOUNT", this.width / 2, 25, 0xA0A0A0);
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "ACCOUNTS (" + this.sessions.size() + ")", this.width / 2,
-                this.accountsLabelY, 0xA0A0A0);
-        if (this.sessions.isEmpty()) {
-            drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                    "No accounts yet. Add one above.", this.width / 2,
-                    this.rowStartY + 12, 0xA0A0A0);
+        int formBottom = this.compactLayout ? 174 : 212;
+        int accountsTop = this.compactLayout ? 181 : 36;
+        drawGlassPanel(this.formPanelLeft, 36,
+                this.formPanelLeft + this.formPanelWidth, formBottom);
+        drawGlassPanel(this.accountsPanelLeft, accountsTop,
+                this.accountsPanelLeft + this.accountsPanelWidth, this.accountsPanelBottom);
+
+        if (this.compactLayout) {
+            drawSectionTitle("ADD ACCOUNT", this.formPanelLeft + 12, 40);
+            drawSectionTitle("USERNAME", this.formPanelLeft + 12, 44);
+            drawSectionTitle("SERVER ADDRESS", this.formPanelLeft + 12, 84);
+            drawSectionTitle("ACCOUNTS  (" + this.sessions.size() + ")",
+                    this.accountsPanelLeft + 12, this.accountsLabelY);
+
+            if (this.sessions.isEmpty()) {
+                drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                        "No accounts added yet.", this.width / 2,
+                        this.rowStartY + 14, 0xFF9EADBD);
+            }
+
+            drawGlassPanel(10, this.height - 130, this.width - 10, this.height - 82);
+        } else {
+            drawSectionTitle("ADD ACCOUNT", this.formPanelLeft + 12, 51);
+            drawSectionTitle("USERNAME", this.formPanelLeft + 12, 73);
+            drawSectionTitle("SERVER ADDRESS", this.formPanelLeft + 12, 117);
+            drawSectionTitle("ACCOUNTS  (" + this.sessions.size() + ")",
+                    this.accountsPanelLeft + 12, this.accountsLabelY);
+
+            if (this.sessions.isEmpty()) {
+                drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                        "No accounts added yet.", this.accountsPanelLeft + this.accountsPanelWidth / 2,
+                        this.rowStartY + 14, 0xFF9EADBD);
+            }
+
+            drawGlassPanel(16, this.height - 88, this.width - 16, this.height - 54);
         }
 
         Optional<SessionManager.Session> selected = getSelectedSession();
         String selectedText = selected.isPresent()
-                ? "SELECTED: " + selected.get().getProfile().getUsername()
-                    + " | " + selected.get().getState().name()
-                : "SELECT AN ACCOUNT";
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                fitText(selectedText, this.width - 24), this.width / 2, this.height - 77, 0xFFFFFF);
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                fitText(this.status, this.width - 24), this.width / 2, this.height - 64, 0xA0A0A0);
+                ? "SELECTED  " + selected.get().getProfile().getUsername()
+                    + "  •  " + selected.get().getState().name()
+                : "NO ACCOUNT SELECTED";
+        int selectedY = this.compactLayout ? this.height - 119 : this.height - 79;
+        int statusY = this.compactLayout ? this.height - 102 : this.height - 65;
+        drawString(MinecraftClient.getInstance().textRenderer,
+                fitText(selectedText, this.width - 32), 24, selectedY, 0xFFE7EDF5);
+        drawString(MinecraftClient.getInstance().textRenderer,
+                fitText(this.status, this.width - 32), 24, statusY, 0xFF9EADBD);
 
         super.render(mouseX, mouseY, delta);
     }
