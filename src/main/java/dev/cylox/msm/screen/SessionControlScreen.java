@@ -59,6 +59,13 @@ public final class SessionControlScreen extends MsmScreen {
 
     private int selectedRuleIndex;
     private int scrollOffset;
+    private int settingsFirstX;
+    private int settingsSecondX;
+    private int settingsThirdX;
+    private int settingsFieldWidth;
+    private int settingsReconnectY;
+    private int settingsMaxDelayY;
+    private int settingsChatY;
     private List<String> wrappedMessages = Collections.emptyList();
     private int cachedMessageCount = -1;
     private int cachedMessageWidth = -1;
@@ -241,40 +248,49 @@ public final class SessionControlScreen extends MsmScreen {
     private int drawEditorHintY;
 
     private void initSettings(int left, int width, int gap) {
-        int fieldWidth = Math.max(60, Math.min(100, (width - gap) / 3));
-        int rowY = 62;
+        int columns = width >= 520 ? 3 : 2;
+        this.settingsFieldWidth = Math.max(60,
+                (width - gap * (columns - 1)) / columns);
+        this.settingsFirstX = left;
+        this.settingsSecondX = left + this.settingsFieldWidth + gap;
+        this.settingsThirdX = columns == 3
+                ? this.settingsSecondX + this.settingsFieldWidth + gap : left;
+        this.settingsReconnectY = 96;
+        this.settingsMaxDelayY = columns == 3 ? this.settingsReconnectY : 132;
+        int reconnectBottom = Math.max(this.settingsReconnectY, this.settingsMaxDelayY) + 20;
+        int retryY = reconnectBottom + 16;
+        this.settingsChatY = retryY + 34;
 
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
-                left, rowY, width, 20, getAutoReconnectLabel(),
+                left, 58, width, 20, getAutoReconnectLabel(),
                 button -> {
                     this.draft.setAutoReconnect(!this.draft.isAutoReconnect());
                     this.autoReconnectButton.setMessage(getAutoReconnectLabel());
                 }));
-        rowY += 30;
 
-        this.reconnectDelayField = addNumberField(left, rowY, fieldWidth,
-                this.draft.getReconnectDelaySeconds());
+        this.reconnectDelayField = addNumberField(
+                this.settingsFirstX, this.settingsReconnectY,
+                this.settingsFieldWidth, this.draft.getReconnectDelaySeconds());
         this.reconnectAttemptsField = addNumberField(
-                left + fieldWidth + gap, rowY, fieldWidth,
-                this.draft.getMaxReconnectAttempts());
+                this.settingsSecondX, this.settingsReconnectY,
+                this.settingsFieldWidth, this.draft.getMaxReconnectAttempts());
         this.reconnectMaxDelayField = addNumberField(
-                left + (fieldWidth + gap) * 2, rowY, fieldWidth,
-                this.draft.getMaxReconnectDelaySeconds());
-        rowY += 36;
+                this.settingsThirdX, this.settingsMaxDelayY,
+                this.settingsFieldWidth, this.draft.getMaxReconnectDelaySeconds());
 
         this.retryBackoffButton = this.addButton(new MsmButtonWidget(
-                left, rowY, width, 20, getRetryBackoffLabel(),
+                left, retryY, width, 20, getRetryBackoffLabel(),
                 button -> {
                     this.draft.setRetryBackoff(!this.draft.isRetryBackoff());
                     this.retryBackoffButton.setMessage(getRetryBackoffLabel());
                 }));
-        rowY += 30;
 
-        this.initialChatDelayField = addNumberField(left, rowY, fieldWidth,
-                this.draft.getInitialChatDelaySeconds());
+        this.initialChatDelayField = addNumberField(
+                this.settingsFirstX, this.settingsChatY,
+                this.settingsFieldWidth, this.draft.getInitialChatDelaySeconds());
         this.globalChatIntervalField = addNumberField(
-                left + fieldWidth + gap, rowY, fieldWidth,
-                this.draft.getGlobalChatIntervalSeconds());
+                this.settingsSecondX, this.settingsChatY,
+                this.settingsFieldWidth, this.draft.getGlobalChatIntervalSeconds());
 
         this.addButton(new MsmButtonWidget(
                 left, this.height - 24, width, 20,
@@ -603,15 +619,20 @@ public final class SessionControlScreen extends MsmScreen {
                     this.status, this.width / 2, this.height - 48, 0xA0A0A0);
         } else {
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "RECONNECT DELAY (sec)", 12, 82, 0xA0A0A0);
+                    "RECONNECT DELAY", this.settingsFirstX,
+                    this.settingsReconnectY - 12, 0xFF9EADBD);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "MAX ATTEMPTS", Math.max(12, this.width / 2 - 30), 82, 0xA0A0A0);
+                    "MAX ATTEMPTS", this.settingsSecondX,
+                    this.settingsReconnectY - 12, 0xFF9EADBD);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "MAX DELAY (sec)", this.width - 112, 82, 0xA0A0A0);
+                    "MAX DELAY", this.settingsThirdX,
+                    this.settingsMaxDelayY - 12, 0xFF9EADBD);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "INITIAL AUTOCHAT DELAY", 12, 148, 0xA0A0A0);
+                    "INITIAL AUTOCHAT DELAY", this.settingsFirstX,
+                    this.settingsChatY - 12, 0xFF9EADBD);
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "GLOBAL CHAT INTERVAL", this.width / 2 + 8, 148, 0xA0A0A0);
+                    "GLOBAL CHAT INTERVAL", this.settingsSecondX,
+                    this.settingsChatY - 12, 0xFF9EADBD);
             drawCenteredString(MinecraftClient.getInstance().textRenderer,
                     this.status, this.width / 2, this.height - 48, 0xA0A0A0);
         }
