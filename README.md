@@ -38,6 +38,8 @@ See [RELEASE_CHANNELS.md](RELEASE_CHANNELS.md) for the branch, tag, build, and p
 - Per-account AutoChat rules with `ONCE` and `REPEAT` modes. ONCE tasks are scheduled after Join Game; queued automated sends are serialized.
 - Per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized in saved account-list order. Manual Disconnect removes the account from the reconnect queue.
 - Removing an account clears its profile and saved AutoChat / AutoReconnect settings together. Active sessions must be disconnected first.
+- Built-in updater checks Nightly, Beta, RC, and Stable releases, downloads only the JAR matching the current Minecraft version, verifies SHA-256, and stages the file in `config/msm-updates/`. Close Minecraft and move the staged JAR into the profile's `mods` folder; MSM does not overwrite a loaded mod or modify launcher-managed folders.
+- Development builds from feature branches use temporary CI artifacts and do not use the release updater.
 - Uses no secondary Minecraft world renderer; the primary Minecraft client remains unchanged.
 - Does not save passwords, Microsoft credentials, access tokens, or session cookies.
 - Keeps profiles in the shared MSM-Core format so the two game-version builds can read the same profile configuration when they use the same Minecraft config directory.
