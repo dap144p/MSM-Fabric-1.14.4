@@ -109,7 +109,9 @@ tasks.register("verifyBundledCore") {
                 "dev/cylox/msm/automation/SessionAutomationStore.class",
                 "dev/cylox/msm/network/SecondarySessionController.class",
                 "dev/cylox/msm/screen/SessionManagerScreen.class",
-                "dev/cylox/msm/screen/SessionControlScreen.class"
+                "dev/cylox/msm/screen/SessionControlScreen.class",
+                "dev/cylox/msm/update/MsmUpdateManager.class",
+                "dev/cylox/msm/screen/MsmUpdateScreen.class"
             ].each { classPath ->
                 if (archive.getEntry(classPath) == null) {
                     throw new GradleException("Required MSM class is missing: " + classPath)
