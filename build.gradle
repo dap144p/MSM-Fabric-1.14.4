@@ -77,7 +77,9 @@ tasks.register("verifyBundledCore") {
                 "dev/cylox/msm/profile/SessionProfileStore.class",
                 "dev/cylox/msm/profile/SessionAuthMode.class",
                 "dev/cylox/msm/session/SessionManager.class",
-                "dev/cylox/msm/session/SessionState.class"
+                "dev/cylox/msm/session/SessionState.class",
+                "dev/cylox/msm/update/MsmUpdateManager.class",
+                "dev/cylox/msm/screen/MsmUpdateScreen.class"
         ]
         def requiredLibraries = [
                 "mcprotocollib",
