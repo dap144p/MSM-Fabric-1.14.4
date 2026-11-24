@@ -66,9 +66,10 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         centered(context, this.username, this.width / 2, top + 37, 0xFF6FC4DE);
         centered(context, fit(this.serverAddress, panelWidth - 24),
                 this.width / 2, top + 52, 0xFFB3BFCD);
-        centered(context, "This server's AutoChat / AutoReconnect settings",
+        centered(context, "Only this server's automation settings",
                 this.width / 2, top + 75, 0xFF9EADBD);
-        centered(context, "will also be deleted. Other servers stay saved.", this.width / 2, top + 87, 0xFF9EADBD);
+        centered(context, "will be deleted. Other servers stay saved.",
+                this.width / 2, top + 87, 0xFF9EADBD);
         centered(context, fit(this.status, panelWidth - 24),
                 this.width / 2, top + 103, 0xFF9EADBD);
         super.render(context, mouseX, mouseY, delta);
