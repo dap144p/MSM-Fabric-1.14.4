@@ -910,7 +910,7 @@ public final class SessionControlScreen extends MsmScreen {
                     this.contentTop + 58, 0xFF9EADBD);
             if (this.draft.getRules().isEmpty()) {
                 this.text(context, "No rules yet. Add one below.",
-                        left, this.contentTop + 90, 0xFF9EADBD);
+                        left, this.contentTop + 68, 0xFF9EADBD);
             }
         } else {
             if (this.height >= 340) {
