@@ -46,7 +46,7 @@ public final class SessionControlScreen extends MsmScreen {
     private TextFieldWidget ruleDelayField;
     private MsmButtonWidget ruleModeButton;
     private MsmButtonWidget autoChatEnabledButton;
-    private MsmButtonWidget ruleSaveButton;
+    private MsmButtonWidget ruleAddButton;
     private MsmButtonWidget ruleToggleButton;
     private MsmButtonWidget ruleDeleteButton;
 
@@ -74,6 +74,11 @@ public final class SessionControlScreen extends MsmScreen {
     private int cachedMessageWidth = -1;
     private String cachedFirstMessage;
     private String cachedLastMessage;
+
+    private static final int AUTO_SAVE_DELAY_TICKS = 8;
+    private int autoSaveTicks;
+    private String lastAutoSaveSnapshot;
+    private String autoSaveStatus = "SAVED";
 
     public SessionControlScreen(Screen parent, long sessionId, String username) {
         this(parent, MsmClient.getSecondarySessions(),
@@ -139,6 +144,7 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void openTab(Tab next) {
+        flushPendingAutoSave();
         this.client.setScreen(new SessionControlScreen(
                 this.parent, this.controller, this.scheduler, this.sessionId,
                 this.username, next, this.draft, this.rulePage, this.selectedRuleIndex));
@@ -156,13 +162,9 @@ public final class SessionControlScreen extends MsmScreen {
                 left + fieldWidth + gap, this.height - 76, sendWidth, 20,
                 "SEND", button -> sendChat()));
 
-        int actionWidth = Math.max(1, (width - gap) / 2);
         this.connectionButton = this.addButton(new MsmButtonWidget(
-                left, this.height - 24, actionWidth, 20,
+                left, this.height - 24, width, 20,
                 "JOIN / CONNECT", button -> toggleConnection()));
-        this.addButton(new MsmButtonWidget(
-                left + actionWidth + gap, this.height - 24,
-                actionWidth, 20, "BACK", button -> close()));
         updateConnectionControls();
     }
 
@@ -229,10 +231,9 @@ public final class SessionControlScreen extends MsmScreen {
         this.ruleDelayField.setMaxLength(5);
 
         int editorButtonWidth = Math.max(1, (width - gap * 2) / 3);
-        this.ruleSaveButton = this.addButton(new MsmButtonWidget(
+        this.ruleAddButton = this.addButton(new MsmButtonWidget(
                 left, editorY + 50, editorButtonWidth, 20,
-                this.selectedRuleIndex >= 0 ? "SAVE RULE" : "ADD RULE",
-                button -> saveRule()));
+                "ADD RULE", button -> addRule()));
         this.ruleToggleButton = this.addButton(new MsmButtonWidget(
                 left + editorButtonWidth + gap, editorY + 50, editorButtonWidth, 20,
                 getSelectedRuleEnabledLabel(), button -> toggleSelectedRule()));
@@ -242,15 +243,13 @@ public final class SessionControlScreen extends MsmScreen {
 
         this.ruleDeleteButton.active = this.selectedRuleIndex >= 0;
         this.ruleToggleButton.active = this.selectedRuleIndex >= 0;
-        this.addButton(new MsmButtonWidget(
-                left, this.height - 24, width, 20,
-                "SAVE ALL", button -> saveSettings()));
         if (this.selectedRuleIndex >= 0 && this.selectedRuleIndex < rules.size()) {
             loadRuleIntoEditor(rules.get(this.selectedRuleIndex));
         } else {
             this.selectedRuleIndex = -1;
             this.ruleDelayField.setText("0");
         }
+        this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
     }
 
     private int drawEditorHintY;
@@ -276,8 +275,10 @@ public final class SessionControlScreen extends MsmScreen {
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
                 this.settingsPanelLeft, 58, this.settingsPanelWidth, 20, getAutoReconnectLabel(),
                 button -> {
+                    flushPendingAutoSave();
                     this.draft.setAutoReconnect(!this.draft.isAutoReconnect());
                     this.autoReconnectButton.setMessage(getAutoReconnectLabel());
+                    saveSettings();
                 }));
 
         this.reconnectDelayField = addNumberField(
@@ -293,8 +294,10 @@ public final class SessionControlScreen extends MsmScreen {
         this.retryBackoffButton = this.addButton(new MsmButtonWidget(
                 this.settingsPanelLeft, retryY, this.settingsPanelWidth, 20, getRetryBackoffLabel(),
                 button -> {
+                    flushPendingAutoSave();
                     this.draft.setRetryBackoff(!this.draft.isRetryBackoff());
                     this.retryBackoffButton.setMessage(getRetryBackoffLabel());
+                    saveSettings();
                 }));
 
         this.initialChatDelayField = addNumberField(
@@ -303,10 +306,7 @@ public final class SessionControlScreen extends MsmScreen {
         this.globalChatIntervalField = addNumberField(
                 this.settingsSecondX, this.settingsChatY,
                 this.settingsFieldWidth, this.draft.getGlobalChatIntervalSeconds());
-
-        this.addButton(new MsmButtonWidget(
-                this.settingsPanelLeft, this.height - 24, this.settingsPanelWidth, 20,
-                "SAVE SETTINGS", button -> saveSettings()));
+        this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
     }
 
     private TextFieldWidget addNumberField(int x, int y, int width, int value) {
@@ -330,12 +330,14 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void toggleAutoChat() {
+        flushPendingAutoSave();
         this.draft.setAutoChatEnabled(!this.draft.isAutoChatEnabled());
         this.autoChatEnabledButton.setMessage(getAutoChatLabel());
         saveSettings();
     }
 
     private void selectRule(int index) {
+        flushPendingAutoSave();
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
         if (index < 0 || index >= rules.size()) return;
         this.selectedRuleIndex = index;
@@ -347,6 +349,7 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void openAutoChatPage(int page, int selectedIndex) {
+        flushPendingAutoSave();
         this.client.setScreen(new SessionControlScreen(
                 this.parent, this.controller, this.scheduler, this.sessionId,
                 this.username, Tab.AUTO_CHAT, this.draft, page, selectedIndex));
@@ -357,7 +360,6 @@ public final class SessionControlScreen extends MsmScreen {
         this.ruleDelayField.setText(Integer.toString(rule.getDelaySeconds()));
         this.editingMode = rule.getMode();
         this.ruleModeButton.setMessage(this.editingMode.name());
-        this.ruleSaveButton.setMessage("SAVE RULE");
         this.ruleToggleButton.setMessage(getSelectedRuleEnabledLabel());
         this.ruleToggleButton.active = true;
     }
@@ -371,6 +373,7 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void toggleSelectedRule() {
+        flushPendingAutoSave();
         if (this.selectedRuleIndex < 0 || this.selectedRuleIndex >= this.draft.getRules().size()) return;
         SessionAutomationSettings.AutoChatRule current =
                 this.draft.getRules().get(this.selectedRuleIndex);
@@ -378,7 +381,8 @@ public final class SessionControlScreen extends MsmScreen {
                 new SessionAutomationSettings.AutoChatRule(
                         current.getMessage(), current.getMode(),
                         current.getDelaySeconds(), !current.isEnabled()));
-        this.status = "Rule enable state changed in draft. Press SAVE ALL.";
+        saveSettings();
+        this.status = "Rule enable state saved.";
         openAutoChatPage(this.rulePage, this.selectedRuleIndex);
     }
 
@@ -393,35 +397,32 @@ public final class SessionControlScreen extends MsmScreen {
         }
     }
 
-    private void saveRule() {
+    private void addRule() {
+        flushPendingAutoSave();
         try {
             int delay = parseNumber(this.ruleDelayField, 0);
-            boolean enabled = this.selectedRuleIndex >= 0
-                    && this.selectedRuleIndex < this.draft.getRules().size()
-                    ? this.draft.getRules().get(this.selectedRuleIndex).isEnabled() : true;
             SessionAutomationSettings.AutoChatRule rule =
                     new SessionAutomationSettings.AutoChatRule(
-                            this.ruleMessageField.getText(), this.editingMode, delay, enabled);
-            if (this.selectedRuleIndex >= 0
-                    && this.selectedRuleIndex < this.draft.getRules().size()) {
-                this.draft.updateRule(this.selectedRuleIndex, rule);
-            } else {
-                this.draft.addRule(rule);
-                this.selectedRuleIndex = this.draft.getRules().size() - 1;
-            }
-            this.status = "AutoChat rule saved to draft. Press SAVE ALL to apply.";
+                            this.ruleMessageField.getText(), this.editingMode, delay, true);
+            this.draft.addRule(rule);
+            this.selectedRuleIndex = this.draft.getRules().size() - 1;
+            saveSettings();
+            this.status = "AutoChat rule added and saved.";
             openAutoChatPage(this.rulePage, this.selectedRuleIndex);
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.status = exception.getMessage();
+            this.autoSaveStatus = "ERROR";
         }
     }
 
     private void deleteRule() {
+        flushPendingAutoSave();
         if (this.selectedRuleIndex < 0) return;
         try {
             this.draft.removeRule(this.selectedRuleIndex);
             this.selectedRuleIndex = -1;
-            this.status = "Rule deleted from draft. Press SAVE ALL to apply.";
+            saveSettings();
+            this.status = "Rule deleted and saved.";
             openAutoChatPage(this.rulePage, -1);
         } catch (IndexOutOfBoundsException exception) {
             this.status = "Selected rule no longer exists.";
@@ -438,8 +439,107 @@ public final class SessionControlScreen extends MsmScreen {
                 this.draft.setGlobalChatIntervalSeconds(parseNumber(this.globalChatIntervalField, 3));
             }
             this.scheduler.saveSettings(this.sessionId, this.draft);
-            this.status = "Settings saved.";
+            this.autoSaveTicks = 0;
+            this.autoSaveStatus = "SAVED";
+            this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
+            this.status = "Changes saved automatically.";
         } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.autoSaveStatus = "ERROR";
+            this.status = exception.getMessage();
+        }
+    }
+
+    private String getAutoSaveSnapshot() {
+        if (this.tab == Tab.SETTINGS) {
+            return this.draft.isAutoReconnect() + "|"
+                    + this.draft.isRetryBackoff() + "|"
+                    + fieldText(this.reconnectDelayField) + "|"
+                    + fieldText(this.reconnectAttemptsField) + "|"
+                    + fieldText(this.reconnectMaxDelayField) + "|"
+                    + fieldText(this.initialChatDelayField) + "|"
+                    + fieldText(this.globalChatIntervalField);
+        }
+        if (this.tab == Tab.AUTO_CHAT) {
+            return this.selectedRuleIndex + "|" + this.editingMode + "|"
+                    + fieldText(this.ruleMessageField) + "|"
+                    + fieldText(this.ruleDelayField);
+        }
+        return "";
+    }
+
+    private static String fieldText(TextFieldWidget field) {
+        return field == null ? "" : field.getText();
+    }
+
+    private void tickAutoSave() {
+        if (this.tab != Tab.SETTINGS
+                && (this.tab != Tab.AUTO_CHAT || this.selectedRuleIndex < 0)) {
+            return;
+        }
+
+        String snapshot = getAutoSaveSnapshot();
+        if (this.lastAutoSaveSnapshot == null) {
+            this.lastAutoSaveSnapshot = snapshot;
+        } else if (!snapshot.equals(this.lastAutoSaveSnapshot)) {
+            this.lastAutoSaveSnapshot = snapshot;
+            this.autoSaveTicks = AUTO_SAVE_DELAY_TICKS;
+            this.autoSaveStatus = "PENDING";
+        }
+
+        if (this.autoSaveTicks > 0 && --this.autoSaveTicks == 0) {
+            if (this.tab == Tab.SETTINGS) {
+                saveSettings();
+            } else {
+                saveEditedRule();
+            }
+        }
+    }
+
+    private void flushPendingAutoSave() {
+        if (this.tab != Tab.SETTINGS
+                && (this.tab != Tab.AUTO_CHAT || this.selectedRuleIndex < 0)) {
+            return;
+        }
+        String snapshot = getAutoSaveSnapshot();
+        boolean changed = !snapshot.equals(this.lastAutoSaveSnapshot);
+        if (!changed && this.autoSaveTicks <= 0) return;
+
+        this.autoSaveTicks = 0;
+        if (this.tab == Tab.SETTINGS) {
+            saveSettings();
+        } else {
+            saveEditedRule();
+        }
+    }
+
+    private void saveEditedRule() {
+        if (this.ruleMessageField == null || this.ruleDelayField == null
+                || this.selectedRuleIndex < 0) {
+            return;
+        }
+
+        try {
+            List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
+            if (this.selectedRuleIndex >= rules.size()) return;
+
+            SessionAutomationSettings.AutoChatRule current = rules.get(this.selectedRuleIndex);
+            SessionAutomationSettings.AutoChatRule updated =
+                    new SessionAutomationSettings.AutoChatRule(
+                            this.ruleMessageField.getText(), this.editingMode,
+                            parseNumber(this.ruleDelayField, 0), current.isEnabled());
+            boolean unchanged = current.getMessage().equals(updated.getMessage())
+                    && current.getMode() == updated.getMode()
+                    && current.getDelaySeconds() == updated.getDelaySeconds();
+            if (!unchanged) {
+                this.draft.updateRule(this.selectedRuleIndex, updated);
+                this.scheduler.saveSettings(this.sessionId, this.draft);
+                this.status = "AutoChat rule saved automatically.";
+            }
+            this.autoSaveTicks = 0;
+            this.autoSaveStatus = "SAVED";
+            this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.autoSaveStatus = "ERROR";
             this.status = exception.getMessage();
         }
     }
@@ -522,6 +622,7 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void tick() {
         super.tick();
+        tickAutoSave();
         refreshWrappedMessages();
         updateConnectionControls();
     }
@@ -592,6 +693,7 @@ public final class SessionControlScreen extends MsmScreen {
 
     @Override
     public void close() {
+        flushPendingAutoSave();
         this.client.setScreen(this.parent);
     }
 
@@ -612,10 +714,12 @@ public final class SessionControlScreen extends MsmScreen {
             this.drawGlassPanel(context, 16, 52, this.width - 16, this.height - 104);
         } else if (this.tab == Tab.AUTO_CHAT) {
             context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.draft.getRules().size() + " RULES  |  " + getAutoChatLabel()),
+                    Text.literal(this.draft.getRules().size() + " RULES  |  "
+                            + getAutoChatLabel() + "  |  AUTO SAVE: " + this.autoSaveStatus),
                     this.width / 2, 48, 0xA0A0A0);
             context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.status), this.width / 2, this.height - 48, 0xA0A0A0);
+                    Text.literal(fitText(this.status, this.width - 24)),
+                    this.width / 2, this.height - 48, 0xA0A0A0);
         } else {
             this.text(context, "RECONNECT DELAY", this.settingsFirstX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
@@ -628,7 +732,9 @@ public final class SessionControlScreen extends MsmScreen {
             this.text(context, "GLOBAL CHAT INTERVAL", this.settingsSecondX,
                     this.settingsChatY - 12, 0xFF9EADBD);
             context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.status), this.width / 2, this.height - 48, 0xA0A0A0);
+                    Text.literal(fitText(this.status + "  |  AUTO SAVE: "
+                            + this.autoSaveStatus, this.width - 24)),
+                    this.width / 2, this.height - 48, 0xA0A0A0);
         }
 
         super.render(context, mouseX, mouseY, delta);
