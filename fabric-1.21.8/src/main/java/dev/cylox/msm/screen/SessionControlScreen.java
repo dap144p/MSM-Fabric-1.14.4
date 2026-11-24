@@ -174,12 +174,14 @@ public final class SessionControlScreen extends MsmScreen {
                 button -> toggleAutoChat()));
 
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
-        this.rulePageSize = Math.max(1, Math.min(4, (this.height - 245) / 23));
+        int rowY = this.height < 260 ? 80 : 84;
+        int maxEditorY = Math.max(128, this.height - 92);
+        this.rulePageSize = Math.max(1, Math.min(4,
+                (maxEditorY - rowY - 5 - 22) / 23));
         int pageCount = Math.max(1, (rules.size() + this.rulePageSize - 1) / this.rulePageSize);
         this.rulePage = Math.min(this.requestedRulePage, pageCount - 1);
         int start = this.rulePage * this.rulePageSize;
         int end = Math.min(start + this.rulePageSize, rules.size());
-        int rowY = 84;
 
         for (int index = start; index < end; index++) {
             final int ruleIndex = index;
@@ -214,7 +216,7 @@ public final class SessionControlScreen extends MsmScreen {
             rowY += 22;
         }
 
-        int editorY = Math.min(this.height - 118, Math.max(112, rowY + 5));
+        int editorY = Math.min(maxEditorY, Math.max(112, rowY + 5));
         this.ruleMessageField = this.addButton(new TextFieldWidget(
                 this.textRenderer,
                 left, editorY, width, 20, Text.literal("Chat or command")));
@@ -266,14 +268,17 @@ public final class SessionControlScreen extends MsmScreen {
         this.settingsSecondX = fieldGroupLeft + this.settingsFieldWidth + gap;
         this.settingsThirdX = columns == 3
                 ? this.settingsSecondX + this.settingsFieldWidth + gap : fieldGroupLeft;
-        this.settingsReconnectY = 96;
-        this.settingsMaxDelayY = columns == 3 ? this.settingsReconnectY : 132;
+        boolean compactHeight = this.height < 300;
+        this.settingsReconnectY = this.height < 230 ? 90 : compactHeight ? 88 : 96;
+        this.settingsMaxDelayY = columns == 3 ? this.settingsReconnectY
+                : this.height < 230 ? 112 : compactHeight ? 122 : 132;
         int reconnectBottom = Math.max(this.settingsReconnectY, this.settingsMaxDelayY) + 20;
-        int retryY = reconnectBottom + 16;
-        this.settingsChatY = retryY + 34;
+        int retryY = reconnectBottom + (compactHeight ? 10 : 16);
+        this.settingsChatY = retryY + (compactHeight ? 24 : 34);
 
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
-                this.settingsPanelLeft, 58, this.settingsPanelWidth, 20, getAutoReconnectLabel(),
+                this.settingsPanelLeft, this.height < 230 ? 54 : 58,
+                this.settingsPanelWidth, 20, getAutoReconnectLabel(),
                 button -> {
                     flushPendingAutoSave();
                     this.draft.setAutoReconnect(!this.draft.isAutoReconnect());
@@ -693,9 +698,17 @@ public final class SessionControlScreen extends MsmScreen {
         this.cachedMessageWidth = this.width;
         this.cachedFirstMessage = first;
         this.cachedLastMessage = last;
-        int visibleLines = Math.max(1, (this.height - 142) / 11);
+        int visibleLines = getChatVisibleLines();
         this.scrollOffset = Math.min(this.scrollOffset,
                 Math.max(0, wrapped.size() - visibleLines));
+    }
+
+    private int getChatPanelBottom() {
+        return Math.max(64, this.height - 103);
+    }
+
+    private int getChatVisibleLines() {
+        return Math.max(1, (getChatPanelBottom() - 56 - 4) / 11);
     }
 
     private List<String> getWrappedMessages() {
@@ -726,7 +739,8 @@ public final class SessionControlScreen extends MsmScreen {
                 this.title, this.width / 2, 10, 0xFFFFFF);
 
         if (this.tab == Tab.CHAT) {
-            this.drawGlassPanel(context, 16, 52, this.width - 16, this.height - 104);
+            this.drawGlassPanel(context, 16, 52,
+                    this.width - 16, getChatPanelBottom());
         } else if (this.tab == Tab.AUTO_CHAT) {
             context.drawCenteredTextWithShadow(this.textRenderer,
                     Text.literal(this.draft.getRules().size() + " RULES  |  "
@@ -734,7 +748,7 @@ public final class SessionControlScreen extends MsmScreen {
                     this.width / 2, 48, 0xA0A0A0);
             context.drawCenteredTextWithShadow(this.textRenderer,
                     Text.literal(fitText(this.status, this.width - 24)),
-                    this.width / 2, this.height - 48, 0xA0A0A0);
+                    this.width / 2, this.height - 14, 0xA0A0A0);
         } else {
             this.text(context, "RECONNECT DELAY", this.settingsFirstX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
@@ -749,7 +763,7 @@ public final class SessionControlScreen extends MsmScreen {
             context.drawCenteredTextWithShadow(this.textRenderer,
                     Text.literal(fitText(this.status + "  |  AUTO SAVE: "
                             + this.autoSaveStatus, this.width - 24)),
-                    this.width / 2, this.height - 48, 0xA0A0A0);
+                    this.width / 2, this.height - 14, 0xA0A0A0);
         }
 
         super.render(context, mouseX, mouseY, delta);
@@ -761,15 +775,18 @@ public final class SessionControlScreen extends MsmScreen {
     private void renderChat(DrawContext context) {
         List<String> messages = getWrappedMessages();
         int lineHeight = 11;
-        int visibleLines = Math.max(1, (this.height - 142) / lineHeight);
+        int visibleLines = getChatVisibleLines();
         int end = Math.max(0, messages.size() - this.scrollOffset);
         int start = Math.max(0, end - visibleLines);
+        int panelBottom = getChatPanelBottom();
+        context.enableScissor(16, 52, this.width - 16, panelBottom);
         int y = 56;
         for (int index = start; index < end; index++) {
             context.drawTextWithShadow(this.textRenderer,
-                    messages.get(index), 12, y, 0xFFE0E0E0);
+                    messages.get(index), 20, y, 0xFFE0E0E0);
             y += lineHeight;
         }
+        context.disableScissor();
 
         this.text(context, fitText(this.status, this.width - 24),
                 12, this.height - 95, 0xFFA0A0A0);
