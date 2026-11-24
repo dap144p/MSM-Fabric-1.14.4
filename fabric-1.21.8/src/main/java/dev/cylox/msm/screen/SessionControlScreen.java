@@ -63,6 +63,7 @@ public final class SessionControlScreen extends MsmScreen {
     private MsmButtonWidget closeButton;
 
     private int selectedRuleIndex;
+    private int scrollOffset;
     private int contentLeft;
     private int contentTop;
     private int contentWidth;
@@ -345,7 +346,7 @@ public final class SessionControlScreen extends MsmScreen {
         int reconnectBottom = Math.max(
                 this.settingsReconnectY, this.settingsMaxDelayY) + 20;
         this.settingsRetryY = reconnectBottom + (compact ? 20 : 26);
-        this.settingsChatY = this.settingsRetryY + (compact ? 42 : 50);
+        this.settingsChatY = this.settingsRetryY + (compact ? 46 : 50);
         this.settingsChatLabelY = this.settingsChatY - 13;
 
         this.reconnectDelayField = addNumberField(
