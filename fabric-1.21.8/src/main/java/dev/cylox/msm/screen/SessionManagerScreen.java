@@ -17,14 +17,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Locale;
 
 public final class SessionManagerScreen extends MsmScreen {
     private static final int PAGE_SIZE = 6;
     private static final String DEFAULT_STATUS =
-            "Add an account, select it, then CONNECT or CONTROL MANAGE.";
+            "Add an account once, then add servers to it. Select a server to connect or manage.";
 
     private final List<SessionManager.Session> sessions = new ArrayList<>();
     private final Map<Long, MsmButtonWidget> rowButtons = new LinkedHashMap<>();
+    private final Map<String, MsmButtonWidget> accountButtons = new LinkedHashMap<>();
+    private final List<AccountGroup> accountGroups = new ArrayList<>();
+    private final List<AccountListEntry> accountRows = new ArrayList<>();
 
     private final int requestedPage;
     private int accountsLabelY;
@@ -35,10 +39,12 @@ public final class SessionManagerScreen extends MsmScreen {
     private int accountsPanelLeft;
     private int accountsPanelWidth;
     private boolean compactLayout;
+    private String expandedAccountKey;
 
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private MsmButtonWidget authModeButton;
+    private MsmButtonWidget addAccountButton;
     private MsmButtonWidget connectionButton;
     private MsmButtonWidget controlButton;
     private MsmButtonWidget removeButton;
@@ -53,17 +59,19 @@ public final class SessionManagerScreen extends MsmScreen {
     private String serverValue;
 
     public SessionManagerScreen(Screen parent) {
-        this(parent, DEFAULT_STATUS, 0, -1L,
+        this(parent, DEFAULT_STATUS, 0, -1L, null,
                 SessionAuthMode.OFFLINE_LOCAL, "", "");
     }
 
     private SessionManagerScreen(Screen parent, String status, int page,
-                                 long selectedSessionId, SessionAuthMode authMode,
+                                 long selectedSessionId, String expandedAccountKey,
+                                 SessionAuthMode authMode,
                                  String usernameValue, String serverValue) {
         super(Text.literal("Multi Session Manager"), parent);
         this.status = status == null ? DEFAULT_STATUS : status;
         this.requestedPage = Math.max(0, page);
         this.selectedSessionId = selectedSessionId;
+        this.expandedAccountKey = expandedAccountKey;
         this.authMode = authMode == null ? SessionAuthMode.OFFLINE_LOCAL : authMode;
         this.usernameValue = usernameValue == null ? "" : usernameValue;
         this.serverValue = serverValue == null ? "" : serverValue;
@@ -72,18 +80,50 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void refreshSessions() {
         this.sessions.clear();
+        this.accountGroups.clear();
+        this.accountRows.clear();
+
         List<SessionProfile> profiles = MsmClient.getProfiles();
+        Map<String, AccountGroup> grouped = new LinkedHashMap<>();
         for (SessionManager.Session session : MsmClient.getSessionManager().getSessions()) {
-            if (profiles.contains(session.getProfile())) {
-                this.sessions.add(session);
+            if (!profiles.contains(session.getProfile())) continue;
+            this.sessions.add(session);
+
+            SessionProfile profile = session.getProfile();
+            String key = accountKey(profile);
+            AccountGroup group = grouped.get(key);
+            if (group == null) {
+                group = new AccountGroup(key, profile.getUsername(), profile.getAuthMode());
+                grouped.put(key, group);
+            }
+            group.servers.add(session);
+        }
+
+        this.accountGroups.addAll(grouped.values());
+        if (this.expandedAccountKey != null && !grouped.containsKey(this.expandedAccountKey)) {
+            this.expandedAccountKey = null;
+        }
+        for (AccountGroup group : this.accountGroups) {
+            this.accountRows.add(new AccountListEntry(group, null));
+            if (group.key.equals(this.expandedAccountKey)) {
+                for (SessionManager.Session session : group.servers) {
+                    this.accountRows.add(new AccountListEntry(group, session));
+                }
             }
         }
 
+        for (Map.Entry<String, MsmButtonWidget> entry : this.accountButtons.entrySet()) {
+            AccountGroup group = grouped.get(entry.getKey());
+            if (group != null) {
+                entry.getValue().setMessage(getAccountGroupLabel(group));
+                entry.getValue().setSelected(group.key.equals(this.expandedAccountKey));
+            }
+        }
         for (Map.Entry<Long, MsmButtonWidget> entry : this.rowButtons.entrySet()) {
             Optional<SessionManager.Session> session =
                     MsmClient.getSessionManager().find(entry.getKey());
             if (session.isPresent() && profiles.contains(session.get().getProfile())) {
-                entry.getValue().setMessage(getAccountLabel(session.get(), entry.getKey()));
+                entry.getValue().setMessage(getServerLabel(session.get(), entry.getKey()));
                 entry.getValue().setSelected(entry.getKey() == this.selectedSessionId);
             }
         }
@@ -94,9 +134,35 @@ public final class SessionManagerScreen extends MsmScreen {
         refreshControls();
     }
 
-    private String getAccountLabel(SessionManager.Session session, long id) {
-        String prefix = id == this.selectedSessionId ? "> " : "";
-        String label = prefix + session.getProfile().getUsername()
+    private static String accountKey(SessionProfile profile) {
+        return profile.getAuthMode().name() + ":" + profile.getUsername().toLowerCase(Locale.ROOT);
+    }
+
+    private AccountGroup findAccountGroup(String username, SessionAuthMode mode) {
+        if (username == null || username.trim().isEmpty() || mode == null) return null;
+        String key = mode.name() + ":" + username.trim().toLowerCase(Locale.ROOT);
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(key)) return group;
+        }
+        return null;
+    }
+
+    private String getAccountGroupLabel(AccountGroup group) {
+        int online = 0;
+        for (SessionManager.Session server : group.servers) {
+            if (server.getState() == SessionState.ONLINE) online++;
+        }
+        String prefix = group.key.equals(this.expandedAccountKey) ? "> " : "";
+        String label = prefix + group.username + "  ["
+                + group.servers.size() + " SERVERS | " + online + " ONLINE]";
+        int availableWidth = this.accountsPanelWidth > 0
+                ? this.accountsPanelWidth - 34 : this.width - 42;
+        return fitText(label, availableWidth);
+    }
+
+    private String getServerLabel(SessionManager.Session session, long id) {
+        String prefix = id == this.selectedSessionId ? "  > " : "    ";
+        String label = prefix + session.getProfile().getServerAddress()
                 + "  [" + session.getState().name() + "]";
         int availableWidth = this.accountsPanelWidth > 0
                 ? this.accountsPanelWidth - 34 : this.width - 42;
