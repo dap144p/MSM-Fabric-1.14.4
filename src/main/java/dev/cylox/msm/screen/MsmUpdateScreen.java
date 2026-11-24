@@ -63,6 +63,7 @@ public final class MsmUpdateScreen extends MsmScreen {
         this.availableUpdate = null;
         this.status = "Checking " + this.updateManager.getChannel().getLabel() + " releases...";
         this.checkButton.active = false;
+        this.channelButton.active = false;
         this.downloadButton.active = false;
         this.downloadButton.setMessage("DOWNLOAD JAR");
 
@@ -72,6 +73,7 @@ public final class MsmUpdateScreen extends MsmScreen {
                     this.availableUpdate = result.update;
                     this.status = result.message;
                     this.checkButton.active = true;
+                    this.channelButton.active = true;
                     this.downloadButton.active = result.isUpdateAvailable();
                 }));
     }
