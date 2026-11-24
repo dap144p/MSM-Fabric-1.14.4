@@ -433,40 +433,105 @@ public final class SessionManagerScreen extends MsmScreen {
         if (this.serverField != null) this.serverValue = this.serverField.getText();
     }
 
+    private String getAddAccountLabel() {
+        return findAccountGroup(this.usernameValue, this.authMode) == null
+                ? "ADD ACCOUNT" : "ADD SERVER";
+    }
+
+    private void updateAddAccountLabel() {
+        if (this.addAccountButton != null) {
+            this.addAccountButton.setMessage(getAddAccountLabel());
+        }
+    }
+
+    private void toggleAccountGroup(String key) {
+        AccountGroup group = null;
+        for (AccountGroup candidate : this.accountGroups) {
+            if (candidate.key.equals(key)) {
+                group = candidate;
+                break;
+            }
+        }
+        if (group == null) return;
+
+        snapshotFormValues();
+        if (key.equals(this.expandedAccountKey)) {
+            this.expandedAccountKey = null;
+            Optional<SessionManager.Session> selected = getSelectedSession();
+            if (selected.isPresent()
+                    && accountKey(selected.get().getProfile()).equals(key)) {
+                this.selectedSessionId = -1L;
+            }
+        } else {
+            this.expandedAccountKey = key;
+            this.selectedSessionId = -1L;
+            this.lastObservedState = null;
+            this.usernameValue = group.username;
+            this.serverValue = "";
+            this.authMode = group.authMode;
+        }
+        openScreen("Account " + group.username + " selected.",
+                0, this.selectedSessionId);
+    }
+
+    private void selectServer(SessionManager.Session session, String accountKey) {
+        this.expandedAccountKey = accountKey;
+        this.selectedSessionId = session.getId();
+        this.lastObservedState = null;
+        this.status = "Selected " + session.getProfile().getUsername()
+                + " on " + session.getProfile().getServerAddress() + ".";
+        refreshSessions();
+    }
+
     private void addAccount() {
         snapshotFormValues();
         try {
+            AccountGroup existing = findAccountGroup(this.usernameValue, this.authMode);
+            String username = existing == null ? this.usernameValue : existing.username;
             SessionProfile profile = new SessionProfile(
-                    this.usernameValue, this.serverValue, this.authMode);
+                    username, this.serverValue, this.authMode);
             if (MsmClient.getProfiles().contains(profile)) {
-                this.status = "This account and server are already added.";
+                this.status = "This server is already added to this account.";
                 return;
             }
 
             SessionManager.Session created = MsmClient.addProfile(profile);
+            this.expandedAccountKey = accountKey(profile);
             refreshSessions();
-            int selectedIndex = this.sessions.indexOf(created);
-            int targetPage = Math.max(0, selectedIndex / Math.max(1, this.pageSize));
-            openScreen("Account " + profile.getUsername() + " added.",
-                    targetPage, created.getId());
+
+            int selectedIndex = -1;
+            for (int index = 0; index < this.accountRows.size(); index++) {
+                AccountListEntry entry = this.accountRows.get(index);
+                if (entry.server != null && entry.server.getId() == created.getId()) {
+                    selectedIndex = index;
+                    break;
+                }
+            }
+            int targetPage = Math.max(0,
+                    selectedIndex / Math.max(1, this.pageSize));
+            String message = existing == null
+                    ? "Account " + profile.getUsername() + " created."
+                    : "Server " + profile.getServerAddress()
+                        + " added to " + profile.getUsername() + ".";
+            openScreen(message, targetPage, created.getId());
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.status = exception.getMessage();
         } catch (IOException exception) {
-            this.status = "Could not save account: " + exception.getMessage();
+            this.status = "Could not save server: " + exception.getMessage();
         }
     }
 
-    private void requestRemoveAccount() {
+    private void requestRemoveServer() {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (!selected.isPresent()) {
-            this.status = "Select an account first.";
+            this.status = "Select a server first.";
             return;
         }
 
         SessionManager.Session session = selected.get();
         SessionState state = session.getState();
         if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
-            this.status = "Disconnect this account before removing it.";
+            this.status = "Disconnect this server before removing it.";
             return;
         }
 
@@ -475,17 +540,19 @@ public final class SessionManagerScreen extends MsmScreen {
                 this, session.getId(), profile.getUsername(), profile.getServerAddress()));
     }
 
-    private void selectAccount(SessionManager.Session session) {
+    private void selectServer(SessionManager.Session session, String accountKey) {
+        this.expandedAccountKey = accountKey;
         this.selectedSessionId = session.getId();
         this.lastObservedState = null;
-        this.status = "Selected " + session.getProfile().getUsername() + ".";
+        this.status = "Selected " + session.getProfile().getUsername()
+                + " on " + session.getProfile().getServerAddress() + ".";
         refreshSessions();
     }
 
     private void toggleConnection() {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (!selected.isPresent()) {
-            this.status = "Select an account first.";
+            this.status = "Select a server first.";
             return;
         }
 
@@ -495,11 +562,12 @@ public final class SessionManagerScreen extends MsmScreen {
             SessionState state = session.getState();
             if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
                 scheduler.disconnectManually(session.getId());
-                this.status = "Manual disconnect requested for "
-                        + session.getProfile().getUsername() + ".";
+                this.status = "Disconnect requested for "
+                        + session.getProfile().getServerAddress() + ".";
             } else {
                 scheduler.connectManually(session.getId());
-                this.status = "Joining as " + session.getProfile().getUsername() + "...";
+                this.status = "Joining " + session.getProfile().getServerAddress()
+                        + " as " + session.getProfile().getUsername() + "...";
             }
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.status = exception.getMessage();
@@ -510,7 +578,7 @@ public final class SessionManagerScreen extends MsmScreen {
     private void openControlManage() {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (!selected.isPresent()) {
-            this.status = "Select an account first.";
+            this.status = "Select a server first.";
             return;
         }
         if (MsmClient.getAutomationScheduler() == null) {
@@ -542,8 +610,8 @@ public final class SessionManagerScreen extends MsmScreen {
     private void openScreen(String newStatus, int page, long selectedId) {
         snapshotFormValues();
         this.client.setScreen(new SessionManagerScreen(
-                this.parent, newStatus, page, selectedId, this.authMode,
-                this.usernameValue, this.serverValue));
+                this.parent, newStatus, page, selectedId, this.expandedAccountKey,
+                this.authMode, this.usernameValue, this.serverValue));
     }
 
     private String fitText(String value, int pixelWidth) {
@@ -552,6 +620,8 @@ public final class SessionManagerScreen extends MsmScreen {
 
     public void setStatus(String status) {
         this.status = status == null ? "" : status;
+        refreshSessions();
+        this.init(this.client, this.width, this.height);
     }
 
     @Override
@@ -578,7 +648,7 @@ public final class SessionManagerScreen extends MsmScreen {
         if (this.compactLayout) {
             this.drawSectionTitle(context, "ADD ACCOUNT", this.formPanelLeft + 12, 40);
             this.drawSectionTitle(context, "SERVER ADDRESS", this.formPanelLeft + 12, 82);
-            this.drawSectionTitle(context, "ACCOUNTS  (" + this.sessions.size() + ")",
+            this.drawSectionTitle(context, "ACCOUNTS  (" + this.accountGroups.size() + ")",
                     this.accountsPanelLeft + 12, this.accountsLabelY);
             if (this.sessions.isEmpty()) {
                 context.drawCenteredTextWithShadow(this.textRenderer,
@@ -590,7 +660,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.drawSectionTitle(context, "ADD ACCOUNT", this.formPanelLeft + 12, 51);
             this.drawSectionTitle(context, "USERNAME", this.formPanelLeft + 12, 73);
             this.drawSectionTitle(context, "SERVER ADDRESS", this.formPanelLeft + 12, 117);
-            this.drawSectionTitle(context, "ACCOUNTS  (" + this.sessions.size() + ")",
+            this.drawSectionTitle(context, "ACCOUNTS  (" + this.accountGroups.size() + ")",
                     this.accountsPanelLeft + 12, this.accountsLabelY);
             if (this.sessions.isEmpty()) {
                 context.drawCenteredTextWithShadow(this.textRenderer,
@@ -604,13 +674,39 @@ public final class SessionManagerScreen extends MsmScreen {
         Optional<SessionManager.Session> selected = getSelectedSession();
         String selectedText = selected.isPresent()
                 ? "SELECTED  " + selected.get().getProfile().getUsername()
+                    + "  |  " + selected.get().getProfile().getServerAddress()
                     + "  |  " + selected.get().getState().name()
-                : "NO ACCOUNT SELECTED";
+                : this.expandedAccountKey != null
+                    ? "SELECTED ACCOUNT  " + this.usernameValue
+                    : "NO ACCOUNT SELECTED";
         int selectedY = this.compactLayout ? this.height - 119 : this.height - 79;
         int statusY = this.compactLayout ? this.height - 102 : this.height - 65;
         this.text(context, fitText(selectedText, this.width - 32), 24, selectedY, 0xFFE7EDF5);
         this.text(context, fitText(this.status, this.width - 32), 24, statusY, 0xFF9EADBD);
 
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    private static final class AccountGroup {
+        private final String key;
+        private final String username;
+        private final SessionAuthMode authMode;
+        private final List<SessionManager.Session> servers = new ArrayList<>();
+
+        private AccountGroup(String key, String username, SessionAuthMode authMode) {
+            this.key = key;
+            this.username = username;
+            this.authMode = authMode;
+        }
+    }
+
+    private static final class AccountListEntry {
+        private final AccountGroup account;
+        private final SessionManager.Session server;
+
+        private AccountListEntry(AccountGroup account, SessionManager.Session server) {
+            this.account = account;
+            this.server = server;
+        }
     }
 }
