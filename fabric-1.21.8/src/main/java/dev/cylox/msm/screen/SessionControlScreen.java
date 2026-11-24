@@ -234,10 +234,10 @@ public final class SessionControlScreen extends MsmScreen {
                 button -> toggleAutoChat()));
 
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
-        int rowY = toolbarY + 26;
-        int maxEditorY = this.contentBottom - 72;
+        int rowY = toolbarY + 40;
+        int maxEditorY = this.contentBottom - 66;
         int rows = Math.max(1, Math.min(4,
-                (maxEditorY - rowY - 27) / 23));
+                (maxEditorY - rowY - 20) / 23));
         this.rulePageSize = rows;
 
         int pageCount = Math.max(1,
@@ -262,19 +262,19 @@ public final class SessionControlScreen extends MsmScreen {
         if (pageCount > 1) {
             int pageWidth = Math.min(96, Math.max(1, (width - gap) / 2));
             ButtonWidget previous = new MsmButtonWidget(
-                    left, rowY, pageWidth, 18, "PREVIOUS",
+                    left, rowY, pageWidth, 16, "PREVIOUS",
                     button -> openRulePage(this.rulePage - 1));
             ButtonWidget next = new MsmButtonWidget(
-                    left + pageWidth + gap, rowY, pageWidth, 18, "NEXT",
+                    left + pageWidth + gap, rowY, pageWidth, 16, "NEXT",
                     button -> openRulePage(this.rulePage + 1));
             previous.active = this.rulePage > 0;
             next.active = this.rulePage + 1 < pageCount;
             this.addButton(previous);
             this.addButton(next);
-            rowY += 21;
+            rowY += 18;
         }
 
-        int editorY = Math.min(maxEditorY, Math.max(toolbarY + 48, rowY + 4));
+        int editorY = Math.min(maxEditorY, Math.max(toolbarY + 44, rowY + 2));
         this.ruleMessageField = this.addButton(new TextFieldWidget(
                 this.textRenderer, left, editorY, width, 20,
                 Text.literal("Chat or command")));
@@ -283,24 +283,24 @@ public final class SessionControlScreen extends MsmScreen {
         int delayWidth = Math.min(100, Math.max(64, width / 4));
         int modeWidth = Math.max(1, width - delayWidth - gap);
         this.ruleModeButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 24, modeWidth, 20, this.editingMode.name(),
+                left, editorY + 22, modeWidth, 20, this.editingMode.name(),
                 button -> cycleRuleMode()));
         this.ruleDelayField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left + modeWidth + gap, editorY + 24,
+                this.textRenderer, left + modeWidth + gap, editorY + 22,
                 delayWidth, 20, Text.literal("Delay")));
         this.ruleDelayField.setMaxLength(5);
 
         int actionGap = 5;
         int actionWidth = Math.max(1, (width - actionGap * 2) / 3);
         this.ruleAddButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 48, actionWidth, 20,
+                left, editorY + 44, actionWidth, 20,
                 "ADD RULE", button -> addRule()));
         this.ruleToggleButton = this.addButton(new MsmButtonWidget(
-                left + actionWidth + actionGap, editorY + 48,
+                left + actionWidth + actionGap, editorY + 44,
                 actionWidth, 20, getSelectedRuleEnabledLabel(),
                 button -> toggleSelectedRule()));
         this.ruleDeleteButton = this.addButton(new MsmButtonWidget(
-                left + (actionWidth + actionGap) * 2, editorY + 48,
+                left + (actionWidth + actionGap) * 2, editorY + 44,
                 actionWidth, 20, "DELETE", button -> deleteRule()));
 
         this.ruleDeleteButton.active = this.selectedRuleIndex >= 0
@@ -896,16 +896,11 @@ public final class SessionControlScreen extends MsmScreen {
             int left = this.contentLeft + 12;
             int width = Math.max(1, this.contentWidth - 24);
             this.text(context, "MESSAGE RULES", left,
-                    this.contentTop + 62, 0xFF9EADBD);
+                    this.contentTop + 58, 0xFF9EADBD);
             if (this.draft.getRules().isEmpty()) {
                 this.text(context, "No rules yet. Add one below.",
                         left, this.contentTop + 90, 0xFF9EADBD);
             }
-            this.text(context, "EDIT RULE", left,
-                    Math.max(this.contentTop + 96, this.contentBottom - 116),
-                    0xFF9EADBD);
-            this.text(context, "Draft changes are not saved until Apply.",
-                    left, this.contentBottom - 14, 0xFF8796A6);
         } else {
             this.text(context, "RECONNECTION", this.contentLeft + 12,
                     this.settingsReconnectY - 25, 0xFF9EADBD);
@@ -916,7 +911,7 @@ public final class SessionControlScreen extends MsmScreen {
             this.text(context, "MAX DELAY", this.settingsThirdX,
                     this.settingsMaxDelayY - 12, 0xFF9EADBD);
             this.text(context, "CHAT AUTOMATION", this.contentLeft + 12,
-                    this.settingsChatLabelY - 17, 0xFF9EADBD);
+                    this.settingsChatY - 26, 0xFF9EADBD);
             this.text(context, "INITIAL CHAT DELAY",
                     this.settingsFirstX, this.settingsChatLabelY,
                     0xFF9EADBD);
