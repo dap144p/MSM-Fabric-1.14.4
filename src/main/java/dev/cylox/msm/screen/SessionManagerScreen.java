@@ -1,5 +1,6 @@
 package dev.cylox.msm.screen;
 
+import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.profile.SessionAuthMode;
