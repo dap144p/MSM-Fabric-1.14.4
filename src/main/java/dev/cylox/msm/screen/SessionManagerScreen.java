@@ -1,5 +1,6 @@
 package dev.cylox.msm.screen;
 
+import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.profile.SessionAuthMode;
@@ -419,7 +420,19 @@ public final class SessionManagerScreen extends MsmScreen {
                     actionWidth, 20, "CLOSE", button -> onClose()));
         }
 
+        this.addButton(new MsmButtonWidget(
+                this.width - 78, 6, 70, 18, "UPDATES",
+                button -> openUpdateScreen()));
         refreshControls();
+    }
+
+    private void openUpdateScreen() {
+        if (MsmClient.getUpdateManager() == null) {
+            this.status = "Updater is unavailable.";
+            return;
+        }
+        MinecraftClient.getInstance().openScreen(
+                new MsmUpdateScreen(this, MsmClient.getUpdateManager()));
     }
 
     private void applyLastSelectedServer() {

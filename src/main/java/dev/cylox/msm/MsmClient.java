@@ -7,6 +7,7 @@ import dev.cylox.msm.profile.SessionProfileStore;
 import dev.cylox.msm.screen.SessionManagerScreen;
 import dev.cylox.msm.server.ServerTemplateRepository;
 import dev.cylox.msm.session.SessionManager;
+import dev.cylox.msm.update.MsmUpdateManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
@@ -24,10 +25,15 @@ public final class MsmClient implements ClientModInitializer {
     private static SecondarySessionController secondarySessions;
     private static SessionAutomationScheduler automationScheduler;
     private static ServerTemplateRepository serverTemplateRepository;
+    private static MsmUpdateManager updateManager;
 
     @Override
     public void onInitializeClient() {
         Path configDirectory = FabricLoader.getInstance().getConfigDir();
+        updateManager = new MsmUpdateManager(configDirectory, "1.14.4",
+                FabricLoader.getInstance().getModContainer("msm_fabric")
+                        .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                        .orElse("unknown"));
         profileStore = new SessionProfileStore(configDirectory.resolve("msm-fabric.properties"));
         sessionManager = new SessionManager();
         secondarySessions = new SecondarySessionController(sessionManager);
@@ -44,6 +50,10 @@ public final class MsmClient implements ClientModInitializer {
         MinecraftClient.getInstance().openScreen(
                 new SessionManagerScreen(parent, profileStore, sessionManager,
                         secondarySessions, automationScheduler, serverTemplateRepository));
+    }
+
+    public static MsmUpdateManager getUpdateManager() {
+        return updateManager;
     }
 
     public static void rememberLastMultiplayerServer(String name, String address) {
