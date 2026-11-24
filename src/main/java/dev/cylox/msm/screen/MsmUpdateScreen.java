@@ -39,7 +39,7 @@ public final class MsmUpdateScreen extends MsmScreen {
                 button -> downloadUpdate()));
         this.backButton = this.addButton(new MsmButtonWidget(
                 left, centerY + 50, buttonWidth, 20, "BACK",
-                button -> close()));
+                button -> onClose()));
 
         this.downloadButton.active = false;
         checkForUpdates();
