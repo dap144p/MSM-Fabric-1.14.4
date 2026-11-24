@@ -10,11 +10,11 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     private final String username;
     private final String serverAddress;
     private boolean removing;
-    private String status = "This also deletes this account's automation settings.";
+    private String status = "Only this server and its automation settings will be removed.";
 
     public ConfirmRemoveAccountScreen(Screen parent, long sessionId,
                                       String username, String serverAddress) {
-        super(Text.literal("Remove Account"), parent);
+        super(Text.literal("Remove Server"), parent);
         this.sessionId = sessionId;
         this.username = username == null ? "" : username;
         this.serverAddress = serverAddress == null ? "" : serverAddress;
@@ -36,7 +36,7 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     private void remove() {
         if (this.removing) return;
         this.removing = true;
-        this.status = "Removing account and saved AutoChat / AutoReconnect settings...";
+        this.status = "Removing this server and its saved AutoChat / AutoReconnect settings...";
         this.init(this.client, this.width, this.height);
         MsmClient.removeProfile(this.sessionId, failure -> {
             if (failure != null) {
@@ -50,7 +50,7 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
             }
             this.client.setScreen(this.parent);
             if (this.parent instanceof SessionManagerScreen) {
-                ((SessionManagerScreen) this.parent).setStatus("Account removed.");
+                ((SessionManagerScreen) this.parent).setStatus("Server removed. Other servers on this account are unchanged.");
             }
         });
     }
@@ -62,13 +62,13 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         int left = (this.width - panelWidth) / 2;
         int top = this.height / 2 - 66;
         drawGlassPanel(context, left, top, left + panelWidth, this.height / 2 + 66);
-        centered(context, "REMOVE ACCOUNT?", this.width / 2, top + 15, 0xFFFFD6D6);
+        centered(context, "REMOVE SERVER?", this.width / 2, top + 15, 0xFFFFD6D6);
         centered(context, this.username, this.width / 2, top + 37, 0xFF6FC4DE);
         centered(context, fit(this.serverAddress, panelWidth - 24),
                 this.width / 2, top + 52, 0xFFB3BFCD);
-        centered(context, "AutoChat and AutoReconnect settings",
+        centered(context, "This server's AutoChat / AutoReconnect settings",
                 this.width / 2, top + 75, 0xFF9EADBD);
-        centered(context, "will also be deleted.", this.width / 2, top + 87, 0xFF9EADBD);
+        centered(context, "will also be deleted. Other servers stay saved.", this.width / 2, top + 87, 0xFF9EADBD);
         centered(context, fit(this.status, panelWidth - 24),
                 this.width / 2, top + 103, 0xFF9EADBD);
         super.render(context, mouseX, mouseY, delta);
