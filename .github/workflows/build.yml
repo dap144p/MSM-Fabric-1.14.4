@@ -75,12 +75,20 @@ jobs:
           chmod +x gradlew
           ./gradlew "-Pbuild_version=${{ steps.meta.outputs.build_version }}" clean check build
 
+      - name: Generate SHA-256 checksum assets
+        shell: bash
+        run: |
+          sha256sum "build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar" | awk '{print $1}' > "build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar.sha256"
+          sha256sum "fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar" | awk '{print $1}' > "fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar.sha256"
+
       - name: Upload Minecraft 1.14.4 Development JAR
         if: steps.meta.outputs.channel == 'development' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4
-          path: build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
+          path: |
+            build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
+            build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -89,7 +97,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8
-          path: fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
+          path: |
+            fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
+            fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -102,7 +112,9 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
+            build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar.sha256
             fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
+            fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar.sha256
           fail_on_unmatched_files: true
           prerelease: true
           make_latest: false
