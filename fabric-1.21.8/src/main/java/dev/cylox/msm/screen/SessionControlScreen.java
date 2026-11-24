@@ -437,11 +437,11 @@ public final class SessionControlScreen extends MsmScreen {
                 this.draft.setMaxReconnectDelaySeconds(parseNumber(this.reconnectMaxDelayField, 60));
                 this.draft.setInitialChatDelaySeconds(parseNumber(this.initialChatDelayField, 5));
                 this.draft.setGlobalChatIntervalSeconds(parseNumber(this.globalChatIntervalField, 3));
-                this.reconnectDelayField.setText(Integer.toString(this.draft.getReconnectDelaySeconds()));
-                this.reconnectAttemptsField.setText(Integer.toString(this.draft.getMaxReconnectAttempts()));
-                this.reconnectMaxDelayField.setText(Integer.toString(this.draft.getMaxReconnectDelaySeconds()));
-                this.initialChatDelayField.setText(Integer.toString(this.draft.getInitialChatDelaySeconds()));
-                this.globalChatIntervalField.setText(Integer.toString(this.draft.getGlobalChatIntervalSeconds()));
+                setFieldTextIfChanged(this.reconnectDelayField, this.draft.getReconnectDelaySeconds());
+                setFieldTextIfChanged(this.reconnectAttemptsField, this.draft.getMaxReconnectAttempts());
+                setFieldTextIfChanged(this.reconnectMaxDelayField, this.draft.getMaxReconnectDelaySeconds());
+                setFieldTextIfChanged(this.initialChatDelayField, this.draft.getInitialChatDelaySeconds());
+                setFieldTextIfChanged(this.globalChatIntervalField, this.draft.getGlobalChatIntervalSeconds());
             }
             this.scheduler.saveSettings(this.sessionId, this.draft);
             this.autoSaveTicks = 0;
@@ -474,6 +474,13 @@ public final class SessionControlScreen extends MsmScreen {
 
     private static String fieldText(TextFieldWidget field) {
         return field == null ? "" : field.getText();
+    }
+
+    private static void setFieldTextIfChanged(TextFieldWidget field, int value) {
+        String normalized = Integer.toString(value);
+        if (field != null && !normalized.equals(field.getText())) {
+            field.setText(normalized);
+        }
     }
 
     private void tickAutoSave() {
@@ -532,7 +539,7 @@ public final class SessionControlScreen extends MsmScreen {
                     new SessionAutomationSettings.AutoChatRule(
                             this.ruleMessageField.getText(), this.editingMode,
                             parseNumber(this.ruleDelayField, 0), current.isEnabled());
-            this.ruleDelayField.setText(Integer.toString(updated.getDelaySeconds()));
+            setFieldTextIfChanged(this.ruleDelayField, updated.getDelaySeconds());
             boolean unchanged = current.getMessage().equals(updated.getMessage())
                     && current.getMode() == updated.getMode()
                     && current.getDelaySeconds() == updated.getDelaySeconds();
