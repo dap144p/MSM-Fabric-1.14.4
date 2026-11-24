@@ -196,6 +196,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.lastObservedState = null;
         }
 
+        updateAddAccountLabel();
         if (this.connectionButton != null) {
             if (!selected.isPresent()) {
                 this.connectionButton.setMessage("JOIN / CONNECT");
