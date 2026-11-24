@@ -321,6 +321,7 @@ public final class SessionControlScreen extends MsmScreen {
         int width = Math.max(1, this.contentWidth - 24);
         int gap = 8;
         boolean compact = this.height < 340;
+        boolean veryCompact = this.height < 320;
         this.settingsColumns = width >= 500 ? 3 : 2;
         this.settingsFieldWidth = Math.max(1,
                 (width - gap * (this.settingsColumns - 1)) / this.settingsColumns);
@@ -329,7 +330,7 @@ public final class SessionControlScreen extends MsmScreen {
         this.settingsThirdX = this.settingsColumns == 3
                 ? this.settingsSecondX + this.settingsFieldWidth + gap : left;
 
-        int baseY = this.contentTop + (compact ? 18 : 28);
+        int baseY = this.contentTop + (veryCompact ? 8 : compact ? 18 : 28);
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
                 left, baseY, width, 20, getAutoReconnectLabel(),
                 button -> {
@@ -338,16 +339,19 @@ public final class SessionControlScreen extends MsmScreen {
                     updateFooterState();
                 }));
 
-        this.settingsReconnectY = baseY + (compact ? 44 : 50);
+        this.settingsReconnectY = baseY + (veryCompact ? 34 : compact ? 44 : 50);
         this.settingsMaxDelayY = this.settingsColumns == 3
                 ? this.settingsReconnectY
-                : this.settingsReconnectY + (compact ? 34 : 40);
+                : this.settingsReconnectY + (veryCompact ? 28 : compact ? 34 : 40);
 
         int reconnectBottom = Math.max(
                 this.settingsReconnectY, this.settingsMaxDelayY) + 20;
-        this.settingsRetryY = reconnectBottom + (compact ? 20 : 26);
-        this.settingsChatY = this.settingsRetryY + (compact ? 46 : 50);
-        this.settingsChatLabelY = this.settingsChatY - 13;
+        this.settingsRetryY = reconnectBottom
+                + (veryCompact ? 12 : compact ? 20 : 26);
+        this.settingsChatY = Math.min(this.contentBottom - 20,
+                this.settingsRetryY + (veryCompact ? 36 : compact ? 46 : 50));
+        this.settingsChatLabelY = this.settingsChatY <= this.settingsRetryY + 20
+                ? -1 : this.settingsChatY - 13;
 
         this.reconnectDelayField = addNumberField(
                 this.settingsFirstX, this.settingsReconnectY,
@@ -902,24 +906,30 @@ public final class SessionControlScreen extends MsmScreen {
                         left, this.contentTop + 90, 0xFF9EADBD);
             }
         } else {
-            this.text(context, "RECONNECTION", this.contentLeft + 12,
-                    this.settingsReconnectY - 25, 0xFF9EADBD);
+            if (this.height >= 320) {
+                this.text(context, "RECONNECTION", this.contentLeft + 12,
+                        this.settingsReconnectY - 25, 0xFF9EADBD);
+            }
             this.text(context, "RECONNECT DELAY", this.settingsFirstX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
             this.text(context, "MAX ATTEMPTS", this.settingsSecondX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
             this.text(context, "MAX DELAY", this.settingsThirdX,
                     this.settingsMaxDelayY - 12, 0xFF9EADBD);
-            this.text(context, "CHAT AUTOMATION", this.contentLeft + 12,
-                    this.settingsChatY - 26, 0xFF9EADBD);
-            this.text(context, "INITIAL CHAT DELAY",
-                    this.settingsFirstX, this.settingsChatLabelY,
-                    0xFF9EADBD);
-            this.text(context, "GLOBAL CHAT INTERVAL",
-                    this.settingsColumns == 3 ? this.settingsSecondX
-                            : this.settingsFirstX + Math.max(1,
-                            (this.contentWidth - 24 - 8) / 2) + 8,
-                    this.settingsChatLabelY, 0xFF9EADBD);
+            if (this.settingsChatLabelY >= 0) {
+                if (this.height >= 320) {
+                    this.text(context, "CHAT AUTOMATION", this.contentLeft + 12,
+                            this.settingsChatY - 26, 0xFF9EADBD);
+                }
+                this.text(context, "INITIAL CHAT DELAY",
+                        this.settingsFirstX, this.settingsChatLabelY,
+                        0xFF9EADBD);
+                this.text(context, "GLOBAL CHAT INTERVAL",
+                        this.settingsColumns == 3 ? this.settingsSecondX
+                                : this.settingsFirstX + Math.max(1,
+                                (this.contentWidth - 24 - 8) / 2) + 8,
+                        this.settingsChatLabelY, 0xFF9EADBD);
+            }
         }
 
         boolean pending = hasPendingChanges();
