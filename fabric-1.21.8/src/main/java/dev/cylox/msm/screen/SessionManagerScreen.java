@@ -333,7 +333,19 @@ public final class SessionManagerScreen extends MsmScreen {
                     actionWidth, 20, "CLOSE", button -> close()));
         }
 
+        this.addButton(new MsmButtonWidget(
+                this.width - 78, 6, 70, 18, "UPDATES",
+                button -> openUpdateScreen()));
         refreshControls();
+    }
+
+    private void openUpdateScreen() {
+        if (MsmClient.getUpdateManager() == null) {
+            this.status = "Updater is unavailable.";
+            return;
+        }
+        this.client.setScreen(new MsmUpdateScreen(
+                this, MsmClient.getUpdateManager()));
     }
 
     private void snapshotFormValues() {
