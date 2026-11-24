@@ -8,6 +8,9 @@
   "entrypoints": {
     "client": [
       "dev.cylox.msm.MsmClient"
+    ],
+    "modmenu": [
+      "dev.cylox.msm.integration.MsmModMenuIntegration"
     ]
   },
   "mixins": [
