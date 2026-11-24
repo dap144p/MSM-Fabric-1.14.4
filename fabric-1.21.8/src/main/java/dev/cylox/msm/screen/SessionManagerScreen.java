@@ -239,6 +239,7 @@ public final class SessionManagerScreen extends MsmScreen {
     protected void init() {
         this.clearChildren();
         this.rowButtons.clear();
+        this.accountButtons.clear();
         this.compactLayout = this.width <= this.height;
 
         int margin = this.compactLayout ? 10 : 16;
@@ -275,10 +276,10 @@ public final class SessionManagerScreen extends MsmScreen {
                     innerLeft, 126, halfWidth, 20,
                     getAuthModeLabel(), button -> cycleAuthMode()));
             this.authModeButton.active = false;
-            this.addButton(new MsmButtonWidget(
+            this.addAccountButton = this.addButton(new MsmButtonWidget(
                     innerLeft + halfWidth + fieldGap, 126,
                     innerWidth - halfWidth - fieldGap, 20,
-                    "ADD ACCOUNT", button -> addAccount()));
+                    getAddAccountLabel(), button -> addAccount()));
         } else {
             this.formPanelLeft = contentLeft;
             this.formPanelWidth = Math.min(330,
@@ -309,10 +310,10 @@ public final class SessionManagerScreen extends MsmScreen {
                     innerLeft, 174, halfWidth, 20,
                     getAuthModeLabel(), button -> cycleAuthMode()));
             this.authModeButton.active = false;
-            this.addButton(new MsmButtonWidget(
+            this.addAccountButton = this.addButton(new MsmButtonWidget(
                     innerLeft + halfWidth + fieldGap, 174,
                     innerWidth - halfWidth - fieldGap, 20,
-                    "ADD ACCOUNT", button -> addAccount()));
+                    getAddAccountLabel(), button -> addAccount()));
         }
 
         int pageButtonY = this.compactLayout
@@ -320,22 +321,35 @@ public final class SessionManagerScreen extends MsmScreen {
         int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 4) / 23 + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
 
-        int pageCount = Math.max(1, (this.sessions.size() + this.pageSize - 1) / this.pageSize);
+        int pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, pageCount - 1);
         int start = this.pageIndex * this.pageSize;
-        int end = Math.min(start + this.pageSize, this.sessions.size());
+        int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
 
         for (int index = start; index < end; index++) {
-            SessionManager.Session session = this.sessions.get(index);
-            MsmButtonWidget row = new MsmButtonWidget(
-                    this.accountsPanelLeft + 10, rowY,
-                    Math.max(1, this.accountsPanelWidth - 20), 20,
-                    getAccountLabel(session, session.getId()),
-                    button -> selectAccount(session));
-            row.setSelected(session.getId() == this.selectedSessionId);
-            this.rowButtons.put(session.getId(), row);
-            this.addButton(row);
+            AccountListEntry entry = this.accountRows.get(index);
+            if (entry.server == null) {
+                AccountGroup group = entry.account;
+                MsmButtonWidget row = new MsmButtonWidget(
+                        this.accountsPanelLeft + 10, rowY,
+                        Math.max(1, this.accountsPanelWidth - 20), 20,
+                        getAccountGroupLabel(group),
+                        button -> toggleAccountGroup(group.key));
+                row.setSelected(group.key.equals(this.expandedAccountKey));
+                this.accountButtons.put(group.key, row);
+                this.addButton(row);
+            } else {
+                SessionManager.Session session = entry.server;
+                MsmButtonWidget row = new MsmButtonWidget(
+                        this.accountsPanelLeft + 10, rowY,
+                        Math.max(1, this.accountsPanelWidth - 20), 20,
+                        getServerLabel(session, session.getId()),
+                        button -> selectServer(session, entry.account.key));
+                row.setSelected(session.getId() == this.selectedSessionId);
+                this.rowButtons.put(session.getId(), row);
+                this.addButton(row);
+            }
             rowY += 23;
         }
 
@@ -371,7 +385,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft, secondRowY, actionWidth, 20,
-                    "REMOVE ACCOUNT", button -> requestRemoveAccount()));
+                    "REMOVE SERVER", button -> requestRemoveServer()));
             this.removeButton.setDanger(true);
             this.addButton(new MsmButtonWidget(
                     contentLeft + actionWidth + actionGap, secondRowY,
@@ -391,8 +405,8 @@ public final class SessionManagerScreen extends MsmScreen {
                     button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft + (actionWidth + actionGap) * 2, actionY,
-                    actionWidth, 20, (contentWidth < 540 ? "REMOVE" : "REMOVE ACCOUNT"),
-                    button -> requestRemoveAccount()));
+                    actionWidth, 20, (contentWidth < 540 ? "REMOVE" : "REMOVE SERVER"),
+                    button -> requestRemoveServer()));
             this.removeButton.setDanger(true);
             this.addButton(new MsmButtonWidget(
                     contentLeft + (actionWidth + actionGap) * 3, actionY,
