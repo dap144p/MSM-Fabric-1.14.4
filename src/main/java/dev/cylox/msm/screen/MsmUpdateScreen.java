@@ -69,7 +69,6 @@ public final class MsmUpdateScreen extends MsmScreen {
 
         this.updateManager.checkForUpdates(result ->
                 MinecraftClient.getInstance().execute(() -> {
-                    if (MinecraftClient.getInstance().currentScreen != this) return;
                     this.availableUpdate = result.update;
                     this.status = result.message;
                     this.checkButton.active = true;
