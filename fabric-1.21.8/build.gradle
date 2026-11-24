@@ -65,6 +65,7 @@ sourceSets {
     main {
         java {
             srcDir "../src/main/java/dev/cylox/msm/automation"
+            srcDir "../src/main/java/dev/cylox/msm/update"
         }
     }
     test {
