@@ -437,6 +437,11 @@ public final class SessionControlScreen extends MsmScreen {
                 this.draft.setMaxReconnectDelaySeconds(parseNumber(this.reconnectMaxDelayField, 60));
                 this.draft.setInitialChatDelaySeconds(parseNumber(this.initialChatDelayField, 5));
                 this.draft.setGlobalChatIntervalSeconds(parseNumber(this.globalChatIntervalField, 3));
+                this.reconnectDelayField.setText(Integer.toString(this.draft.getReconnectDelaySeconds()));
+                this.reconnectAttemptsField.setText(Integer.toString(this.draft.getMaxReconnectAttempts()));
+                this.reconnectMaxDelayField.setText(Integer.toString(this.draft.getMaxReconnectDelaySeconds()));
+                this.initialChatDelayField.setText(Integer.toString(this.draft.getInitialChatDelaySeconds()));
+                this.globalChatIntervalField.setText(Integer.toString(this.draft.getGlobalChatIntervalSeconds()));
             }
             this.scheduler.saveSettings(this.sessionId, this.draft);
             this.autoSaveTicks = 0;
@@ -527,6 +532,7 @@ public final class SessionControlScreen extends MsmScreen {
                     new SessionAutomationSettings.AutoChatRule(
                             this.ruleMessageField.getText(), this.editingMode,
                             parseNumber(this.ruleDelayField, 0), current.isEnabled());
+            this.ruleDelayField.setText(Integer.toString(updated.getDelaySeconds()));
             boolean unchanged = current.getMessage().equals(updated.getMessage())
                     && current.getMode() == updated.getMode()
                     && current.getDelaySeconds() == updated.getDelaySeconds();
