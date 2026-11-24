@@ -228,6 +228,13 @@ public final class SessionControlScreen extends MsmScreen {
         int left = this.contentLeft + 12;
         int width = Math.max(1, this.contentWidth - 24);
         int gap = 5;
+        boolean compact = this.height < 320;
+        int rowHeight = compact ? 18 : 20;
+        int rowStep = compact ? 20 : 23;
+        int pageHeight = compact ? 14 : 16;
+        int editorStep = compact ? 20 : 22;
+        int editorActionOffset = compact ? 40 : 44;
+        int editorHeight = compact ? 18 : 20;
         int toolbarY = this.contentTop + 34;
 
         this.autoChatEnabledButton = this.addButton(new MsmButtonWidget(
@@ -236,9 +243,9 @@ public final class SessionControlScreen extends MsmScreen {
 
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
         int rowY = toolbarY + 40;
-        int maxEditorY = this.contentBottom - 66;
+        int maxEditorY = this.contentBottom - (compact ? 58 : 66);
         int rows = Math.max(1, Math.min(4,
-                (maxEditorY - rowY - 20) / 23));
+                (maxEditorY - rowY - pageHeight - 4) / rowStep));
         this.rulePageSize = rows;
 
         int pageCount = Math.max(1,
@@ -254,55 +261,55 @@ public final class SessionControlScreen extends MsmScreen {
                     + rule.getMode().name() + "  " + rule.getDelaySeconds() + "s  "
                     + rule.getMessage();
             MsmButtonWidget row = this.addButton(new MsmButtonWidget(
-                    left, rowY, width, 20, fitText(label, width - 14),
+                    left, rowY, width, rowHeight, fitText(label, width - 14),
                     button -> selectRule(ruleIndex)));
             row.setSelected(ruleIndex == this.selectedRuleIndex);
-            rowY += 23;
+            rowY += rowStep;
         }
 
         if (pageCount > 1) {
             int pageWidth = Math.min(96, Math.max(1, (width - gap) / 2));
             ButtonWidget previous = new MsmButtonWidget(
-                    left, rowY, pageWidth, 16, "PREVIOUS",
+                    left, rowY, pageWidth, pageHeight, "PREVIOUS",
                     button -> openRulePage(this.rulePage - 1));
             ButtonWidget next = new MsmButtonWidget(
-                    left + pageWidth + gap, rowY, pageWidth, 16, "NEXT",
+                    left + pageWidth + gap, rowY, pageWidth, pageHeight, "NEXT",
                     button -> openRulePage(this.rulePage + 1));
             previous.active = this.rulePage > 0;
             next.active = this.rulePage + 1 < pageCount;
             this.addButton(previous);
             this.addButton(next);
-            rowY += 18;
+            rowY += pageHeight + 2;
         }
 
         int editorY = Math.min(maxEditorY, Math.max(toolbarY + 44, rowY + 2));
         this.ruleMessageField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left, editorY, width, 20,
+                this.textRenderer, left, editorY, width, editorHeight,
                 Text.literal("Chat or command")));
         this.ruleMessageField.setMaxLength(256);
 
         int delayWidth = Math.min(100, Math.max(64, width / 4));
         int modeWidth = Math.max(1, width - delayWidth - gap);
         this.ruleModeButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 22, modeWidth, 20, this.editingMode.name(),
+                left, editorY + editorStep, modeWidth, editorHeight, this.editingMode.name(),
                 button -> cycleRuleMode()));
         this.ruleDelayField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left + modeWidth + gap, editorY + 22,
-                delayWidth, 20, Text.literal("Delay")));
+                this.textRenderer, left + modeWidth + gap, editorY + editorStep,
+                delayWidth, editorHeight, Text.literal("Delay")));
         this.ruleDelayField.setMaxLength(5);
 
         int actionGap = 5;
         int actionWidth = Math.max(1, (width - actionGap * 2) / 3);
         this.ruleAddButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 44, actionWidth, 20,
+                left, editorY + editorActionOffset, actionWidth, editorHeight,
                 "ADD RULE", button -> addRule()));
         this.ruleToggleButton = this.addButton(new MsmButtonWidget(
-                left + actionWidth + actionGap, editorY + 44,
-                actionWidth, 20, getSelectedRuleEnabledLabel(),
+                left + actionWidth + actionGap, editorY + editorActionOffset,
+                actionWidth, editorHeight, getSelectedRuleEnabledLabel(),
                 button -> toggleSelectedRule()));
         this.ruleDeleteButton = this.addButton(new MsmButtonWidget(
-                left + (actionWidth + actionGap) * 2, editorY + 44,
-                actionWidth, 20, "DELETE", button -> deleteRule()));
+                left + (actionWidth + actionGap) * 2, editorY + editorActionOffset,
+                actionWidth, editorHeight, "DELETE", button -> deleteRule()));
 
         this.ruleDeleteButton.active = this.selectedRuleIndex >= 0
                 && this.selectedRuleIndex < rules.size();
