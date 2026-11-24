@@ -163,7 +163,7 @@ public final class SessionControlScreen extends MsmScreen {
         MsmButtonWidget button = this.addButton(new MsmButtonWidget(
                 x, y, width, 22, label, widget -> openTab(target)));
         button.setSelected(this.tab == target);
-        button.active = this.tab != target;
+        button.active = true;
     }
 
     private void initFooter() {
