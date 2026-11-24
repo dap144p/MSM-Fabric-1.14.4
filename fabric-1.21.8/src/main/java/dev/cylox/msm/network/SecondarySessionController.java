@@ -144,7 +144,9 @@ public final class SecondarySessionController {
                         if (listener != null) listener.onJoinedGame(sessionId);
                     } else if (packet instanceof ClientboundSystemChatPacket) {
                         ClientboundSystemChatPacket chat = (ClientboundSystemChatPacket) packet;
-                        appendMessage(sessionId, plain(chat.getContent()));
+                        if (!chat.isOverlay()) {
+                            appendMessage(sessionId, plain(chat.getContent()));
+                        }
                     } else if (packet instanceof ClientboundPlayerChatPacket) {
                         ClientboundPlayerChatPacket chat = (ClientboundPlayerChatPacket) packet;
                         Component content = chat.getUnsignedContent();
