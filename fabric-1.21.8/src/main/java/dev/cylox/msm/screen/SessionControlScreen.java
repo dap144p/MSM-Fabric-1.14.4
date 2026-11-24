@@ -28,9 +28,9 @@ public final class SessionControlScreen extends MsmScreen {
     private final long sessionId;
     private final String username;
     private final Tab tab;
-    private final SessionAutomationSettings draft;
+    private SessionAutomationSettings draft;
+    private SessionAutomationSettings appliedSettings;
     private final int requestedRulePage;
-    private final int requestedRuleIndex;
 
     private volatile String status = "";
     private int rulePage;
@@ -58,27 +58,33 @@ public final class SessionControlScreen extends MsmScreen {
     private TextFieldWidget initialChatDelayField;
     private TextFieldWidget globalChatIntervalField;
 
+    private MsmButtonWidget undoButton;
+    private MsmButtonWidget applyButton;
+    private MsmButtonWidget closeButton;
+
     private int selectedRuleIndex;
-    private int scrollOffset;
-    private int settingsPanelLeft;
-    private int settingsPanelWidth;
+    private int contentLeft;
+    private int contentTop;
+    private int contentWidth;
+    private int contentBottom;
+    private int chatPanelTop;
+    private int chatPanelBottom;
+    private int settingsReconnectY;
+    private int settingsMaxDelayY;
+    private int settingsRetryY;
+    private int settingsChatY;
     private int settingsFirstX;
     private int settingsSecondX;
     private int settingsThirdX;
     private int settingsFieldWidth;
-    private int settingsReconnectY;
-    private int settingsMaxDelayY;
-    private int settingsChatY;
+    private int settingsColumns;
+    private int settingsChatLabelY;
+
     private List<String> wrappedMessages = Collections.emptyList();
     private int cachedMessageCount = -1;
     private int cachedMessageWidth = -1;
     private String cachedFirstMessage;
     private String cachedLastMessage;
-
-    private static final int AUTO_SAVE_DELAY_TICKS = 8;
-    private int autoSaveTicks;
-    private String lastAutoSaveSnapshot;
-    private String autoSaveStatus = "SAVED";
 
     public SessionControlScreen(Screen parent, long sessionId, String username) {
         this(parent, MsmClient.getSecondarySessions(),
@@ -89,17 +95,21 @@ public final class SessionControlScreen extends MsmScreen {
                                 SessionAutomationScheduler scheduler,
                                 long sessionId, String username) {
         this(parent, controller, scheduler, sessionId, username,
-                Tab.CHAT, scheduler.getSettings(sessionId), 0, -1);
+                Tab.CHAT, scheduler.getSettings(sessionId),
+                scheduler.getSettings(sessionId), 0, -1);
     }
 
     private SessionControlScreen(Screen parent, SecondarySessionController controller,
                                  SessionAutomationScheduler scheduler,
                                  long sessionId, String username, Tab tab,
                                  SessionAutomationSettings draft,
+                                 SessionAutomationSettings appliedSettings,
                                  int rulePage, int selectedRuleIndex) {
         super(Text.literal("Control Manage - " + username), parent);
-        if (controller == null || scheduler == null || draft == null) {
-            throw new IllegalArgumentException("Controller, scheduler, and settings are required");
+        if (controller == null || scheduler == null || draft == null
+                || appliedSettings == null) {
+            throw new IllegalArgumentException(
+                    "Controller, scheduler, and settings are required");
         }
         this.parent = parent;
         this.controller = controller;
@@ -108,77 +118,130 @@ public final class SessionControlScreen extends MsmScreen {
         this.username = username == null ? "" : username;
         this.tab = tab;
         this.draft = draft.copy();
+        this.appliedSettings = appliedSettings.copy();
         this.requestedRulePage = Math.max(0, rulePage);
-        this.requestedRuleIndex = selectedRuleIndex;
         this.selectedRuleIndex = selectedRuleIndex;
     }
 
     @Override
     protected void init() {
-        int left = 12;
-        int contentWidth = Math.max(1, this.width - 24);
-        int gap = 4;
-        int tabWidth = Math.max(1, (contentWidth - gap * 3) / 4);
+        boolean sidebar = this.width >= 520;
+        this.contentLeft = sidebar ? 132 : 12;
+        this.contentTop = sidebar ? 44 : 76;
+        this.contentWidth = Math.max(1, this.width - this.contentLeft - 12);
+        this.contentBottom = Math.max(this.contentTop + 1, this.height - 42);
 
-        addTabButton(left, 28, tabWidth, "CHAT", Tab.CHAT);
-        addTabButton(left + tabWidth + gap, 28, tabWidth, "AUTO CHAT", Tab.AUTO_CHAT);
-        addTabButton(left + (tabWidth + gap) * 2, 28, tabWidth, "SETTINGS", Tab.SETTINGS);
-        this.addButton(new MsmButtonWidget(
-                left + (tabWidth + gap) * 3, 28, tabWidth, 20,
-                "BACK", button -> close()));
+        if (sidebar) {
+            addTabButton(16, 58, 100, "CHAT", Tab.CHAT);
+            addTabButton(16, 86, 100, "AUTO CHAT", Tab.AUTO_CHAT);
+            addTabButton(16, 114, 100, "SETTINGS", Tab.SETTINGS);
+        } else {
+            int gap = 5;
+            int tabWidth = Math.max(1, (this.width - 24 - gap * 2) / 3);
+            addTabButton(12, 44, tabWidth, "CHAT", Tab.CHAT);
+            addTabButton(12 + tabWidth + gap, 44, tabWidth, "AUTO CHAT", Tab.AUTO_CHAT);
+            addTabButton(12 + (tabWidth + gap) * 2, 44, tabWidth,
+                    "SETTINGS", Tab.SETTINGS);
+        }
+
+        initFooter();
 
         if (this.tab == Tab.CHAT) {
-            initChat(left, contentWidth, gap);
+            initChat();
             refreshWrappedMessages();
         } else if (this.tab == Tab.AUTO_CHAT) {
-            initAutoChat(left, contentWidth, gap);
+            initAutoChat();
         } else {
-            initSettings(left, contentWidth, gap);
+            initSettings();
         }
+
+        updateFooterState();
     }
 
     private void addTabButton(int x, int y, int width, String label, Tab target) {
-        ButtonWidget button = this.addButton(new MsmButtonWidget(
-                x, y, width, 20, label, widget -> openTab(target)));
+        MsmButtonWidget button = this.addButton(new MsmButtonWidget(
+                x, y, width, 22, label, widget -> openTab(target)));
+        button.setSelected(this.tab == target);
         button.active = this.tab != target;
     }
 
-    private void openTab(Tab next) {
-        flushPendingAutoSave();
-        this.client.setScreen(new SessionControlScreen(
-                this.parent, this.controller, this.scheduler, this.sessionId,
-                this.username, next, this.draft, this.rulePage, this.selectedRuleIndex));
+    private void initFooter() {
+        int buttonWidth = this.width < 360 ? 54 : 62;
+        int gap = 5;
+        int y = this.height - 30;
+        int right = this.width - 12;
+
+        this.closeButton = this.addButton(new MsmButtonWidget(
+                right - buttonWidth, y, buttonWidth, 20,
+                "CLOSE", button -> close()));
+        right -= buttonWidth + gap;
+
+        this.applyButton = this.addButton(new MsmButtonWidget(
+                right - buttonWidth, y, buttonWidth, 20,
+                "APPLY", button -> applyChanges()));
+        right -= buttonWidth + gap;
+
+        this.undoButton = this.addButton(new MsmButtonWidget(
+                right - buttonWidth, y, buttonWidth, 20,
+                "UNDO", button -> undoChanges()));
     }
 
-    private void initChat(int left, int width, int gap) {
-        int sendWidth = Math.min(64, Math.max(42, width / 6));
+    private void openTab(Tab next) {
+        if (next == this.tab || !commitEditorToDraft()) return;
+        this.client.setScreen(new SessionControlScreen(
+                this.parent, this.controller, this.scheduler, this.sessionId,
+                this.username, next, this.draft, this.appliedSettings,
+                this.rulePage, this.selectedRuleIndex));
+    }
+
+    private void initChat() {
+        int left = this.contentLeft + 12;
+        int width = Math.max(1, this.contentWidth - 24);
+        int gap = 6;
+        int sendWidth = Math.min(70, Math.max(48, width / 5));
         sendWidth = Math.min(sendWidth, Math.max(1, width - gap - 1));
         int fieldWidth = Math.max(1, width - sendWidth - gap);
+        int inputY = this.contentBottom - 28;
+
+        this.chatPanelTop = this.contentTop + 38;
+        this.chatPanelBottom = Math.max(this.chatPanelTop + 1, inputY - 18);
+
         this.chatField = this.addButton(new TextFieldWidget(
-                this.textRenderer,
-                left, this.height - 76, fieldWidth, 20, Text.literal("Message")));
+                this.textRenderer, left, inputY, fieldWidth, 20,
+                Text.literal("Message")));
         this.chatField.setMaxLength(256);
+
         this.sendButton = this.addButton(new MsmButtonWidget(
-                left + fieldWidth + gap, this.height - 76, sendWidth, 20,
+                left + fieldWidth + gap, inputY, sendWidth, 20,
                 "SEND", button -> sendChat()));
 
+        int connectionWidth = Math.min(132, Math.max(88, width / 3));
         this.connectionButton = this.addButton(new MsmButtonWidget(
-                left, this.height - 24, width, 20,
-                "JOIN / CONNECT", button -> toggleConnection()));
+                left + width - connectionWidth, this.contentTop + 5,
+                connectionWidth, 20, "JOIN / CONNECT",
+                button -> toggleConnection()));
         updateConnectionControls();
     }
 
-    private void initAutoChat(int left, int width, int gap) {
+    private void initAutoChat() {
+        int left = this.contentLeft + 12;
+        int width = Math.max(1, this.contentWidth - 24);
+        int gap = 5;
+        int toolbarY = this.contentTop + 34;
+
         this.autoChatEnabledButton = this.addButton(new MsmButtonWidget(
-                left, 56, width, 20, getAutoChatLabel(),
+                left, toolbarY, width, 20, getAutoChatLabel(),
                 button -> toggleAutoChat()));
 
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
-        int rowY = this.height < 260 ? 80 : 84;
-        int maxEditorY = Math.max(128, this.height - 92);
-        this.rulePageSize = Math.max(1, Math.min(4,
-                (maxEditorY - rowY - 5 - 22) / 23));
-        int pageCount = Math.max(1, (rules.size() + this.rulePageSize - 1) / this.rulePageSize);
+        int rowY = toolbarY + 26;
+        int maxEditorY = this.contentBottom - 72;
+        int rows = Math.max(1, Math.min(4,
+                (maxEditorY - rowY - 27) / 23));
+        this.rulePageSize = rows;
+
+        int pageCount = Math.max(1,
+                (rules.size() + this.rulePageSize - 1) / this.rulePageSize);
         this.rulePage = Math.min(this.requestedRulePage, pageCount - 1);
         int start = this.rulePage * this.rulePageSize;
         int end = Math.min(start + this.rulePageSize, rules.size());
@@ -186,105 +249,104 @@ public final class SessionControlScreen extends MsmScreen {
         for (int index = start; index < end; index++) {
             final int ruleIndex = index;
             SessionAutomationSettings.AutoChatRule rule = rules.get(index);
-            String label = (rule.isEnabled() ? "ON " : "OFF ")
-                    + rule.getMode().name() + " " + rule.getDelaySeconds() + "s  "
+            String label = (rule.isEnabled() ? "ON  " : "OFF  ")
+                    + rule.getMode().name() + "  " + rule.getDelaySeconds() + "s  "
                     + rule.getMessage();
-            this.addButton(new MsmButtonWidget(
-                    left, rowY, width, 20, fitText(label, width - 10),
+            MsmButtonWidget row = this.addButton(new MsmButtonWidget(
+                    left, rowY, width, 20, fitText(label, width - 14),
                     button -> selectRule(ruleIndex)));
+            row.setSelected(ruleIndex == this.selectedRuleIndex);
             rowY += 23;
         }
 
-        if (rules.isEmpty()) {
-            drawEditorHintY = rowY;
-        } else {
-            drawEditorHintY = rowY;
-        }
-
         if (pageCount > 1) {
-            int pageWidth = Math.min(90, Math.max(1, (width - gap) / 2));
+            int pageWidth = Math.min(96, Math.max(1, (width - gap) / 2));
             ButtonWidget previous = new MsmButtonWidget(
-                    left, rowY, pageWidth, 18,
-                    "PREVIOUS", button -> openRulePage(this.rulePage - 1, this.selectedRuleIndex));
+                    left, rowY, pageWidth, 18, "PREVIOUS",
+                    button -> openRulePage(this.rulePage - 1));
             ButtonWidget next = new MsmButtonWidget(
-                    left + pageWidth + gap, rowY, pageWidth, 18,
-                    "NEXT", button -> openRulePage(this.rulePage + 1, this.selectedRuleIndex));
+                    left + pageWidth + gap, rowY, pageWidth, 18, "NEXT",
+                    button -> openRulePage(this.rulePage + 1));
             previous.active = this.rulePage > 0;
             next.active = this.rulePage + 1 < pageCount;
             this.addButton(previous);
             this.addButton(next);
-            rowY += 22;
+            rowY += 21;
         }
 
-        int editorY = Math.min(maxEditorY, Math.max(112, rowY + 5));
+        int editorY = Math.min(maxEditorY, Math.max(toolbarY + 48, rowY + 4));
         this.ruleMessageField = this.addButton(new TextFieldWidget(
-                this.textRenderer,
-                left, editorY, width, 20, Text.literal("Chat or command")));
+                this.textRenderer, left, editorY, width, 20,
+                Text.literal("Chat or command")));
         this.ruleMessageField.setMaxLength(256);
 
-        int delayWidth = Math.min(90, Math.max(58, width / 4));
+        int delayWidth = Math.min(100, Math.max(64, width / 4));
         int modeWidth = Math.max(1, width - delayWidth - gap);
         this.ruleModeButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 25, modeWidth, 20, editingMode.name(),
+                left, editorY + 24, modeWidth, 20, this.editingMode.name(),
                 button -> cycleRuleMode()));
         this.ruleDelayField = this.addButton(new TextFieldWidget(
-                this.textRenderer,
-                left + modeWidth + gap, editorY + 25, delayWidth, 20, Text.literal("Delay")));
+                this.textRenderer, left + modeWidth + gap, editorY + 24,
+                delayWidth, 20, Text.literal("Delay")));
         this.ruleDelayField.setMaxLength(5);
 
-        int editorButtonWidth = Math.max(1, (width - gap * 2) / 3);
+        int actionGap = 5;
+        int actionWidth = Math.max(1, (width - actionGap * 2) / 3);
         this.ruleAddButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 50, editorButtonWidth, 20,
+                left, editorY + 48, actionWidth, 20,
                 "ADD RULE", button -> addRule()));
         this.ruleToggleButton = this.addButton(new MsmButtonWidget(
-                left + editorButtonWidth + gap, editorY + 50, editorButtonWidth, 20,
-                getSelectedRuleEnabledLabel(), button -> toggleSelectedRule()));
+                left + actionWidth + actionGap, editorY + 48,
+                actionWidth, 20, getSelectedRuleEnabledLabel(),
+                button -> toggleSelectedRule()));
         this.ruleDeleteButton = this.addButton(new MsmButtonWidget(
-                left + (editorButtonWidth + gap) * 2, editorY + 50,
-                editorButtonWidth, 20, "DELETE", button -> deleteRule()));
+                left + (actionWidth + actionGap) * 2, editorY + 48,
+                actionWidth, 20, "DELETE", button -> deleteRule()));
 
-        this.ruleDeleteButton.active = this.selectedRuleIndex >= 0;
-        this.ruleToggleButton.active = this.selectedRuleIndex >= 0;
+        this.ruleDeleteButton.active = this.selectedRuleIndex >= 0
+                && this.selectedRuleIndex < rules.size();
+        this.ruleToggleButton.active = this.ruleDeleteButton.active;
+
         if (this.selectedRuleIndex >= 0 && this.selectedRuleIndex < rules.size()) {
             loadRuleIntoEditor(rules.get(this.selectedRuleIndex));
         } else {
             this.selectedRuleIndex = -1;
             this.ruleDelayField.setText("0");
         }
-        this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
     }
 
-    private int drawEditorHintY;
+    private void initSettings() {
+        int left = this.contentLeft + 12;
+        int width = Math.max(1, this.contentWidth - 24);
+        int gap = 8;
+        boolean compact = this.height < 340;
+        this.settingsColumns = width >= 500 ? 3 : 2;
+        this.settingsFieldWidth = Math.max(1,
+                (width - gap * (this.settingsColumns - 1)) / this.settingsColumns);
+        this.settingsFirstX = left;
+        this.settingsSecondX = left + this.settingsFieldWidth + gap;
+        this.settingsThirdX = this.settingsColumns == 3
+                ? this.settingsSecondX + this.settingsFieldWidth + gap : left;
 
-    private void initSettings(int left, int width, int gap) {
-        int columns = width >= 520 ? 3 : 2;
-        this.settingsFieldWidth = Math.min(180, Math.max(60,
-                (width - gap * (columns - 1)) / columns));
-        int fieldGroupWidth = this.settingsFieldWidth * columns + gap * (columns - 1);
-        int fieldGroupLeft = left + Math.max(0, (width - fieldGroupWidth) / 2);
-        this.settingsPanelLeft = Math.max(left, fieldGroupLeft - 20);
-        this.settingsPanelWidth = Math.min(width, fieldGroupWidth + 40);
-        this.settingsFirstX = fieldGroupLeft;
-        this.settingsSecondX = fieldGroupLeft + this.settingsFieldWidth + gap;
-        this.settingsThirdX = columns == 3
-                ? this.settingsSecondX + this.settingsFieldWidth + gap : fieldGroupLeft;
-        boolean compactHeight = this.height < 300;
-        this.settingsReconnectY = this.height < 230 ? 90 : compactHeight ? 88 : 96;
-        this.settingsMaxDelayY = columns == 3 ? this.settingsReconnectY
-                : this.height < 230 ? 112 : compactHeight ? 122 : 132;
-        int reconnectBottom = Math.max(this.settingsReconnectY, this.settingsMaxDelayY) + 20;
-        int retryY = reconnectBottom + (compactHeight ? 10 : 16);
-        this.settingsChatY = retryY + (compactHeight ? 24 : 34);
-
+        int baseY = this.contentTop + (compact ? 18 : 28);
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
-                this.settingsPanelLeft, this.height < 230 ? 54 : 58,
-                this.settingsPanelWidth, 20, getAutoReconnectLabel(),
+                left, baseY, width, 20, getAutoReconnectLabel(),
                 button -> {
-                    flushPendingAutoSave();
                     this.draft.setAutoReconnect(!this.draft.isAutoReconnect());
                     this.autoReconnectButton.setMessage(getAutoReconnectLabel());
-                    saveSettings();
+                    updateFooterState();
                 }));
+
+        this.settingsReconnectY = baseY + (compact ? 44 : 50);
+        this.settingsMaxDelayY = this.settingsColumns == 3
+                ? this.settingsReconnectY
+                : this.settingsReconnectY + (compact ? 34 : 40);
+
+        int reconnectBottom = Math.max(
+                this.settingsReconnectY, this.settingsMaxDelayY) + 20;
+        this.settingsRetryY = reconnectBottom + (compact ? 20 : 26);
+        this.settingsChatY = this.settingsRetryY + (compact ? 42 : 50);
+        this.settingsChatLabelY = this.settingsChatY - 13;
 
         this.reconnectDelayField = addNumberField(
                 this.settingsFirstX, this.settingsReconnectY,
@@ -297,21 +359,23 @@ public final class SessionControlScreen extends MsmScreen {
                 this.settingsFieldWidth, this.draft.getMaxReconnectDelaySeconds());
 
         this.retryBackoffButton = this.addButton(new MsmButtonWidget(
-                this.settingsPanelLeft, retryY, this.settingsPanelWidth, 20, getRetryBackoffLabel(),
+                left, this.settingsRetryY, width, 20, getRetryBackoffLabel(),
                 button -> {
-                    flushPendingAutoSave();
                     this.draft.setRetryBackoff(!this.draft.isRetryBackoff());
                     this.retryBackoffButton.setMessage(getRetryBackoffLabel());
-                    saveSettings();
+                    updateFooterState();
                 }));
 
+        int chatFieldWidth = this.settingsColumns == 3
+                ? this.settingsFieldWidth : Math.max(1, (width - gap) / 2);
         this.initialChatDelayField = addNumberField(
                 this.settingsFirstX, this.settingsChatY,
-                this.settingsFieldWidth, this.draft.getInitialChatDelaySeconds());
+                chatFieldWidth, this.draft.getInitialChatDelaySeconds());
         this.globalChatIntervalField = addNumberField(
-                this.settingsSecondX, this.settingsChatY,
-                this.settingsFieldWidth, this.draft.getGlobalChatIntervalSeconds());
-        this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
+                this.settingsColumns == 3 ? this.settingsSecondX
+                        : left + chatFieldWidth + gap,
+                this.settingsChatY, chatFieldWidth,
+                this.draft.getGlobalChatIntervalSeconds());
     }
 
     private TextFieldWidget addNumberField(int x, int y, int width, int value) {
@@ -323,41 +387,41 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private String getAutoChatLabel() {
-        return "AUTO CHAT: " + (this.draft.isAutoChatEnabled() ? "ON" : "OFF");
+        return "AUTO CHAT  " + (this.draft.isAutoChatEnabled() ? "[ ON ]" : "[ OFF ]");
     }
 
     private String getAutoReconnectLabel() {
-        return "AUTO RECONNECT: " + (this.draft.isAutoReconnect() ? "ON" : "OFF");
+        return "AUTO RECONNECT  " + (this.draft.isAutoReconnect() ? "[ ON ]" : "[ OFF ]");
     }
 
     private String getRetryBackoffLabel() {
-        return "RETRY BACKOFF: " + (this.draft.isRetryBackoff() ? "ON" : "OFF");
+        return "RETRY BACKOFF  " + (this.draft.isRetryBackoff() ? "[ ON ]" : "[ OFF ]");
     }
 
     private void toggleAutoChat() {
-        flushPendingAutoSave();
         this.draft.setAutoChatEnabled(!this.draft.isAutoChatEnabled());
         this.autoChatEnabledButton.setMessage(getAutoChatLabel());
-        saveSettings();
+        updateFooterState();
     }
 
     private void selectRule(int index) {
-        flushPendingAutoSave();
+        if (!commitEditorToDraft()) return;
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
         if (index < 0 || index >= rules.size()) return;
         this.selectedRuleIndex = index;
-        openAutoChatPage(this.rulePage, index);
+        openAutoChatPage(this.rulePage);
     }
 
-    private void openRulePage(int page, int selectedIndex) {
-        openAutoChatPage(page, selectedIndex);
+    private void openRulePage(int page) {
+        if (!commitEditorToDraft()) return;
+        openAutoChatPage(page);
     }
 
-    private void openAutoChatPage(int page, int selectedIndex) {
-        flushPendingAutoSave();
+    private void openAutoChatPage(int page) {
         this.client.setScreen(new SessionControlScreen(
                 this.parent, this.controller, this.scheduler, this.sessionId,
-                this.username, Tab.AUTO_CHAT, this.draft, page, selectedIndex));
+                this.username, Tab.AUTO_CHAT, this.draft, this.appliedSettings,
+                page, this.selectedRuleIndex));
     }
 
     private void loadRuleIntoEditor(SessionAutomationSettings.AutoChatRule rule) {
@@ -370,7 +434,8 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private String getSelectedRuleEnabledLabel() {
-        if (this.selectedRuleIndex < 0 || this.selectedRuleIndex >= this.draft.getRules().size()) {
+        if (this.selectedRuleIndex < 0
+                || this.selectedRuleIndex >= this.draft.getRules().size()) {
             return "ENABLE RULE";
         }
         return this.draft.getRules().get(this.selectedRuleIndex).isEnabled()
@@ -378,21 +443,23 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void toggleSelectedRule() {
-        flushPendingAutoSave();
-        if (this.selectedRuleIndex < 0 || this.selectedRuleIndex >= this.draft.getRules().size()) return;
+        if (!commitEditorToDraft()) return;
+        if (this.selectedRuleIndex < 0
+                || this.selectedRuleIndex >= this.draft.getRules().size()) return;
+
         SessionAutomationSettings.AutoChatRule current =
                 this.draft.getRules().get(this.selectedRuleIndex);
         this.draft.updateRule(this.selectedRuleIndex,
                 new SessionAutomationSettings.AutoChatRule(
                         current.getMessage(), current.getMode(),
                         current.getDelaySeconds(), !current.isEnabled()));
-        saveSettings();
-        this.status = "Rule enable state saved.";
-        openAutoChatPage(this.rulePage, this.selectedRuleIndex);
+        this.status = "Rule state changed. Apply to save.";
+        openAutoChatPage(this.rulePage);
     }
 
     private void cycleRuleMode() {
-        this.editingMode = this.editingMode == SessionAutomationSettings.AutoChatRule.Mode.ONCE
+        this.editingMode = this.editingMode
+                == SessionAutomationSettings.AutoChatRule.Mode.ONCE
                 ? SessionAutomationSettings.AutoChatRule.Mode.REPEAT
                 : SessionAutomationSettings.AutoChatRule.Mode.ONCE;
         this.ruleModeButton.setMessage(this.editingMode.name());
@@ -400,83 +467,194 @@ public final class SessionControlScreen extends MsmScreen {
                 && "0".equals(this.ruleDelayField.getText().trim())) {
             this.ruleDelayField.setText("10");
         }
+        updateFooterState();
     }
 
     private void addRule() {
-        flushPendingAutoSave();
+        if (!commitEditorToDraft()) return;
         try {
             int delay = parseNumber(this.ruleDelayField, 0);
             SessionAutomationSettings.AutoChatRule rule =
                     new SessionAutomationSettings.AutoChatRule(
-                            this.ruleMessageField.getText(), this.editingMode, delay, true);
+                            this.ruleMessageField.getText(), this.editingMode,
+                            delay, true);
             this.draft.addRule(rule);
             this.selectedRuleIndex = this.draft.getRules().size() - 1;
-            saveSettings();
-            this.status = "AutoChat rule added and saved.";
-            openAutoChatPage(this.rulePage, this.selectedRuleIndex);
+            this.status = "Rule added. Apply to save.";
+            openAutoChatPage(this.rulePage);
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.status = exception.getMessage();
-            this.autoSaveStatus = "ERROR";
         }
     }
 
     private void deleteRule() {
-        flushPendingAutoSave();
+        if (!commitEditorToDraft()) return;
         if (this.selectedRuleIndex < 0) return;
         try {
             this.draft.removeRule(this.selectedRuleIndex);
             this.selectedRuleIndex = -1;
-            saveSettings();
-            this.status = "Rule deleted and saved.";
-            openAutoChatPage(this.rulePage, -1);
+            this.status = "Rule deleted. Apply to save.";
+            openAutoChatPage(this.rulePage);
         } catch (IndexOutOfBoundsException exception) {
             this.status = "Selected rule no longer exists.";
         }
     }
 
-    private void saveSettings() {
+    private boolean commitEditorToDraft() {
         try {
             if (this.tab == Tab.SETTINGS) {
-                this.draft.setReconnectDelaySeconds(parseNumber(this.reconnectDelayField, 10));
-                this.draft.setMaxReconnectAttempts(parseNumber(this.reconnectAttemptsField, 10));
-                this.draft.setMaxReconnectDelaySeconds(parseNumber(this.reconnectMaxDelayField, 60));
-                this.draft.setInitialChatDelaySeconds(parseNumber(this.initialChatDelayField, 5));
-                this.draft.setGlobalChatIntervalSeconds(parseNumber(this.globalChatIntervalField, 3));
-                setFieldTextIfChanged(this.reconnectDelayField, this.draft.getReconnectDelaySeconds());
-                setFieldTextIfChanged(this.reconnectAttemptsField, this.draft.getMaxReconnectAttempts());
-                setFieldTextIfChanged(this.reconnectMaxDelayField, this.draft.getMaxReconnectDelaySeconds());
-                setFieldTextIfChanged(this.initialChatDelayField, this.draft.getInitialChatDelaySeconds());
-                setFieldTextIfChanged(this.globalChatIntervalField, this.draft.getGlobalChatIntervalSeconds());
+                commitSettingsFields();
+            } else if (this.tab == Tab.AUTO_CHAT && this.selectedRuleIndex >= 0) {
+                commitEditedRule();
             }
-            this.scheduler.saveSettings(this.sessionId, this.draft);
-            this.autoSaveTicks = 0;
-            if (this.tab == Tab.SETTINGS) {
-                this.autoSaveStatus = "SAVED";
-                this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
-            }
-            this.status = "Changes saved automatically.";
+            updateFooterState();
+            return true;
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            this.autoSaveStatus = "ERROR";
             this.status = exception.getMessage();
+            return false;
         }
     }
 
-    private String getAutoSaveSnapshot() {
+    private void commitSettingsFields() {
+        this.draft.setReconnectDelaySeconds(
+                parseNumber(this.reconnectDelayField, 10));
+        this.draft.setMaxReconnectAttempts(
+                parseNumber(this.reconnectAttemptsField, 10));
+        this.draft.setMaxReconnectDelaySeconds(
+                parseNumber(this.reconnectMaxDelayField, 60));
+        this.draft.setInitialChatDelaySeconds(
+                parseNumber(this.initialChatDelayField, 5));
+        this.draft.setGlobalChatIntervalSeconds(
+                parseNumber(this.globalChatIntervalField, 3));
+
+        setFieldTextIfChanged(this.reconnectDelayField,
+                this.draft.getReconnectDelaySeconds());
+        setFieldTextIfChanged(this.reconnectAttemptsField,
+                this.draft.getMaxReconnectAttempts());
+        setFieldTextIfChanged(this.reconnectMaxDelayField,
+                this.draft.getMaxReconnectDelaySeconds());
+        setFieldTextIfChanged(this.initialChatDelayField,
+                this.draft.getInitialChatDelaySeconds());
+        setFieldTextIfChanged(this.globalChatIntervalField,
+                this.draft.getGlobalChatIntervalSeconds());
+    }
+
+    private void commitEditedRule() {
+        List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
+        if (this.selectedRuleIndex >= rules.size()) return;
+
+        SessionAutomationSettings.AutoChatRule current =
+                rules.get(this.selectedRuleIndex);
+        SessionAutomationSettings.AutoChatRule updated =
+                new SessionAutomationSettings.AutoChatRule(
+                        this.ruleMessageField.getText(), this.editingMode,
+                        parseNumber(this.ruleDelayField, 0), current.isEnabled());
+
+        setFieldTextIfChanged(this.ruleDelayField, updated.getDelaySeconds());
+        boolean unchanged = current.getMessage().equals(updated.getMessage())
+                && current.getMode() == updated.getMode()
+                && current.getDelaySeconds() == updated.getDelaySeconds();
+        if (!unchanged) {
+            this.draft.updateRule(this.selectedRuleIndex, updated);
+        }
+    }
+
+    private boolean applyChanges() {
+        if (!commitEditorToDraft()) return false;
+        if (!hasPendingChanges()) {
+            this.status = "No pending changes.";
+            updateFooterState();
+            return true;
+        }
+
+        try {
+            SessionAutomationSettings latest = this.scheduler.getSettings(this.sessionId);
+            this.draft.setDesiredOnline(latest.isDesiredOnline());
+            this.scheduler.saveSettings(this.sessionId, this.draft);
+            this.appliedSettings = this.draft.copy();
+            this.status = "Changes applied.";
+            updateFooterState();
+            return true;
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.status = exception.getMessage();
+            updateFooterState();
+            return false;
+        }
+    }
+
+    private void undoChanges() {
+        if (!hasPendingChanges()) return;
+        this.client.setScreen(new SessionControlScreen(
+                this.parent, this.controller, this.scheduler, this.sessionId,
+                this.username, this.tab, this.appliedSettings, this.appliedSettings,
+                this.rulePage, this.selectedRuleIndex));
+    }
+
+    private void updateFooterState() {
+        boolean pending = hasPendingChanges();
+        if (this.undoButton != null) this.undoButton.active = pending;
+        if (this.applyButton != null) this.applyButton.active = pending;
+        if (this.closeButton != null) this.closeButton.active = true;
+    }
+
+    private boolean hasPendingChanges() {
+        if (!settingsEqual(this.draft, this.appliedSettings)) return true;
+
         if (this.tab == Tab.SETTINGS) {
-            return this.draft.isAutoReconnect() + "|"
-                    + this.draft.isRetryBackoff() + "|"
-                    + fieldText(this.reconnectDelayField) + "|"
-                    + fieldText(this.reconnectAttemptsField) + "|"
-                    + fieldText(this.reconnectMaxDelayField) + "|"
-                    + fieldText(this.initialChatDelayField) + "|"
-                    + fieldText(this.globalChatIntervalField);
+            return !fieldMatches(this.reconnectDelayField,
+                            this.draft.getReconnectDelaySeconds())
+                    || !fieldMatches(this.reconnectAttemptsField,
+                            this.draft.getMaxReconnectAttempts())
+                    || !fieldMatches(this.reconnectMaxDelayField,
+                            this.draft.getMaxReconnectDelaySeconds())
+                    || !fieldMatches(this.initialChatDelayField,
+                            this.draft.getInitialChatDelaySeconds())
+                    || !fieldMatches(this.globalChatIntervalField,
+                            this.draft.getGlobalChatIntervalSeconds());
         }
-        if (this.tab == Tab.AUTO_CHAT) {
-            return this.selectedRuleIndex + "|" + this.editingMode + "|"
-                    + fieldText(this.ruleMessageField) + "|"
-                    + fieldText(this.ruleDelayField);
+
+        if (this.tab == Tab.AUTO_CHAT && this.selectedRuleIndex >= 0
+                && this.selectedRuleIndex < this.draft.getRules().size()) {
+            SessionAutomationSettings.AutoChatRule current =
+                    this.draft.getRules().get(this.selectedRuleIndex);
+            return !fieldText(this.ruleMessageField).trim().equals(current.getMessage())
+                    || !fieldMatches(this.ruleDelayField, current.getDelaySeconds())
+                    || this.editingMode != current.getMode();
         }
-        return "";
+        return false;
+    }
+
+    private static boolean settingsEqual(SessionAutomationSettings first,
+                                          SessionAutomationSettings second) {
+        if (first.isAutoReconnect() != second.isAutoReconnect()
+                || first.getReconnectDelaySeconds() != second.getReconnectDelaySeconds()
+                || first.getMaxReconnectAttempts() != second.getMaxReconnectAttempts()
+                || first.isRetryBackoff() != second.isRetryBackoff()
+                || first.getMaxReconnectDelaySeconds() != second.getMaxReconnectDelaySeconds()
+                || first.isAutoChatEnabled() != second.isAutoChatEnabled()
+                || first.getInitialChatDelaySeconds() != second.getInitialChatDelaySeconds()
+                || first.getGlobalChatIntervalSeconds() != second.getGlobalChatIntervalSeconds()) {
+            return false;
+        }
+
+        List<SessionAutomationSettings.AutoChatRule> firstRules = first.getRules();
+        List<SessionAutomationSettings.AutoChatRule> secondRules = second.getRules();
+        if (firstRules.size() != secondRules.size()) return false;
+        for (int index = 0; index < firstRules.size(); index++) {
+            SessionAutomationSettings.AutoChatRule a = firstRules.get(index);
+            SessionAutomationSettings.AutoChatRule b = secondRules.get(index);
+            if (!a.getMessage().equals(b.getMessage())
+                    || a.getMode() != b.getMode()
+                    || a.getDelaySeconds() != b.getDelaySeconds()
+                    || a.isEnabled() != b.isEnabled()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean fieldMatches(TextFieldWidget field, int value) {
+        return field == null || Integer.toString(value).equals(field.getText().trim());
     }
 
     private static String fieldText(TextFieldWidget field) {
@@ -490,86 +668,13 @@ public final class SessionControlScreen extends MsmScreen {
         }
     }
 
-    private void tickAutoSave() {
-        if (this.tab != Tab.SETTINGS
-                && (this.tab != Tab.AUTO_CHAT || this.selectedRuleIndex < 0)) {
-            return;
-        }
-
-        String snapshot = getAutoSaveSnapshot();
-        if (this.lastAutoSaveSnapshot == null) {
-            this.lastAutoSaveSnapshot = snapshot;
-        } else if (!snapshot.equals(this.lastAutoSaveSnapshot)) {
-            this.lastAutoSaveSnapshot = snapshot;
-            this.autoSaveTicks = AUTO_SAVE_DELAY_TICKS;
-            this.autoSaveStatus = "PENDING";
-        }
-
-        if (this.autoSaveTicks > 0 && --this.autoSaveTicks == 0) {
-            if (this.tab == Tab.SETTINGS) {
-                saveSettings();
-            } else {
-                saveEditedRule();
-            }
-        }
-    }
-
-    private void flushPendingAutoSave() {
-        if (this.tab != Tab.SETTINGS
-                && (this.tab != Tab.AUTO_CHAT || this.selectedRuleIndex < 0)) {
-            return;
-        }
-        String snapshot = getAutoSaveSnapshot();
-        boolean changed = !snapshot.equals(this.lastAutoSaveSnapshot);
-        if (!changed && this.autoSaveTicks <= 0) return;
-
-        this.autoSaveTicks = 0;
-        if (this.tab == Tab.SETTINGS) {
-            saveSettings();
-        } else {
-            saveEditedRule();
-        }
-    }
-
-    private void saveEditedRule() {
-        if (this.ruleMessageField == null || this.ruleDelayField == null
-                || this.selectedRuleIndex < 0) {
-            return;
-        }
-
-        try {
-            List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
-            if (this.selectedRuleIndex >= rules.size()) return;
-
-            SessionAutomationSettings.AutoChatRule current = rules.get(this.selectedRuleIndex);
-            SessionAutomationSettings.AutoChatRule updated =
-                    new SessionAutomationSettings.AutoChatRule(
-                            this.ruleMessageField.getText(), this.editingMode,
-                            parseNumber(this.ruleDelayField, 0), current.isEnabled());
-            setFieldTextIfChanged(this.ruleDelayField, updated.getDelaySeconds());
-            boolean unchanged = current.getMessage().equals(updated.getMessage())
-                    && current.getMode() == updated.getMode()
-                    && current.getDelaySeconds() == updated.getDelaySeconds();
-            if (!unchanged) {
-                this.draft.updateRule(this.selectedRuleIndex, updated);
-                this.scheduler.saveSettings(this.sessionId, this.draft);
-                this.status = "AutoChat rule saved automatically.";
-            }
-            this.autoSaveTicks = 0;
-            this.autoSaveStatus = "SAVED";
-            this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
-        } catch (IllegalArgumentException | IllegalStateException exception) {
-            this.autoSaveStatus = "ERROR";
-            this.status = exception.getMessage();
-        }
-    }
-
     private int parseNumber(TextFieldWidget field, int fallback) {
         if (field == null) return fallback;
         try {
             return Integer.parseInt(field.getText().trim());
         } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("Enter a valid number for every delay and limit.");
+            throw new IllegalArgumentException(
+                    "Enter a valid number for every delay and limit.");
         }
     }
 
@@ -613,7 +718,8 @@ public final class SessionControlScreen extends MsmScreen {
         if (this.connectionButton != null) {
             this.connectionButton.setMessage(
                     state == SessionState.CONNECTING ? "CANCEL"
-                            : state == SessionState.ONLINE ? "DISCONNECT" : "JOIN / CONNECT");
+                            : state == SessionState.ONLINE ? "DISCONNECT"
+                            : "JOIN / CONNECT");
         }
         if (this.sendButton != null) {
             this.sendButton.active = state == SessionState.ONLINE;
@@ -635,16 +741,17 @@ public final class SessionControlScreen extends MsmScreen {
                     break;
                 }
             }
-            this.status = latest == null ? "OFFLINE as " + this.username + "." : latest;
+            this.status = latest == null
+                    ? "OFFLINE as " + this.username + "." : latest;
         }
     }
 
     @Override
     public void tick() {
         super.tick();
-        tickAutoSave();
         refreshWrappedMessages();
         updateConnectionControls();
+        updateFooterState();
     }
 
     @Override
@@ -671,19 +778,21 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void refreshWrappedMessages() {
+        if (this.tab != Tab.CHAT) return;
         List<String> messages = this.controller.getMessages(this.sessionId);
         int count = messages.size();
         String first = count == 0 ? null : messages.get(0);
         String last = count == 0 ? null : messages.get(count - 1);
+        int messageWidth = Math.max(1, this.contentWidth - 44);
         if (count == this.cachedMessageCount
-                && this.width == this.cachedMessageWidth
+                && messageWidth == this.cachedMessageWidth
                 && equal(first, this.cachedFirstMessage)
                 && equal(last, this.cachedLastMessage)) {
             return;
         }
 
         List<String> wrapped = new ArrayList<String>();
-        int maxCharacters = Math.max(8, (this.width - 24) / 6);
+        int maxCharacters = Math.max(8, messageWidth / 6);
         for (String message : messages) {
             String value = message == null ? "" : message;
             for (int offset = 0; offset < value.length(); offset += maxCharacters) {
@@ -695,7 +804,7 @@ public final class SessionControlScreen extends MsmScreen {
 
         this.wrappedMessages = wrapped;
         this.cachedMessageCount = count;
-        this.cachedMessageWidth = this.width;
+        this.cachedMessageWidth = messageWidth;
         this.cachedFirstMessage = first;
         this.cachedLastMessage = last;
         int visibleLines = getChatVisibleLines();
@@ -703,25 +812,37 @@ public final class SessionControlScreen extends MsmScreen {
                 Math.max(0, wrapped.size() - visibleLines));
     }
 
-    private int getChatPanelBottom() {
-        return Math.max(64, this.height - 103);
-    }
-
     private int getChatVisibleLines() {
-        return Math.max(1, (getChatPanelBottom() - 56 - 4) / 11);
-    }
-
-    private List<String> getWrappedMessages() {
-        return this.wrappedMessages;
+        return Math.max(1, (this.chatPanelBottom - this.chatPanelTop - 12) / 11);
     }
 
     private static boolean equal(String first, String second) {
         return first == null ? second == null : first.equals(second);
     }
 
+    private String connectionSummary() {
+        try {
+            SessionState state = this.controller.getState(this.sessionId);
+            return state == SessionState.ONLINE ? "ONLINE"
+                    : state == SessionState.CONNECTING ? "CONNECTING" : "OFFLINE";
+        } catch (IllegalArgumentException exception) {
+            return "OFFLINE";
+        }
+    }
+
+    private void drawPanel(DrawContext context, int left, int top,
+                           int right, int bottom, int fill) {
+        if (right - left < 2 || bottom - top < 2) return;
+        context.fill(left, top, right, bottom, fill);
+        context.fill(left, top, right, top + 1, 0x503F5265);
+        context.fill(left, bottom - 1, right, bottom, 0x302E3C4C);
+        context.fill(left, top, left + 1, bottom, 0x302E3C4C);
+        context.fill(right - 1, top, right, bottom, 0x302E3C4C);
+    }
+
     @Override
     public void close() {
-        flushPendingAutoSave();
+        if (!applyChanges()) return;
         this.client.setScreen(this.parent);
     }
 
@@ -733,63 +854,108 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
-        this.drawGlassPanel(context, 8, 6, this.width - 8, 52);
-        this.drawGlassPanel(context, 8, 54, this.width - 8, this.height - 8);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                this.title, this.width / 2, 10, 0xFFFFFF);
+
+        context.fill(0, 0, this.width, 36, 0x50101822);
+        context.fill(0, this.height - 36, this.width, this.height, 0x68101822);
+        context.fill(0, 35, this.width, 36, 0x603A4655);
+
+        boolean sidebar = this.width >= 520;
+        if (sidebar) {
+            drawPanel(context, 12, 44, 120, this.contentBottom, 0x4A18212C);
+        }
+        drawPanel(context, this.contentLeft, this.contentTop,
+                this.width - 12, this.contentBottom, 0x52141D28);
+
+        this.text(context, "MSM", 14, 9, 0xFFFFFFFF);
+        this.text(context, "CONTROL MANAGE", 48, 9, 0xFFE0E8F0);
+        this.text(context, fitText(this.username, Math.max(80, this.width - 180)),
+                14, 22, 0xFF9EADBD);
+        this.text(context, connectionSummary(), this.width - 82, 12, 0xFFB8C8D8);
+
+        String title = this.tab == Tab.CHAT ? "CHAT"
+                : this.tab == Tab.AUTO_CHAT ? "AUTO CHAT" : "SETTINGS";
+        String subtitle = this.tab == Tab.CHAT
+                ? "Messages and connection controls"
+                : this.tab == Tab.AUTO_CHAT
+                ? "Manage automatic chat messages"
+                : "Configure reconnect and chat behavior";
+
+        this.text(context, title, this.contentLeft + 12,
+                this.contentTop + 9, 0xFFF1F5F9);
+        this.text(context, subtitle, this.contentLeft + 12,
+                this.contentTop + 22, 0xFF9EADBD);
 
         if (this.tab == Tab.CHAT) {
-            this.drawGlassPanel(context, 16, 52,
-                    this.width - 16, getChatPanelBottom());
+            drawPanel(context, this.contentLeft + 12, this.chatPanelTop,
+                    this.contentLeft + this.contentWidth - 12,
+                    this.chatPanelBottom, 0x50101822);
+            this.text(context, fitText(this.status,
+                            Math.max(50, this.contentWidth - 36)),
+                    this.contentLeft + 12, this.chatPanelBottom + 4, 0xFF9EADBD);
         } else if (this.tab == Tab.AUTO_CHAT) {
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.draft.getRules().size() + " RULES  |  "
-                            + getAutoChatLabel() + "  |  AUTO SAVE: " + this.autoSaveStatus),
-                    this.width / 2, 48, 0xA0A0A0);
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(fitText(this.status, this.width - 24)),
-                    this.width / 2, this.height - 14, 0xA0A0A0);
+            int left = this.contentLeft + 12;
+            int width = Math.max(1, this.contentWidth - 24);
+            this.text(context, "MESSAGE RULES", left,
+                    this.contentTop + 62, 0xFF9EADBD);
+            if (this.draft.getRules().isEmpty()) {
+                this.text(context, "No rules yet. Add one below.",
+                        left, this.contentTop + 90, 0xFF9EADBD);
+            }
+            this.text(context, "EDIT RULE", left,
+                    Math.max(this.contentTop + 96, this.contentBottom - 116),
+                    0xFF9EADBD);
+            this.text(context, "Draft changes are not saved until Apply.",
+                    left, this.contentBottom - 14, 0xFF8796A6);
         } else {
+            this.text(context, "RECONNECTION", this.contentLeft + 12,
+                    this.settingsReconnectY - 25, 0xFF9EADBD);
             this.text(context, "RECONNECT DELAY", this.settingsFirstX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
             this.text(context, "MAX ATTEMPTS", this.settingsSecondX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
             this.text(context, "MAX DELAY", this.settingsThirdX,
                     this.settingsMaxDelayY - 12, 0xFF9EADBD);
-            this.text(context, "INITIAL AUTOCHAT DELAY", this.settingsFirstX,
-                    this.settingsChatY - 12, 0xFF9EADBD);
-            this.text(context, "GLOBAL CHAT INTERVAL", this.settingsSecondX,
-                    this.settingsChatY - 12, 0xFF9EADBD);
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(fitText(this.status + "  |  AUTO SAVE: "
-                            + this.autoSaveStatus, this.width - 24)),
-                    this.width / 2, this.height - 14, 0xA0A0A0);
+            this.text(context, "CHAT AUTOMATION", this.contentLeft + 12,
+                    this.settingsChatLabelY - 17, 0xFF9EADBD);
+            this.text(context, "INITIAL CHAT DELAY",
+                    this.settingsFirstX, this.settingsChatLabelY,
+                    0xFF9EADBD);
+            this.text(context, "GLOBAL CHAT INTERVAL",
+                    this.settingsColumns == 3 ? this.settingsSecondX
+                            : this.settingsFirstX + Math.max(1,
+                            (this.contentWidth - 24 - 8) / 2) + 8,
+                    this.settingsChatLabelY, 0xFF9EADBD);
+            this.text(context, "Changes are kept as a draft until Apply.",
+                    this.contentLeft + 12, this.contentBottom - 14,
+                    0xFF8796A6);
         }
 
+        boolean pending = hasPendingChanges();
+        String footer = pending ? "●  UNSAVED CHANGES" : "No pending changes";
+        int statusColor = pending ? 0xFFFFD27A : 0xFF9EADBD;
+        int statusWidth = Math.max(40, this.width - 230);
+        this.text(context, fitText(footer, statusWidth),
+                14, this.height - 22, statusColor);
+
         super.render(context, mouseX, mouseY, delta);
-        if (this.tab == Tab.CHAT) {
-            renderChat(context);
-        }
+        if (this.tab == Tab.CHAT) renderChat(context);
     }
 
     private void renderChat(DrawContext context) {
-        List<String> messages = getWrappedMessages();
-        int lineHeight = 11;
+        List<String> messages = this.wrappedMessages;
         int visibleLines = getChatVisibleLines();
         int end = Math.max(0, messages.size() - this.scrollOffset);
         int start = Math.max(0, end - visibleLines);
-        int panelBottom = getChatPanelBottom();
-        context.enableScissor(16, 52, this.width - 16, panelBottom);
-        int y = 56;
+
+        context.enableScissor(this.contentLeft + 12, this.chatPanelTop,
+                this.contentLeft + this.contentWidth - 12, this.chatPanelBottom);
+        int y = this.chatPanelTop + 6;
         for (int index = start; index < end; index++) {
             context.drawTextWithShadow(this.textRenderer,
-                    messages.get(index), 20, y, 0xFFE0E0E0);
-            y += lineHeight;
+                    messages.get(index), this.contentLeft + 20, y, 0xFFE3EAF1);
+            y += 11;
         }
         context.disableScissor();
-
-        this.text(context, fitText(this.status, this.width - 24),
-                12, this.height - 95, 0xFFA0A0A0);
     }
 
     private String fitText(String value, int pixelWidth) {
