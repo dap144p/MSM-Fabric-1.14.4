@@ -470,6 +470,11 @@ public final class SessionManagerScreen extends MsmScreen {
             this.usernameValue = group.username;
             this.serverValue = "";
             this.authMode = group.authMode;
+            if (this.usernameField != null) this.usernameField.setText(this.usernameValue);
+            if (this.serverField != null) this.serverField.setText("");
+            if (this.authModeButton != null) {
+                this.authModeButton.setMessage(getAuthModeLabel());
+            }
         }
         openScreen("Account " + group.username + " selected.",
                 0, this.selectedSessionId);
@@ -514,6 +519,10 @@ public final class SessionManagerScreen extends MsmScreen {
                     ? "Account " + profile.getUsername() + " created."
                     : "Server " + profile.getServerAddress()
                         + " added to " + profile.getUsername() + ".";
+            this.usernameValue = profile.getUsername();
+            this.serverValue = "";
+            if (this.usernameField != null) this.usernameField.setText(this.usernameValue);
+            if (this.serverField != null) this.serverField.setText("");
             openScreen(message, targetPage, created.getId());
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.status = exception.getMessage();
@@ -539,15 +548,6 @@ public final class SessionManagerScreen extends MsmScreen {
         SessionProfile profile = session.getProfile();
         this.client.setScreen(new ConfirmRemoveAccountScreen(
                 this, session.getId(), profile.getUsername(), profile.getServerAddress()));
-    }
-
-    private void selectServer(SessionManager.Session session, String accountKey) {
-        this.expandedAccountKey = accountKey;
-        this.selectedSessionId = session.getId();
-        this.lastObservedState = null;
-        this.status = "Selected " + session.getProfile().getUsername()
-                + " on " + session.getProfile().getServerAddress() + ".";
-        refreshSessions();
     }
 
     private void toggleConnection() {
