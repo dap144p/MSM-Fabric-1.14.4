@@ -140,7 +140,9 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar
+            build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.14.4.jar.sha256
             fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar
+            fabric-1.21.8/build/libs/MSM-Fabric-${{ steps.meta.outputs.build_version }}-1.21.8.jar.sha256
           fail_on_unmatched_files: true
           prerelease: ${{ steps.meta.outputs.channel != 'stable' }}
           make_latest: ${{ steps.meta.outputs.channel == 'stable' }}
