@@ -445,8 +445,10 @@ public final class SessionControlScreen extends MsmScreen {
             }
             this.scheduler.saveSettings(this.sessionId, this.draft);
             this.autoSaveTicks = 0;
-            this.autoSaveStatus = "SAVED";
-            this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
+            if (this.tab == Tab.SETTINGS) {
+                this.autoSaveStatus = "SAVED";
+                this.lastAutoSaveSnapshot = getAutoSaveSnapshot();
+            }
             this.status = "Changes saved automatically.";
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.autoSaveStatus = "ERROR";
