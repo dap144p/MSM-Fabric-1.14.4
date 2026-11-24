@@ -609,7 +609,7 @@ public final class SessionControlScreen extends MsmScreen {
                 this.title, this.width / 2, 10, 0xFFFFFF);
 
         if (this.tab == Tab.CHAT) {
-            renderChat(context);
+            this.drawGlassPanel(context, 16, 52, this.width - 16, this.height - 104);
         } else if (this.tab == Tab.AUTO_CHAT) {
             context.drawCenteredTextWithShadow(this.textRenderer,
                     Text.literal(this.draft.getRules().size() + " RULES  |  " + getAutoChatLabel()),
@@ -632,6 +632,9 @@ public final class SessionControlScreen extends MsmScreen {
         }
 
         super.render(context, mouseX, mouseY, delta);
+        if (this.tab == Tab.CHAT) {
+            renderChat(context);
+        }
     }
 
     private void renderChat(DrawContext context) {
@@ -643,12 +646,12 @@ public final class SessionControlScreen extends MsmScreen {
         int y = 56;
         for (int index = start; index < end; index++) {
             context.drawTextWithShadow(this.textRenderer,
-                    Text.literal(messages.get(index)), 12, y, 0xE0E0E0);
+                    messages.get(index), 12, y, 0xFFE0E0E0);
             y += lineHeight;
         }
 
         this.text(context, fitText(this.status, this.width - 24),
-                12, this.height - 95, 0xA0A0A0);
+                12, this.height - 95, 0xFFA0A0A0);
     }
 
     private String fitText(String value, int pixelWidth) {
