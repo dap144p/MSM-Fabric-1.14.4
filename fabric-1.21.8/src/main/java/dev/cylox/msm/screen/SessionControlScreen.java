@@ -357,7 +357,7 @@ public final class SessionControlScreen extends MsmScreen {
                 + (veryCompact ? 12 : compact ? 20 : 26);
         this.settingsChatY = Math.min(this.contentBottom - 20,
                 this.settingsRetryY + (veryCompact ? 36 : compact ? 46 : 50));
-        this.settingsChatLabelY = this.settingsChatY <= this.settingsRetryY + 20
+        this.settingsChatLabelY = this.settingsChatY < this.settingsRetryY + 34
                 ? -1 : this.settingsChatY - 13;
 
         this.reconnectDelayField = addNumberField(
@@ -913,7 +913,7 @@ public final class SessionControlScreen extends MsmScreen {
                         left, this.contentTop + 90, 0xFF9EADBD);
             }
         } else {
-            if (this.height >= 320) {
+            if (this.height >= 340) {
                 this.text(context, "RECONNECTION", this.contentLeft + 12,
                         this.settingsReconnectY - 25, 0xFF9EADBD);
             }
@@ -924,7 +924,7 @@ public final class SessionControlScreen extends MsmScreen {
             this.text(context, "MAX DELAY", this.settingsThirdX,
                     this.settingsMaxDelayY - 12, 0xFF9EADBD);
             if (this.settingsChatLabelY >= 0) {
-                if (this.height >= 320) {
+                if (this.settingsChatY >= this.settingsRetryY + 46) {
                     this.text(context, "CHAT AUTOMATION", this.contentLeft + 12,
                             this.settingsChatY - 26, 0xFF9EADBD);
                 }
