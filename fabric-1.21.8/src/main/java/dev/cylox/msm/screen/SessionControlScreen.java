@@ -895,7 +895,6 @@ public final class SessionControlScreen extends MsmScreen {
                     this.contentLeft + 12, this.chatPanelBottom + 4, 0xFF9EADBD);
         } else if (this.tab == Tab.AUTO_CHAT) {
             int left = this.contentLeft + 12;
-            int width = Math.max(1, this.contentWidth - 24);
             this.text(context, "MESSAGE RULES", left,
                     this.contentTop + 58, 0xFF9EADBD);
             if (this.draft.getRules().isEmpty()) {
@@ -921,9 +920,6 @@ public final class SessionControlScreen extends MsmScreen {
                             : this.settingsFirstX + Math.max(1,
                             (this.contentWidth - 24 - 8) / 2) + 8,
                     this.settingsChatLabelY, 0xFF9EADBD);
-            this.text(context, "Changes are kept as a draft until Apply.",
-                    this.contentLeft + 12, this.contentBottom - 14,
-                    0xFF8796A6);
         }
 
         boolean pending = hasPendingChanges();
