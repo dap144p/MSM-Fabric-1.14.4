@@ -4,6 +4,7 @@ import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.automation.SessionAutomationSettings;
 import dev.cylox.msm.network.SecondarySessionController;
+import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -18,7 +19,6 @@ import java.util.List;
 public final class SessionControlScreen extends MsmScreen {
     private enum Tab {
         CHAT,
-        AUTO_CHAT,
         SETTINGS
     }
 
@@ -69,6 +69,7 @@ public final class SessionControlScreen extends MsmScreen {
     private int settingsReconnectY;
     private int settingsMaxDelayY;
     private int settingsChatY;
+    private int settingsAutoChatY;
     private List<String> wrappedMessages = Collections.emptyList();
     private int cachedMessageCount = -1;
     private int cachedMessageWidth = -1;
@@ -113,20 +114,17 @@ public final class SessionControlScreen extends MsmScreen {
         int left = 12;
         int contentWidth = Math.max(1, this.width - 24);
         int gap = 4;
-        int tabWidth = Math.max(1, (contentWidth - gap * 3) / 4);
+        int tabWidth = Math.max(1, (contentWidth - gap * 2) / 3);
 
         addTabButton(left, 28, tabWidth, "CHAT", Tab.CHAT);
-        addTabButton(left + tabWidth + gap, 28, tabWidth, "AUTO CHAT", Tab.AUTO_CHAT);
-        addTabButton(left + (tabWidth + gap) * 2, 28, tabWidth, "SETTINGS", Tab.SETTINGS);
+        addTabButton(left + tabWidth + gap, 28, tabWidth, "SETTINGS", Tab.SETTINGS);
         this.addButton(new MsmButtonWidget(
-                left + (tabWidth + gap) * 3, 28, tabWidth, 20,
+                left + (tabWidth + gap) * 2, 28, tabWidth, 20,
                 "BACK", button -> close()));
 
         if (this.tab == Tab.CHAT) {
             initChat(left, contentWidth, gap);
             refreshWrappedMessages();
-        } else if (this.tab == Tab.AUTO_CHAT) {
-            initAutoChat(left, contentWidth, gap);
         } else {
             initSettings(left, contentWidth, gap);
         }
@@ -165,95 +163,6 @@ public final class SessionControlScreen extends MsmScreen {
                 actionWidth, 20, "BACK", button -> close()));
         updateConnectionControls();
     }
-
-    private void initAutoChat(int left, int width, int gap) {
-        this.autoChatEnabledButton = this.addButton(new MsmButtonWidget(
-                left, 56, width, 20, getAutoChatLabel(),
-                button -> toggleAutoChat()));
-
-        List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
-        this.rulePageSize = Math.max(1, Math.min(4, (this.height - 245) / 23));
-        int pageCount = Math.max(1, (rules.size() + this.rulePageSize - 1) / this.rulePageSize);
-        this.rulePage = Math.min(this.requestedRulePage, pageCount - 1);
-        int start = this.rulePage * this.rulePageSize;
-        int end = Math.min(start + this.rulePageSize, rules.size());
-        int rowY = 84;
-
-        for (int index = start; index < end; index++) {
-            final int ruleIndex = index;
-            SessionAutomationSettings.AutoChatRule rule = rules.get(index);
-            String label = (rule.isEnabled() ? "ON " : "OFF ")
-                    + rule.getMode().name() + " " + rule.getDelaySeconds() + "s  "
-                    + rule.getMessage();
-            this.addButton(new MsmButtonWidget(
-                    left, rowY, width, 20, fitText(label, width - 10),
-                    button -> selectRule(ruleIndex)));
-            rowY += 23;
-        }
-
-        if (rules.isEmpty()) {
-            drawEditorHintY = rowY;
-        } else {
-            drawEditorHintY = rowY;
-        }
-
-        if (pageCount > 1) {
-            int pageWidth = Math.min(90, Math.max(1, (width - gap) / 2));
-            ButtonWidget previous = new MsmButtonWidget(
-                    left, rowY, pageWidth, 18,
-                    "PREVIOUS", button -> openRulePage(this.rulePage - 1, this.selectedRuleIndex));
-            ButtonWidget next = new MsmButtonWidget(
-                    left + pageWidth + gap, rowY, pageWidth, 18,
-                    "NEXT", button -> openRulePage(this.rulePage + 1, this.selectedRuleIndex));
-            previous.active = this.rulePage > 0;
-            next.active = this.rulePage + 1 < pageCount;
-            this.addButton(previous);
-            this.addButton(next);
-            rowY += 22;
-        }
-
-        int editorY = Math.min(this.height - 118, Math.max(112, rowY + 5));
-        this.ruleMessageField = this.addButton(new TextFieldWidget(
-                this.textRenderer,
-                left, editorY, width, 20, Text.literal("Chat or command")));
-        this.ruleMessageField.setMaxLength(256);
-
-        int delayWidth = Math.min(90, Math.max(58, width / 4));
-        int modeWidth = Math.max(1, width - delayWidth - gap);
-        this.ruleModeButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 25, modeWidth, 20, editingMode.name(),
-                button -> cycleRuleMode()));
-        this.ruleDelayField = this.addButton(new TextFieldWidget(
-                this.textRenderer,
-                left + modeWidth + gap, editorY + 25, delayWidth, 20, Text.literal("Delay")));
-        this.ruleDelayField.setMaxLength(5);
-
-        int editorButtonWidth = Math.max(1, (width - gap * 2) / 3);
-        this.ruleSaveButton = this.addButton(new MsmButtonWidget(
-                left, editorY + 50, editorButtonWidth, 20,
-                this.selectedRuleIndex >= 0 ? "SAVE RULE" : "ADD RULE",
-                button -> saveRule()));
-        this.ruleToggleButton = this.addButton(new MsmButtonWidget(
-                left + editorButtonWidth + gap, editorY + 50, editorButtonWidth, 20,
-                getSelectedRuleEnabledLabel(), button -> toggleSelectedRule()));
-        this.ruleDeleteButton = this.addButton(new MsmButtonWidget(
-                left + (editorButtonWidth + gap) * 2, editorY + 50,
-                editorButtonWidth, 20, "DELETE", button -> deleteRule()));
-
-        this.ruleDeleteButton.active = this.selectedRuleIndex >= 0;
-        this.ruleToggleButton.active = this.selectedRuleIndex >= 0;
-        this.addButton(new MsmButtonWidget(
-                left, this.height - 24, width, 20,
-                "SAVE ALL", button -> saveSettings()));
-        if (this.selectedRuleIndex >= 0 && this.selectedRuleIndex < rules.size()) {
-            loadRuleIntoEditor(rules.get(this.selectedRuleIndex));
-        } else {
-            this.selectedRuleIndex = -1;
-            this.ruleDelayField.setText("0");
-        }
-    }
-
-    private int drawEditorHintY;
 
     private void initSettings(int left, int width, int gap) {
         int columns = width >= 520 ? 3 : 2;
@@ -304,6 +213,93 @@ public final class SessionControlScreen extends MsmScreen {
                 this.settingsSecondX, this.settingsChatY,
                 this.settingsFieldWidth, this.draft.getGlobalChatIntervalSeconds());
 
+        int autoChatY = retryY + 44;
+        this.settingsAutoChatY = autoChatY;
+        this.autoChatEnabledButton = this.addButton(new MsmButtonWidget(
+                this.settingsPanelLeft, autoChatY, this.settingsPanelWidth, 20,
+                getAutoChatLabel(), button -> toggleAutoChat()));
+
+        List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
+        int ruleRowY = autoChatY + 26;
+        int ruleRowHeight = 18;
+        int ruleRowStep = 20;
+        int maxRuleRowY = this.height - 118;
+        int ruleRows = Math.max(1, Math.min(3,
+                (maxRuleRowY - ruleRowY) / ruleRowStep));
+        this.rulePageSize = ruleRows;
+        int rulePageCount = Math.max(1,
+                (rules.size() + this.rulePageSize - 1) / this.rulePageSize);
+        this.rulePage = Math.min(this.requestedRulePage, rulePageCount - 1);
+        int ruleStart = this.rulePage * this.rulePageSize;
+        int ruleEnd = Math.min(ruleStart + this.rulePageSize, rules.size());
+
+        for (int index = ruleStart; index < ruleEnd; index++) {
+            final int ruleIndex = index;
+            SessionAutomationSettings.AutoChatRule rule = rules.get(index);
+            String label = (rule.isEnabled() ? "ON " : "OFF ")
+                    + rule.getMode().name() + " " + rule.getDelaySeconds() + "s  "
+                    + rule.getMessage();
+            MsmButtonWidget row = new MsmButtonWidget(
+                    left, ruleRowY, width, ruleRowHeight,
+                    fitText(label, width - 10),
+                    button -> selectRule(ruleIndex));
+            row.active = ruleIndex != this.selectedRuleIndex;
+            this.addButton(row);
+            ruleRowY += ruleRowStep;
+        }
+
+        if (rulePageCount > 1) {
+            int pageWidth = Math.min(90, Math.max(1, (width - gap) / 2));
+            ButtonWidget previous = new MsmButtonWidget(
+                    left, ruleRowY, pageWidth, 16,
+                    "PREVIOUS", button -> openRulePage(this.rulePage - 1, this.selectedRuleIndex));
+            ButtonWidget next = new MsmButtonWidget(
+                    left + pageWidth + gap, ruleRowY, pageWidth, 16,
+                    "NEXT", button -> openRulePage(this.rulePage + 1, this.selectedRuleIndex));
+            previous.active = this.rulePage > 0;
+            next.active = this.rulePage + 1 < rulePageCount;
+            this.addButton(previous);
+            this.addButton(next);
+            ruleRowY += 18;
+        }
+
+        int editorY = Math.min(maxRuleRowY, Math.max(autoChatY + 26, ruleRowY + 2));
+        this.ruleMessageField = this.addButton(new TextFieldWidget(
+                this.textRenderer, left, editorY, width, 18,
+                Text.literal("Chat or command")));
+        this.ruleMessageField.setMaxLength(256);
+
+        int delayWidth = Math.min(90, Math.max(58, width / 4));
+        int modeWidth = Math.max(1, width - delayWidth - gap);
+        this.ruleModeButton = this.addButton(new MsmButtonWidget(
+                left, editorY + 20, modeWidth, 18, editingMode.name(),
+                button -> cycleRuleMode()));
+        this.ruleDelayField = this.addButton(new TextFieldWidget(
+                this.textRenderer, left + modeWidth + gap, editorY + 20,
+                delayWidth, 18, Text.literal("Delay")));
+        this.ruleDelayField.setMaxLength(5);
+
+        int editorButtonWidth = Math.max(1, (width - gap * 2) / 3);
+        this.ruleSaveButton = this.addButton(new MsmButtonWidget(
+                left, editorY + 40, editorButtonWidth, 18,
+                this.selectedRuleIndex >= 0 ? "SAVE RULE" : "ADD RULE",
+                button -> saveRule()));
+        this.ruleToggleButton = this.addButton(new MsmButtonWidget(
+                left + editorButtonWidth + gap, editorY + 40, editorButtonWidth, 18,
+                getSelectedRuleEnabledLabel(), button -> toggleSelectedRule()));
+        this.ruleDeleteButton = this.addButton(new MsmButtonWidget(
+                left + (editorButtonWidth + gap) * 2, editorY + 40,
+                editorButtonWidth, 18, "DELETE", button -> deleteRule()));
+
+        this.ruleDeleteButton.active = this.selectedRuleIndex >= 0;
+        this.ruleToggleButton.active = this.selectedRuleIndex >= 0;
+        if (this.selectedRuleIndex >= 0 && this.selectedRuleIndex < rules.size()) {
+            loadRuleIntoEditor(rules.get(this.selectedRuleIndex));
+        } else {
+            this.selectedRuleIndex = -1;
+            this.ruleDelayField.setText("0");
+        }
+
         this.addButton(new MsmButtonWidget(
                 this.settingsPanelLeft, this.height - 24, this.settingsPanelWidth, 20,
                 "SAVE SETTINGS", button -> saveSettings()));
@@ -332,7 +328,6 @@ public final class SessionControlScreen extends MsmScreen {
     private void toggleAutoChat() {
         this.draft.setAutoChatEnabled(!this.draft.isAutoChatEnabled());
         this.autoChatEnabledButton.setMessage(getAutoChatLabel());
-        saveSettings();
     }
 
     private void selectRule(int index) {
@@ -349,7 +344,7 @@ public final class SessionControlScreen extends MsmScreen {
     private void openAutoChatPage(int page, int selectedIndex) {
         this.client.setScreen(new SessionControlScreen(
                 this.parent, this.controller, this.scheduler, this.sessionId,
-                this.username, Tab.AUTO_CHAT, this.draft, page, selectedIndex));
+                this.username, Tab.SETTINGS, this.draft, page, selectedIndex));
     }
 
     private void loadRuleIntoEditor(SessionAutomationSettings.AutoChatRule rule) {
@@ -393,6 +388,23 @@ public final class SessionControlScreen extends MsmScreen {
         }
     }
 
+    private void commitEditedRule() {
+        if (this.selectedRuleIndex < 0) return;
+        List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
+        if (this.selectedRuleIndex >= rules.size()) return;
+        SessionAutomationSettings.AutoChatRule current =
+                rules.get(this.selectedRuleIndex);
+        SessionAutomationSettings.AutoChatRule updated =
+                new SessionAutomationSettings.AutoChatRule(
+                        this.ruleMessageField.getText(), this.editingMode,
+                        parseNumber(this.ruleDelayField, 0), current.isEnabled());
+        if (!current.getMessage().equals(updated.getMessage())
+                || current.getMode() != updated.getMode()
+                || current.getDelaySeconds() != updated.getDelaySeconds()) {
+            this.draft.updateRule(this.selectedRuleIndex, updated);
+        }
+    }
+
     private void saveRule() {
         try {
             int delay = parseNumber(this.ruleDelayField, 0);
@@ -431,6 +443,9 @@ public final class SessionControlScreen extends MsmScreen {
     private void saveSettings() {
         try {
             if (this.tab == Tab.SETTINGS) {
+                if (this.selectedRuleIndex >= 0) {
+                    commitEditedRule();
+                }
                 this.draft.setReconnectDelaySeconds(parseNumber(this.reconnectDelayField, 10));
                 this.draft.setMaxReconnectAttempts(parseNumber(this.reconnectAttemptsField, 10));
                 this.draft.setMaxReconnectDelaySeconds(parseNumber(this.reconnectMaxDelayField, 60));
@@ -607,15 +622,11 @@ public final class SessionControlScreen extends MsmScreen {
         this.drawGlassPanel(context, 8, 54, this.width - 8, this.height - 8);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 this.title, this.width / 2, 10, 0xFFFFFF);
+        this.text(context, fitText(this.headerText(),
+                Math.max(80, this.width - 24)), 12, 22, 0xFF9EADBD);
 
         if (this.tab == Tab.CHAT) {
             renderChat(context);
-        } else if (this.tab == Tab.AUTO_CHAT) {
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.draft.getRules().size() + " RULES  |  " + getAutoChatLabel()),
-                    this.width / 2, 48, 0xA0A0A0);
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.status), this.width / 2, this.height - 48, 0xA0A0A0);
         } else {
             this.text(context, "RECONNECT DELAY", this.settingsFirstX,
                     this.settingsReconnectY - 12, 0xFF9EADBD);
@@ -623,6 +634,8 @@ public final class SessionControlScreen extends MsmScreen {
                     this.settingsReconnectY - 12, 0xFF9EADBD);
             this.text(context, "MAX DELAY", this.settingsThirdX,
                     this.settingsMaxDelayY - 12, 0xFF9EADBD);
+            this.text(context, "AUTO CHAT", this.settingsFirstX,
+                    this.settingsAutoChatY - 12, 0xFF9EADBD);
             this.text(context, "INITIAL AUTOCHAT DELAY", this.settingsFirstX,
                     this.settingsChatY - 12, 0xFF9EADBD);
             this.text(context, "GLOBAL CHAT INTERVAL", this.settingsSecondX,
@@ -649,6 +662,23 @@ public final class SessionControlScreen extends MsmScreen {
 
         this.text(context, fitText(this.status, this.width - 24),
                 12, this.height - 95, 0xA0A0A0);
+    }
+
+    private String headerText() {
+        String address = "";
+        try {
+            java.util.Optional<SessionManager.Session> session =
+                    this.controller.getSessionManager().find(this.sessionId);
+            if (session.isPresent()) {
+                address = session.get().getProfile().getServerAddress();
+            }
+        } catch (RuntimeException ignored) {
+            address = "";
+        }
+        if (address == null || address.trim().isEmpty()) {
+            return this.username;
+        }
+        return this.username + " - " + address;
     }
 
     private String fitText(String value, int pixelWidth) {

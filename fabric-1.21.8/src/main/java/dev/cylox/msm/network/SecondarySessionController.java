@@ -72,6 +72,10 @@ public final class SecondarySessionController {
         this.sessionManager = sessionManager;
     }
 
+    public SessionManager getSessionManager() {
+        return this.sessionManager;
+    }
+
     public void setLifecycleListener(SessionLifecycleListener listener) {
         this.lifecycleListener = listener;
     }
