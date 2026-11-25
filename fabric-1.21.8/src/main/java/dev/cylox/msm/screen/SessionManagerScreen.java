@@ -247,6 +247,10 @@ public final class SessionManagerScreen extends MsmScreen {
         this.clearChildren();
         this.rowButtons.clear();
         this.accountButtons.clear();
+        this.connectionButton = null;
+        this.removeButton = null;
+        this.controlButton = null;
+        refreshSessions();
         this.serverManageButtons.clear();
 
         int contentWidth = Math.max(1, Math.min(this.width - 24, 560));
