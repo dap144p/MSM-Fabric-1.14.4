@@ -11,7 +11,7 @@ The repository is named **Multi-Sessions-Manager-Fabric**. The product's short n
 
 The JARs are version-specific. Install only the JAR matching the Minecraft profile; a single Fabric JAR cannot safely target both game versions because their runtime and client APIs differ.
 
-The Minecraft-specific UI and networking live in each version module. Shared profile/session logic comes from [MSM-Core](https://github.com/dap144p/MSM-Core), and the version-independent AutoChat / AutoReconnect scheduler is reused from the root source tree. Players install one MSM JAR per Minecraft profile, not a separate Core mod.
+The Minecraft-specific UI and networking live in each version module. Shared profile/session logic comes from [Dapdep Core MSM module](https://github.com/dap144p/dapdep-core/tree/main/modules/msm-core), and the version-independent AutoChat / AutoReconnect scheduler is reused from the root source tree. Players install one MSM JAR per Minecraft profile, not a separate Core mod.
 
 ## Release stage
 
@@ -77,7 +77,7 @@ The new version keeps the Manager and Control Manage workflow: account list, con
 
 - Minecraft 1.14.4 module: JDK 17 for building, with Java 8 bytecode target.
 - Minecraft 1.21.8 module: JDK 21 and its included Gradle 8.14.3 wrapper.
-- Initialize the Core submodule when cloning:
+- Initialize the Dapdep Core submodule when cloning:
 
 ~~~sh
 git clone --recurse-submodules https://github.com/dap144p/Multi-Sessions-Manager-Fabric.git
