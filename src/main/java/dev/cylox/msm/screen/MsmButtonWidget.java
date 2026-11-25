@@ -37,19 +37,19 @@ public final class MsmButtonWidget extends ButtonWidget {
         int accent;
         int textColor;
         if (!this.active) {
-            background = 0xFF202833;
-            accent = 0xFF303A47;
+            background = 0xA0202833;
+            accent = 0x8A303A47;
             textColor = 0xFF7F8B98;
         } else if (this.danger) {
-            background = hovered ? 0xFF663941 : 0xFF472B32;
+            background = hovered ? 0xD3663941 : 0xB8472B32;
             accent = 0xFFCC6874;
             textColor = 0xFFFFE8EA;
         } else if (this.selected) {
-            background = hovered ? 0xFF24566D : 0xFF1D465B;
+            background = hovered ? 0xD924566D : 0xC51D465B;
             accent = 0xFF55B8D5;
             textColor = 0xFFFFFFFF;
         } else {
-            background = hovered ? 0xFF354355 : 0xFF293545;
+            background = hovered ? 0xD0354355 : 0xB5293545;
             accent = hovered ? 0xFF6BBBD2 : 0xFF3B4B5E;
             textColor = 0xFFE8EDF3;
         }
