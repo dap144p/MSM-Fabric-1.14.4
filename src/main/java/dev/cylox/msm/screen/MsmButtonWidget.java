@@ -59,14 +59,18 @@ public final class MsmButtonWidget extends ButtonWidget {
         fill(this.x, this.y + this.height - 1,
                 this.x + this.width, this.y + this.height, 0x553B4655);
 
-        int maxCharacters = Math.max(1, (this.width - 10) / 6);
+        int availableWidth = Math.max(1, this.width - 10);
         String visibleLabel = this.label;
-        if (visibleLabel.length() > maxCharacters) {
-            visibleLabel = visibleLabel.substring(0, Math.max(1, maxCharacters - 3)) + "...";
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.textRenderer.getStringWidth(visibleLabel) > availableWidth) {
+            String suffix = "...";
+            int suffixWidth = client.textRenderer.getStringWidth(suffix);
+            visibleLabel = suffixWidth >= availableWidth
+                    ? client.textRenderer.trimToWidth(visibleLabel, availableWidth)
+                    : client.textRenderer.trimToWidth(visibleLabel, availableWidth - suffixWidth) + suffix;
         }
 
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                visibleLabel, this.x + this.width / 2,
-                this.y + (this.height - 8) / 2, textColor);
+        drawCenteredString(client.textRenderer, visibleLabel,
+                this.x + this.width / 2, this.y + (this.height - 8) / 2, textColor);
     }
 }
