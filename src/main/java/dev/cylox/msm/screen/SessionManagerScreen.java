@@ -24,7 +24,7 @@ import java.util.Optional;
 
 public final class SessionManagerScreen extends MsmScreen {
     private static final int PAGE_SIZE = 6;
-    private static final String DEFAULT_STATUS = "Add an account, select it, then CONNECT or CONTROL MANAGE.";
+    private static final String DEFAULT_STATUS = "Select an account and open MANAGE to view its servers.";
 
     private final Screen parent;
     private final SessionProfileStore store;
@@ -445,7 +445,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.removeButton = this.addButton(new MsmButtonWidget(
                     left + (width + gap) * 2, footerY, width, 20, "REMOVE",
                     button -> requestRemoveAccount()));
-            this.removeButton.setDanger(true);
+            ((MsmButtonWidget) this.removeButton).setDanger(true);
             this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
             this.addButton(new MsmButtonWidget(
@@ -719,32 +719,6 @@ public final class SessionManagerScreen extends MsmScreen {
                 session.getId(), session.getProfile().getUsername()));
     }
 
-    private void openControlManageFor(SessionManager.Session session) {
-        if (session == null) return;
-        this.selectedSessionId = session.getId();
-        openControlManage();
-    }
-
-    private void openAccountManage(String key) {
-        String username = accountUsername(key);
-        MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
-                this, this.store, this.sessionManager, this.secondarySessions,
-                this.automationScheduler, this.serverTemplateRepository,
-                "Manage account " + username + ".", 0, -1L,
-                SessionAuthMode.OFFLINE_LOCAL, username, "", "",
-                "", key, true, false));
-    }
-
-    private void openAddDialog() {
-        String username = this.manageView ? accountUsername(this.managedAccountKey) : "";
-        MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
-                this, this.store, this.sessionManager, this.secondarySessions,
-                this.automationScheduler, this.serverTemplateRepository,
-                this.status, this.pageIndex, this.selectedSessionId,
-                SessionAuthMode.OFFLINE_LOCAL, username, "", "",
-                this.searchValue, this.managedAccountKey, this.manageView, true));
-    }
-
         private void cycleAuthMode() {
         this.authMode = SessionAuthMode.OFFLINE_LOCAL;
         if (this.authModeButton != null) {
@@ -767,7 +741,7 @@ public final class SessionManagerScreen extends MsmScreen {
         MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
                 this.parent, this.store, this.sessionManager, this.secondarySessions,
                 this.automationScheduler, this.serverTemplateRepository,
-                newStatus, page, selectedId, SessionAuthMode.OFFLINE_LOCAL,
+                newStatus, page, selectedId, this.authMode,
                 this.usernameValue, this.serverValue, this.selectedServerName,
                 this.searchValue, this.managedAccountKey, this.manageView, false));
     }
@@ -776,6 +750,7 @@ public final class SessionManagerScreen extends MsmScreen {
     public void tick() {
         super.tick();
         if (this.usernameField != null) this.usernameField.tick();
+        if (this.searchField != null) this.searchField.tick();
         if (this.serverField != null) this.serverField.tick();
         snapshotFormValues();
         refreshSessions();
