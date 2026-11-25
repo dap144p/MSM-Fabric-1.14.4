@@ -35,8 +35,16 @@ public final class SessionManagerScreen extends MsmScreen {
     private final List<SessionProfile> profiles = new ArrayList<SessionProfile>();
     private final List<SessionManager.Session> sessions = new ArrayList<SessionManager.Session>();
     private final Map<Long, ButtonWidget> rowButtons = new LinkedHashMap<Long, ButtonWidget>();
+    private final Map<String, MsmButtonWidget> accountButtons = new LinkedHashMap<String, MsmButtonWidget>();
+    private final Map<Long, MsmButtonWidget> serverManageButtons = new LinkedHashMap<Long, MsmButtonWidget>();
+    private final List<AccountGroup> accountGroups = new ArrayList<AccountGroup>();
+    private final List<AccountListEntry> accountRows = new ArrayList<AccountListEntry>();
 
     private final int requestedPage;
+    private String managedAccountKey;
+    private String searchValue;
+    private boolean manageView;
+    private boolean addDialog;
     private int accountsLabelY;
     private int rowStartY;
     private int accountsPanelBottom;
@@ -46,6 +54,7 @@ public final class SessionManagerScreen extends MsmScreen {
     private int accountsPanelWidth;
     private boolean compactLayout;
 
+    private TextFieldWidget searchField;
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private ButtonWidget authModeButton;
@@ -84,7 +93,7 @@ public final class SessionManagerScreen extends MsmScreen {
                                 ServerTemplateRepository serverTemplateRepository) {
         this(parent, store, sessionManager, secondarySessions, automationScheduler,
                 serverTemplateRepository, DEFAULT_STATUS, 0, -1L,
-                SessionAuthMode.OFFLINE_LOCAL, "", "", "");
+                SessionAuthMode.OFFLINE_LOCAL, "", "", "", "", null, false, false);
     }
 
     private SessionManagerScreen(Screen parent, SessionProfileStore store,
@@ -94,7 +103,9 @@ public final class SessionManagerScreen extends MsmScreen {
                                  ServerTemplateRepository serverTemplateRepository,
                                  String status, int page, long selectedSessionId,
                                  SessionAuthMode authMode, String usernameValue,
-                                 String serverValue, String selectedServerName) {
+                                 String serverValue, String selectedServerName,
+                                 String searchValue, String managedAccountKey,
+                                 boolean manageView, boolean addDialog) {
         super(new LiteralText("Multi Session Manager"));
         if (store == null || sessionManager == null || secondarySessions == null) {
             throw new IllegalArgumentException("Profile store, session manager, and network controller are required");
@@ -113,6 +124,10 @@ public final class SessionManagerScreen extends MsmScreen {
         this.usernameValue = usernameValue == null ? "" : usernameValue;
         this.serverValue = serverValue == null ? "" : serverValue;
         this.selectedServerName = selectedServerName == null ? "" : selectedServerName;
+        this.searchValue = searchValue == null ? "" : searchValue;
+        this.managedAccountKey = managedAccountKey;
+        this.manageView = manageView;
+        this.addDialog = addDialog;
 
         try {
             this.profiles.addAll(this.store.load());
@@ -141,37 +156,88 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void refreshSessions() {
         this.sessions.clear();
+        this.accountGroups.clear();
+        this.accountRows.clear();
+        Map<String, AccountGroup> grouped = new LinkedHashMap<String, AccountGroup>();
+
         for (SessionManager.Session session : this.sessionManager.getSessions()) {
-            if (this.profiles.contains(session.getProfile())) {
-                this.sessions.add(session);
+            if (!this.profiles.contains(session.getProfile())) continue;
+            this.sessions.add(session);
+            SessionProfile profile = session.getProfile();
+            String key = accountKey(profile);
+            AccountGroup group = grouped.get(key);
+            if (group == null) {
+                group = new AccountGroup(key, profile.getUsername(), profile.getAuthMode());
+                grouped.put(key, group);
+            }
+            group.servers.add(session);
+        }
+
+        this.accountGroups.addAll(grouped.values());
+        if (this.manageView && (this.managedAccountKey == null
+                || !grouped.containsKey(this.managedAccountKey))) {
+            this.manageView = false;
+            this.managedAccountKey = null;
+        }
+        String filter = this.searchValue == null ? "" : this.searchValue.trim().toLowerCase();
+        for (AccountGroup group : this.accountGroups) {
+            if (this.manageView) {
+                if (group.key.equals(this.managedAccountKey)) {
+                    for (SessionManager.Session session : group.servers) {
+                        this.accountRows.add(new AccountListEntry(group, session));
+                    }
+                }
+            } else if (filter.isEmpty() || group.username.toLowerCase().contains(filter)) {
+                this.accountRows.add(new AccountListEntry(group, null));
             }
         }
 
+        for (Map.Entry<String, MsmButtonWidget> entry : this.accountButtons.entrySet()) {
+            AccountGroup group = grouped.get(entry.getKey());
+            if (group != null) entry.getValue().setMessage(getAccountGroupLabel(group));
+        }
         for (Map.Entry<Long, ButtonWidget> entry : this.rowButtons.entrySet()) {
             Optional<SessionManager.Session> session = this.sessionManager.find(entry.getKey());
             if (session.isPresent() && this.profiles.contains(session.get().getProfile())) {
-                entry.getValue().setMessage(getAccountLabel(session.get(), entry.getKey()));
+                entry.getValue().setMessage(getServerLabel(session.get(), entry.getKey()));
                 if (entry.getValue() instanceof MsmButtonWidget) {
-                    ((MsmButtonWidget) entry.getValue())
-                            .setSelected(entry.getKey() == this.selectedSessionId);
+                    ((MsmButtonWidget) entry.getValue()).setSelected(entry.getKey() == this.selectedSessionId);
                 }
             }
+        }
+        for (Map.Entry<Long, MsmButtonWidget> entry : this.serverManageButtons.entrySet()) {
+            entry.getValue().active = this.sessionManager.find(entry.getKey()).isPresent();
         }
         refreshControls();
     }
 
-    private String getAccountLabel(SessionManager.Session session, long id) {
-        String prefix = id == this.selectedSessionId ? "> " : "";
-        String label = prefix + session.getProfile().getUsername()
-                + "  [" + session.getState().name() + "]";
-        int availableWidth = this.accountsPanelWidth > 0
-                ? this.accountsPanelWidth - 34 : this.width - 42;
-        int maxCharacters = Math.max(8, availableWidth / 6);
-        return label.length() > maxCharacters
-                ? label.substring(0, maxCharacters - 3) + "..." : label;
+    private static String accountKey(SessionProfile profile) {
+        return profile.getAuthMode().name() + ":" + profile.getUsername();
     }
 
-    private Optional<SessionManager.Session> getSelectedSession() {
+    private String accountUsername(String key) {
+        if (key == null) return this.usernameValue;
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(key)) return group.username;
+        }
+        return this.usernameValue;
+    }
+
+    private String getAccountGroupLabel(AccountGroup group) {
+        int online = 0;
+        for (SessionManager.Session server : group.servers) {
+            if (server.getState() == SessionState.ONLINE) online++;
+        }
+        return group.username + "   [SERVER " + online + "/" + group.servers.size() + "]";
+    }
+
+    private String getServerLabel(SessionManager.Session session, long id) {
+        return fitText(session.getProfile().getServerAddress()
+                + "   [" + session.getState().name() + "]",
+                this.accountsPanelWidth > 0 ? this.accountsPanelWidth - 118 : this.width - 150);
+    }
+
+        private Optional<SessionManager.Session> getSelectedSession() {
         return this.selectedSessionId < 0L
                 ? Optional.<SessionManager.Session>empty()
                 : this.sessionManager.find(this.selectedSessionId);
@@ -242,142 +308,123 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     protected void init() {
         this.rowButtons.clear();
-        this.compactLayout = this.width <= this.height;
+        this.accountButtons.clear();
+        this.serverManageButtons.clear();
+        this.searchField = null;
+        this.usernameField = null;
+        this.serverField = null;
+        this.authModeButton = null;
+        this.serverListButton = null;
+        this.connectionButton = null;
+        this.controlButton = null;
+        this.removeButton = null;
 
-        int margin = this.compactLayout ? 10 : 16;
-        int maxContentWidth = this.compactLayout ? 620 : 960;
-        int contentWidth = Math.max(1,
-                Math.min(this.width - margin * 2, maxContentWidth));
-        int contentLeft = Math.max(margin, (this.width - contentWidth) / 2);
-        int gap = 12;
-        int fieldGap = 6;
+        int contentWidth = Math.max(1, Math.min(this.width - 24, 560));
+        int contentLeft = Math.max(12, (this.width - contentWidth) / 2);
+        this.accountsPanelLeft = contentLeft;
+        this.accountsPanelWidth = contentWidth;
+        this.rowStartY = 96;
+        this.accountsPanelBottom = this.height - 58;
 
-        if (this.compactLayout) {
-            this.formPanelLeft = contentLeft;
-            this.formPanelWidth = contentWidth;
-            this.accountsPanelLeft = contentLeft;
-            this.accountsPanelWidth = contentWidth;
-            this.accountsLabelY = 190;
-            this.rowStartY = 214;
-            this.accountsPanelBottom = Math.max(this.rowStartY + 50, this.height - 135);
-
-            int innerLeft = contentLeft + 12;
-            int innerWidth = Math.max(1, contentWidth - 24);
-            int serverButtonWidth = Math.min(88, Math.max(64, innerWidth / 4));
-            int serverFieldWidth = Math.max(1, innerWidth - serverButtonWidth - fieldGap);
-
+        if (this.addDialog) {
+            int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
+            int left = (this.width - dialogWidth) / 2;
+            int innerLeft = left + 14;
+            int innerWidth = dialogWidth - 28;
+            int top = Math.max(34, (this.height - 164) / 2);
             this.usernameField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 54, innerWidth, 20, "Account username"));
+                    innerLeft, top + 34, innerWidth, 20, "Account username"));
             this.usernameField.setMaxLength(16);
-            this.usernameField.setText(this.usernameValue);
+            this.usernameField.setText(this.manageView
+                    ? accountUsername(this.managedAccountKey) : this.usernameValue);
+            this.usernameField.setEditable(!this.manageView);
 
-            if (this.serverValue.isEmpty()) applyLastSelectedServer();
+            int serverListWidth = Math.min(88, Math.max(68, innerWidth / 4));
+            int serverFieldWidth = Math.max(1, innerWidth - serverListWidth - 8);
             this.serverField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 94, serverFieldWidth, 20, "Server address"));
+                    innerLeft, top + 64, serverFieldWidth, 20, "Server address"));
             this.serverField.setMaxLength(255);
             this.serverField.setText(this.serverValue);
-
             this.serverListButton = this.addButton(new MsmButtonWidget(
-                    innerLeft + serverFieldWidth + fieldGap, 94,
-                    serverButtonWidth, 20, "SERVERS",
-                    button -> openServerPicker()));
+                    innerLeft + serverFieldWidth + 8, top + 64,
+                    serverListWidth, 20, "SERVERS", button -> openServerPicker()));
             this.serverListButton.active = this.serverTemplateRepository != null;
 
-            int actionGroupWidth = Math.min(innerWidth, 222);
-            int authWidth = Math.min(92, Math.max(1, (actionGroupWidth - fieldGap) / 2));
-            int addWidth = Math.max(1, actionGroupWidth - authWidth - fieldGap);
-            int actionLeft = innerLeft + (innerWidth - actionGroupWidth) / 2;
+            int authWidth = 86;
             this.authModeButton = this.addButton(new MsmButtonWidget(
-                    actionLeft, 126, authWidth, 20,
-                    getAuthModeLabel(), button -> cycleAuthMode()));
+                    innerLeft, top + 98, authWidth, 20, "OFFLINE", button -> { }));
             this.authModeButton.active = false;
             this.addButton(new MsmButtonWidget(
-                    actionLeft + authWidth + fieldGap, 126,
-                    addWidth, 20, "ADD ACCOUNT", button -> addAccount()));
-        } else {
-            this.formPanelLeft = contentLeft;
-            this.formPanelWidth = Math.min(330,
-                    Math.max(190, (contentWidth - gap) * 34 / 100));
-            this.accountsPanelLeft = this.formPanelLeft + this.formPanelWidth + gap;
-            this.accountsPanelWidth = Math.max(1,
-                    contentLeft + contentWidth - this.accountsPanelLeft);
-            this.accountsLabelY = 51;
-            this.rowStartY = 78;
-            this.accountsPanelBottom = this.height - 94;
-
-            int innerLeft = this.formPanelLeft + 12;
-            int innerWidth = Math.max(1, this.formPanelWidth - 24);
-            int serverButtonWidth = Math.min(88, Math.max(66, innerWidth / 4));
-            int serverFieldWidth = Math.max(1, innerWidth - serverButtonWidth - fieldGap);
-
-            this.usernameField = this.addButton(new TextFieldWidget(
-                    MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 88, innerWidth, 20, "Account username"));
-            this.usernameField.setMaxLength(16);
-            this.usernameField.setText(this.usernameValue);
-
-            if (this.serverValue.isEmpty()) applyLastSelectedServer();
-            this.serverField = this.addButton(new TextFieldWidget(
-                    MinecraftClient.getInstance().textRenderer,
-                    innerLeft, 132, serverFieldWidth, 20, "Server address"));
-            this.serverField.setMaxLength(255);
-            this.serverField.setText(this.serverValue);
-
-            this.serverListButton = this.addButton(new MsmButtonWidget(
-                    innerLeft + serverFieldWidth + fieldGap, 132,
-                    serverButtonWidth, 20, "SERVERS",
-                    button -> openServerPicker()));
-            this.serverListButton.active = this.serverTemplateRepository != null;
-
-            int actionGroupWidth = Math.min(innerWidth, 222);
-            int authWidth = Math.min(92, Math.max(1, (actionGroupWidth - fieldGap) / 2));
-            int addWidth = Math.max(1, actionGroupWidth - authWidth - fieldGap);
-            int actionLeft = innerLeft + (innerWidth - actionGroupWidth) / 2;
-            this.authModeButton = this.addButton(new MsmButtonWidget(
-                    actionLeft, 174, authWidth, 20,
-                    getAuthModeLabel(), button -> cycleAuthMode()));
-            this.authModeButton.active = false;
+                    innerLeft + authWidth + 8, top + 98,
+                    innerWidth - authWidth - 8, 20,
+                    this.manageView ? "ADD SERVER" : "ADD ACCOUNT",
+                    button -> addAccount()));
             this.addButton(new MsmButtonWidget(
-                    actionLeft + authWidth + fieldGap, 174,
-                    addWidth, 20, "ADD ACCOUNT", button -> addAccount()));
+                    left + dialogWidth - 80, top + 8, 66, 18, "CANCEL",
+                    button -> MinecraftClient.getInstance().openScreen(this.parent)));
+            return;
         }
 
-        int pageButtonY = this.compactLayout
-                ? this.accountsPanelBottom - 25 : this.height - 122;
-        int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 24) / 23 + 1);
-        this.pageSize = Math.min(PAGE_SIZE, availableRows);
+        if (!this.manageView) {
+            int searchWidth = Math.min(220, Math.max(140, contentWidth - 40));
+            this.searchField = this.addButton(new TextFieldWidget(
+                    MinecraftClient.getInstance().textRenderer,
+                    this.width / 2 - searchWidth / 2, 36,
+                    searchWidth, 20, "Search accounts..."));
+            this.searchField.setMaxLength(64);
+            this.searchField.setText(this.searchValue);
+        }
 
-        int pageCount = Math.max(1, (this.sessions.size() + this.pageSize - 1) / this.pageSize);
+        int pageButtonY = this.height - 66;
+        int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 18) / 24 + 1);
+        this.pageSize = Math.min(PAGE_SIZE, availableRows);
+        int pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, pageCount - 1);
         int start = this.pageIndex * this.pageSize;
-        int end = Math.min(start + this.pageSize, this.sessions.size());
+        int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.min(440, Math.max(1, this.accountsPanelWidth - 20));
-        int rowLeft = this.accountsPanelLeft + (this.accountsPanelWidth - rowWidth) / 2;
+        int rowWidth = Math.min(this.manageView ? 520 : 480, Math.max(1, contentWidth - 24));
+        int rowLeft = (this.width - rowWidth) / 2;
+        int actionWidth = 82;
+        int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
         for (int index = start; index < end; index++) {
-            final SessionManager.Session session = this.sessions.get(index);
-            MsmButtonWidget row = new MsmButtonWidget(
-                    rowLeft, rowY, rowWidth,
-                    20, getAccountLabel(session, session.getId()),
-                    button -> selectAccount(session));
-            row.setSelected(session.getId() == this.selectedSessionId);
-            this.rowButtons.put(session.getId(), row);
-            this.addButton(row);
-            rowY += 23;
+            AccountListEntry entry = this.accountRows.get(index);
+            if (!this.manageView && entry.server == null) {
+                AccountGroup group = entry.account;
+                MsmButtonWidget account = new MsmButtonWidget(
+                        rowLeft, rowY, labelWidth, 20, getAccountGroupLabel(group),
+                        button -> openAccountManage(group.key));
+                this.accountButtons.put(group.key, account);
+                this.addButton(account);
+                this.addButton(new MsmButtonWidget(
+                        rowLeft + labelWidth + 8, rowY, actionWidth, 20,
+                        "MANAGE", button -> openAccountManage(group.key)));
+            } else if (entry.server != null) {
+                SessionManager.Session session = entry.server;
+                MsmButtonWidget server = new MsmButtonWidget(
+                        rowLeft, rowY, labelWidth, 20, getServerLabel(session, session.getId()),
+                        button -> selectAccount(session));
+                server.setSelected(session.getId() == this.selectedSessionId);
+                this.rowButtons.put(session.getId(), server);
+                this.addButton(server);
+                MsmButtonWidget manage = new MsmButtonWidget(
+                        rowLeft + labelWidth + 8, rowY, actionWidth, 20,
+                        "MANAGE", button -> openControlManageFor(session));
+                this.serverManageButtons.put(session.getId(), manage);
+                this.addButton(manage);
+            }
+            rowY += 24;
         }
 
         if (pageCount > 1) {
-            int pageWidth = Math.min(100, Math.max(1, (this.accountsPanelWidth - 30) / 2));
-            int pageLeft = this.accountsPanelLeft
-                    + (this.accountsPanelWidth - pageWidth * 2 - 8) / 2;
-            ButtonWidget previous = new MsmButtonWidget(
-                    pageLeft, pageButtonY, pageWidth, 18,
+            int pageWidth = Math.min(100, Math.max(1, (contentWidth - 30) / 2));
+            int pageLeft = (this.width - pageWidth * 2 - 8) / 2;
+            ButtonWidget previous = new MsmButtonWidget(pageLeft, pageButtonY, pageWidth, 18,
                     "PREVIOUS", button -> openPage(this.pageIndex - 1));
-            ButtonWidget next = new MsmButtonWidget(
-                    pageLeft + pageWidth + 8, pageButtonY, pageWidth, 18,
+            ButtonWidget next = new MsmButtonWidget(pageLeft + pageWidth + 8, pageButtonY, pageWidth, 18,
                     "NEXT", button -> openPage(this.pageIndex + 1));
             previous.active = this.pageIndex > 0;
             next.active = this.pageIndex + 1 < pageCount;
@@ -385,75 +432,65 @@ public final class SessionManagerScreen extends MsmScreen {
             this.addButton(next);
         }
 
-        if (this.compactLayout) {
-            int actionGap = 8;
-            int actionGroupWidth = Math.min(contentWidth, 360);
-            int actionLeft = contentLeft + (contentWidth - actionGroupWidth) / 2;
-            int actionWidth = Math.max(1, (actionGroupWidth - actionGap) / 2);
-            int firstRowY = this.height - 76;
-            int secondRowY = this.height - 50;
+        int footerY = this.height - 30;
+        if (this.manageView) {
+            int gap = 8;
+            int groupWidth = Math.min(456, contentWidth);
+            int left = (this.width - groupWidth) / 2;
+            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
+                    button -> openAddDialog()));
             this.connectionButton = this.addButton(new MsmButtonWidget(
-                    actionLeft, firstRowY, actionWidth, 20,
-                    (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"), button -> toggleConnection()));
-            this.controlButton = this.addButton(new MsmButtonWidget(
-                    actionLeft + actionWidth + actionGap, firstRowY,
-                    actionGroupWidth - actionWidth - actionGap, 20,
-                    (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"), button -> openControlManage()));
+                    left + width + gap, footerY, width, 20, "JOIN", button -> toggleConnection()));
             this.removeButton = this.addButton(new MsmButtonWidget(
-                    actionLeft, secondRowY, actionWidth, 20, "REMOVE ACCOUNT", button -> requestRemoveAccount()));
-            ((MsmButtonWidget) this.removeButton).setDanger(true);
+                    left + (width + gap) * 2, footerY, width, 20, "REMOVE",
+                    button -> requestRemoveAccount()));
+            this.removeButton.setDanger(true);
+            this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
+                    "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
             this.addButton(new MsmButtonWidget(
-                    actionLeft + actionWidth + actionGap, secondRowY,
-                    actionGroupWidth - actionWidth - actionGap, 20, "CLOSE", button -> onClose()));
+                    contentLeft + contentWidth - 78, 8, 70, 18, "BACK",
+                    button -> MinecraftClient.getInstance().openScreen(this.parent)));
         } else {
-            int actionGap = 8;
-            int actionTotalWidth = 510;
-            int actionLeft = contentLeft + (contentWidth - Math.min(contentWidth, actionTotalWidth)) / 2;
-            if (contentWidth < actionTotalWidth) {
-                int actionWidth = Math.max(1, (contentWidth - actionGap * 3) / 4);
-                this.connectionButton = this.addButton(new MsmButtonWidget(
-                        contentLeft, this.height - 28, actionWidth, 20,
-                        "JOIN / CONNECT", button -> toggleConnection()));
-                this.controlButton = this.addButton(new MsmButtonWidget(
-                        contentLeft + actionWidth + actionGap, this.height - 28,
-                        actionWidth, 20, "CONTROL MANAGE", button -> openControlManage()));
-                this.removeButton = this.addButton(new MsmButtonWidget(
-                        contentLeft + (actionWidth + actionGap) * 2, this.height - 28,
-                        actionWidth, 20, "REMOVE ACCOUNT", button -> requestRemoveAccount()));
-                ((MsmButtonWidget) this.removeButton).setDanger(true);
-                this.addButton(new MsmButtonWidget(
-                        contentLeft + (actionWidth + actionGap) * 3, this.height - 28,
-                        actionWidth, 20, "CLOSE", button -> onClose()));
-            } else {
-                int actionY = this.height - 28;
-                this.connectionButton = this.addButton(new MsmButtonWidget(
-                        actionLeft, actionY, 132, 20, "JOIN / CONNECT", button -> toggleConnection()));
-                this.controlButton = this.addButton(new MsmButtonWidget(
-                        actionLeft + 140, actionY, 144, 20, "CONTROL MANAGE", button -> openControlManage()));
-                this.removeButton = this.addButton(new MsmButtonWidget(
-                        actionLeft + 292, actionY, 140, 20, "REMOVE ACCOUNT", button -> requestRemoveAccount()));
-                ((MsmButtonWidget) this.removeButton).setDanger(true);
-                this.addButton(new MsmButtonWidget(
-                        actionLeft + 440, actionY, 70, 20, "CLOSE", button -> onClose()));
-            }
+            int gap = 8;
+            int groupWidth = Math.min(220, contentWidth);
+            int left = (this.width - groupWidth) / 2;
+            int addWidth = Math.min(132, groupWidth - 76);
+            this.addButton(new MsmButtonWidget(left, footerY, addWidth, 20, "ADD",
+                    button -> openAddDialog()));
+            this.addButton(new MsmButtonWidget(left + addWidth + gap, footerY,
+                    groupWidth - addWidth - gap, 20, "BACK", button -> onClose()));
         }
-
-        this.addButton(new MsmButtonWidget(
-                contentLeft + contentWidth - 78, 6, 70, 18, "UPDATES",
-                button -> openUpdateScreen()));
         refreshControls();
     }
 
-    private void openUpdateScreen() {
-        if (MsmClient.getUpdateManager() == null) {
-            this.status = "Updater is unavailable.";
-            return;
-        }
-        MinecraftClient.getInstance().openScreen(
-                new MsmUpdateScreen(this, MsmClient.getUpdateManager()));
+    private void openAccountManage(String key) {
+        String username = accountUsername(key);
+        MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
+                this, this.store, this.sessionManager, this.secondarySessions,
+                this.automationScheduler, this.serverTemplateRepository,
+                "Manage account " + username + ".", 0, -1L,
+                SessionAuthMode.OFFLINE_LOCAL, username, "", "",
+                "", key, true, false));
     }
 
-    private void applyLastSelectedServer() {
+    private void openAddDialog() {
+        String username = this.manageView ? accountUsername(this.managedAccountKey) : "";
+        MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
+                this, this.store, this.sessionManager, this.secondarySessions,
+                this.automationScheduler, this.serverTemplateRepository,
+                this.status, this.pageIndex, this.selectedSessionId,
+                SessionAuthMode.OFFLINE_LOCAL, username, "", "",
+                this.searchValue, this.managedAccountKey, this.manageView, true));
+    }
+
+    private void openControlManageFor(SessionManager.Session session) {
+        if (session == null) return;
+        this.selectedSessionId = session.getId();
+        openControlManage();
+    }
+
+        private void applyLastSelectedServer() {
         if (this.serverTemplateRepository == null) return;
         try {
             List<ServerTemplateRepository.ServerTemplate> servers =
@@ -495,7 +532,7 @@ public final class SessionManagerScreen extends MsmScreen {
             SessionProfile profile = new SessionProfile(
                     this.usernameValue,
                     this.serverValue,
-                    this.authMode);
+                    SessionAuthMode.OFFLINE_LOCAL);
 
             if (this.profiles.contains(profile)) {
                 this.status = "This account and server are already added.";
@@ -512,10 +549,12 @@ public final class SessionManagerScreen extends MsmScreen {
                 throw exception;
             }
 
-            int selectedIndex = this.sessionManager.getSessions().indexOf(created);
-            int targetPage = Math.max(0, selectedIndex / this.pageSize);
+            this.managedAccountKey = accountKey(profile);
+            this.manageView = true;
+            this.addDialog = false;
+            this.searchValue = "";
             openScreen("Account " + profile.getUsername() + " added.",
-                    targetPage, created.getId());
+                    0, created.getId());
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.status = exception.getMessage();
         } catch (IOException exception) {
@@ -626,12 +665,14 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void selectAccount(SessionManager.Session session) {
         this.selectedSessionId = session.getId();
+        this.managedAccountKey = accountKey(session.getProfile());
         this.lastObservedState = null;
-        this.status = "Selected " + session.getProfile().getUsername() + ".";
+        this.status = "Selected " + session.getProfile().getUsername()
+                + " on " + session.getProfile().getServerAddress() + ".";
         refreshSessions();
     }
 
-    private void toggleConnection() {
+        private void toggleConnection() {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (!selected.isPresent()) {
             this.status = "Select an account first.";
@@ -665,27 +706,54 @@ public final class SessionManagerScreen extends MsmScreen {
     private void openControlManage() {
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (!selected.isPresent()) {
-            this.status = "Select an account first.";
+            this.status = "Select a server first.";
             return;
         }
         if (this.automationScheduler == null) {
             this.status = "Automation scheduler is unavailable.";
             return;
         }
-
+        SessionManager.Session session = selected.get();
         MinecraftClient.getInstance().openScreen(new SessionControlScreen(
                 this, this.secondarySessions, this.automationScheduler,
-                selected.get().getId(), selected.get().getProfile().getUsername()));
+                session.getId(), session.getProfile().getUsername()));
     }
 
-    private void cycleAuthMode() {
-        this.authMode = this.authMode == SessionAuthMode.OFFLINE_LOCAL
-                ? SessionAuthMode.MICROSOFT : SessionAuthMode.OFFLINE_LOCAL;
-        this.authModeButton.setMessage(getAuthModeLabel());
-        this.status = "Authentication: " + getAuthModeLabel() + ".";
+    private void openControlManageFor(SessionManager.Session session) {
+        if (session == null) return;
+        this.selectedSessionId = session.getId();
+        openControlManage();
     }
 
-    private String getAuthModeLabel() {
+    private void openAccountManage(String key) {
+        String username = accountUsername(key);
+        MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
+                this, this.store, this.sessionManager, this.secondarySessions,
+                this.automationScheduler, this.serverTemplateRepository,
+                "Manage account " + username + ".", 0, -1L,
+                SessionAuthMode.OFFLINE_LOCAL, username, "", "",
+                "", key, true, false));
+    }
+
+    private void openAddDialog() {
+        String username = this.manageView ? accountUsername(this.managedAccountKey) : "";
+        MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
+                this, this.store, this.sessionManager, this.secondarySessions,
+                this.automationScheduler, this.serverTemplateRepository,
+                this.status, this.pageIndex, this.selectedSessionId,
+                SessionAuthMode.OFFLINE_LOCAL, username, "", "",
+                this.searchValue, this.managedAccountKey, this.manageView, true));
+    }
+
+        private void cycleAuthMode() {
+        this.authMode = SessionAuthMode.OFFLINE_LOCAL;
+        if (this.authModeButton != null) {
+            this.authModeButton.setMessage("OFFLINE");
+            this.authModeButton.active = false;
+        }
+    }
+
+        private String getAuthModeLabel() {
         return this.authMode == SessionAuthMode.OFFLINE_LOCAL ? "OFFLINE" : "MICROSOFT";
     }
 
@@ -699,11 +767,12 @@ public final class SessionManagerScreen extends MsmScreen {
         MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
                 this.parent, this.store, this.sessionManager, this.secondarySessions,
                 this.automationScheduler, this.serverTemplateRepository,
-                newStatus, page, selectedId, this.authMode,
-                this.usernameValue, this.serverValue, this.selectedServerName));
+                newStatus, page, selectedId, SessionAuthMode.OFFLINE_LOCAL,
+                this.usernameValue, this.serverValue, this.selectedServerName,
+                this.searchValue, this.managedAccountKey, this.manageView, false));
     }
 
-    @Override
+        @Override
     public void tick() {
         super.tick();
         if (this.usernameField != null) this.usernameField.tick();
@@ -727,63 +796,89 @@ public final class SessionManagerScreen extends MsmScreen {
         this.renderMsmBackground();
         drawGlassDivider(12, 28, this.width - 12);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "MULTI SESSION MANAGER", this.width / 2, 11, 0xFFF1F5FA);
+                this.addDialog ? "ADD OFFLINE ACCOUNT"
+                        : this.manageView ? "MANAGE ACCOUNT" : "MULTI SESSION MANAGER",
+                this.width / 2, 11, 0xFFF1F5FA);
 
-        int formBottom = this.compactLayout ? 174 : 212;
-        int accountsTop = this.compactLayout ? 181 : 36;
-        drawGlassPanel(this.formPanelLeft, 36,
-                this.formPanelLeft + this.formPanelWidth, formBottom);
-        drawGlassPanel(this.accountsPanelLeft, accountsTop,
-                this.accountsPanelLeft + this.accountsPanelWidth, this.accountsPanelBottom);
-
-        if (this.compactLayout) {
-            drawSectionTitle("ADD ACCOUNT", this.formPanelLeft + 12, 40);
-            drawSectionTitle("SERVER ADDRESS", this.formPanelLeft + 12, 82);
-            drawSectionTitle("ACCOUNTS  (" + this.sessions.size() + ")",
-                    this.accountsPanelLeft + 12, this.accountsLabelY);
-
-            if (this.sessions.isEmpty()) {
-                drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                        "No accounts added yet.", this.width / 2,
-                        this.rowStartY + 14, 0xFF9EADBD);
-            }
-
-            drawGlassPanel(10, this.height - 130, this.width - 10, this.height - 82);
+        if (this.addDialog) {
+            int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
+            int left = (this.width - dialogWidth) / 2;
+            int top = Math.max(34, (this.height - 164) / 2);
+            drawGlassPanel(left, top, left + dialogWidth, top + 150);
+            drawSectionTitle("OFFLINE ACCOUNT", left + 14, top + 12);
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    "Microsoft sign-in is postponed.", left + 14, top + 132, 0xFF9EADBD);
         } else {
-            drawSectionTitle("ADD ACCOUNT", this.formPanelLeft + 12, 51);
-            drawSectionTitle("USERNAME", this.formPanelLeft + 12, 73);
-            drawSectionTitle("SERVER ADDRESS", this.formPanelLeft + 12, 117);
-            drawSectionTitle("ACCOUNTS  (" + this.sessions.size() + ")",
-                    this.accountsPanelLeft + 12, this.accountsLabelY);
-
-            if (this.sessions.isEmpty()) {
-                drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                        "No accounts added yet.", this.accountsPanelLeft + this.accountsPanelWidth / 2,
-                        this.rowStartY + 14, 0xFF9EADBD);
+            int top = this.manageView ? 42 : 66;
+            int bottom = this.height - 58;
+            drawGlassPanel(this.accountsPanelLeft, top,
+                    this.accountsPanelLeft + this.accountsPanelWidth, bottom);
+            drawSectionTitle(this.manageView
+                    ? "SERVERS  (" + this.accountRows.size() + ")"
+                    : "ACCOUNTS  (" + this.accountRows.size() + ")",
+                    this.accountsPanelLeft + 12, top + 8);
+            if (this.manageView) {
+                drawString(MinecraftClient.getInstance().textRenderer,
+                        accountUsername(this.managedAccountKey),
+                        this.accountsPanelLeft + 12, top - 12, 0xFFE7EDF5);
             }
-
-            drawGlassPanel(16, this.height - 88, this.width - 16, this.height - 54);
+            if (this.accountRows.isEmpty()) {
+                String empty = this.manageView ? "No servers added to this account yet."
+                        : this.searchValue.isEmpty() ? "No accounts added yet."
+                        : "No accounts match your search.";
+                drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                        empty, this.width / 2, top + 38, 0xFF9EADBD);
+            }
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    fitText(this.status, this.width - 32),
+                    16, this.height - 48, 0xFF9EADBD);
         }
-
-        Optional<SessionManager.Session> selected = getSelectedSession();
-        String selectedText = selected.isPresent()
-                ? "SELECTED  " + selected.get().getProfile().getUsername()
-                    + "  |  " + selected.get().getState().name()
-                : "NO ACCOUNT SELECTED";
-        int selectedY = this.compactLayout ? this.height - 119 : this.height - 79;
-        int statusY = this.compactLayout ? this.height - 102 : this.height - 65;
-        drawString(MinecraftClient.getInstance().textRenderer,
-                fitText(selectedText, this.width - 32), 24, selectedY, 0xFFE7EDF5);
-        drawString(MinecraftClient.getInstance().textRenderer,
-                fitText(this.status, this.width - 32), 24, statusY, 0xFF9EADBD);
 
         super.render(mouseX, mouseY, delta);
     }
 
-    private String fitText(String value, int pixelWidth) {
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!this.manageView && !this.addDialog && keyCode == 257
+                && this.searchField != null && this.searchField.isFocused()) {
+            String filter = this.searchField.getText();
+            MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
+                    this.parent, this.store, this.sessionManager, this.secondarySessions,
+                    this.automationScheduler, this.serverTemplateRepository,
+                    this.status, 0, -1L, SessionAuthMode.OFFLINE_LOCAL,
+                    this.usernameValue, "", "", filter, null, false, false));
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+        private String fitText(String value, int pixelWidth) {
         if (value == null) return "";
         int maxCharacters = Math.max(8, pixelWidth / 6);
         if (value.length() <= maxCharacters) return value;
         return value.substring(0, maxCharacters - 3) + "...";
+    }
+
+    private static final class AccountGroup {
+        private final String key;
+        private final String username;
+        private final SessionAuthMode authMode;
+        private final List<SessionManager.Session> servers = new ArrayList<SessionManager.Session>();
+
+        private AccountGroup(String key, String username, SessionAuthMode authMode) {
+            this.key = key;
+            this.username = username;
+            this.authMode = authMode;
+        }
+    }
+
+    private static final class AccountListEntry {
+        private final AccountGroup account;
+        private final SessionManager.Session server;
+
+        private AccountListEntry(AccountGroup account, SessionManager.Session server) {
+            this.account = account;
+            this.server = server;
+        }
     }
 }
