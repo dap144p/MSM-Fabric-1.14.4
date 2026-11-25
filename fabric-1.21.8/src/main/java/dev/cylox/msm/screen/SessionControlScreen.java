@@ -126,19 +126,21 @@ public final class SessionControlScreen extends MsmScreen {
 
     @Override
     protected void init() {
-        boolean sidebar = this.width >= 520;
-        this.contentLeft = sidebar ? 132 : 12;
+        int workspaceWidth = Math.max(1, Math.min(this.width - 24, 900));
+        int workspaceLeft = Math.max(12, (this.width - workspaceWidth) / 2);
+        boolean sidebar = workspaceWidth >= 520;
+        this.contentLeft = sidebar ? workspaceLeft + 132 : workspaceLeft + 12;
         this.contentTop = sidebar ? 44 : 76;
-        this.contentWidth = Math.max(1, this.width - this.contentLeft - 12);
+        this.contentWidth = Math.max(1, workspaceWidth - (sidebar ? 144 : 24));
         this.contentBottom = Math.max(this.contentTop + 1, this.height - 42);
 
         if (sidebar) {
-            addTabButton(16, 58, 100, "CHAT", Tab.CHAT);
-            addTabButton(16, 86, 100, "AUTO CHAT", Tab.AUTO_CHAT);
-            addTabButton(16, 114, 100, "SETTINGS", Tab.SETTINGS);
+            addTabButton(workspaceLeft + 16, 58, 100, "CHAT", Tab.CHAT);
+            addTabButton(workspaceLeft + 16, 86, 100, "AUTO CHAT", Tab.AUTO_CHAT);
+            addTabButton(workspaceLeft + 16, 114, 100, "SETTINGS", Tab.SETTINGS);
         } else {
             int gap = 5;
-            int tabWidth = Math.max(1, (this.width - 24 - gap * 2) / 3);
+            int tabWidth = Math.min(160, Math.max(1, (workspaceWidth - 24 - gap * 2) / 3));
             addTabButton(12, 44, tabWidth, "CHAT", Tab.CHAT);
             addTabButton(12 + tabWidth + gap, 44, tabWidth, "AUTO CHAT", Tab.AUTO_CHAT);
             addTabButton(12 + (tabWidth + gap) * 2, 44, tabWidth,
@@ -170,7 +172,7 @@ public final class SessionControlScreen extends MsmScreen {
         int buttonWidth = this.width < 360 ? 54 : 62;
         int gap = 5;
         int y = this.height - 30;
-        int right = this.width - 12;
+        int right = this.contentLeft + this.contentWidth;
 
         this.closeButton = this.addButton(new MsmButtonWidget(
                 right - buttonWidth, y, buttonWidth, 20,
@@ -199,21 +201,23 @@ public final class SessionControlScreen extends MsmScreen {
         int left = this.contentLeft + 12;
         int width = Math.max(1, this.contentWidth - 24);
         int gap = 6;
-        int sendWidth = Math.min(70, Math.max(48, width / 5));
-        sendWidth = Math.min(sendWidth, Math.max(1, width - gap - 1));
-        int fieldWidth = Math.max(1, width - sendWidth - gap);
+        int inputWidth = Math.min(620, width);
+        int inputLeft = left + (width - inputWidth) / 2;
+        int sendWidth = Math.min(70, Math.max(48, inputWidth / 5));
+        sendWidth = Math.min(sendWidth, Math.max(1, inputWidth - gap - 1));
+        int fieldWidth = Math.max(1, inputWidth - sendWidth - gap);
         int inputY = this.contentBottom - 28;
 
         this.chatPanelTop = this.contentTop + 38;
         this.chatPanelBottom = Math.max(this.chatPanelTop + 1, inputY - 18);
 
         this.chatField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left, inputY, fieldWidth, 20,
+                this.textRenderer, inputLeft, inputY, fieldWidth, 20,
                 Text.literal("Message")));
         this.chatField.setMaxLength(256);
 
         this.sendButton = this.addButton(new MsmButtonWidget(
-                left + fieldWidth + gap, inputY, sendWidth, 20,
+                inputLeft + fieldWidth + gap, inputY, sendWidth, 20,
                 "SEND", button -> sendChat()));
 
         int connectionWidth = Math.min(132, Math.max(88, width / 3));
@@ -237,8 +241,10 @@ public final class SessionControlScreen extends MsmScreen {
         int editorHeight = compact ? 18 : 20;
         int toolbarY = this.contentTop + 34;
 
+        int toggleWidth = Math.min(190, width);
+        int toggleLeft = left + (width - toggleWidth) / 2;
         this.autoChatEnabledButton = this.addButton(new MsmButtonWidget(
-                left, toolbarY, width, 20, getAutoChatLabel(),
+                toggleLeft, toolbarY, toggleWidth, 20, getAutoChatLabel(),
                 button -> toggleAutoChat()));
 
         List<SessionAutomationSettings.AutoChatRule> rules = this.draft.getRules();
@@ -253,6 +259,8 @@ public final class SessionControlScreen extends MsmScreen {
         this.rulePage = Math.min(this.requestedRulePage, pageCount - 1);
         int start = this.rulePage * this.rulePageSize;
         int end = Math.min(start + this.rulePageSize, rules.size());
+        int rowWidth = Math.min(620, width);
+        int rowLeft = left + (width - rowWidth) / 2;
 
         for (int index = start; index < end; index++) {
             final int ruleIndex = index;
@@ -261,7 +269,7 @@ public final class SessionControlScreen extends MsmScreen {
                     + rule.getMode().name() + "  " + rule.getDelaySeconds() + "s  "
                     + rule.getMessage();
             MsmButtonWidget row = this.addButton(new MsmButtonWidget(
-                    left, rowY, width, rowHeight, fitText(label, width - 14),
+                    rowLeft, rowY, rowWidth, rowHeight, fitText(label, rowWidth - 14),
                     button -> selectRule(ruleIndex)));
             row.setSelected(ruleIndex == this.selectedRuleIndex);
             rowY += rowStep;
@@ -270,10 +278,10 @@ public final class SessionControlScreen extends MsmScreen {
         if (pageCount > 1) {
             int pageWidth = Math.min(96, Math.max(1, (width - gap) / 2));
             ButtonWidget previous = new MsmButtonWidget(
-                    left, rowY, pageWidth, pageHeight, "PREVIOUS",
+                    rowLeft, rowY, pageWidth, pageHeight, "PREVIOUS",
                     button -> openRulePage(this.rulePage - 1));
             ButtonWidget next = new MsmButtonWidget(
-                    left + pageWidth + gap, rowY, pageWidth, pageHeight, "NEXT",
+                    rowLeft + pageWidth + gap, rowY, pageWidth, pageHeight, "NEXT",
                     button -> openRulePage(this.rulePage + 1));
             previous.active = this.rulePage > 0;
             next.active = this.rulePage + 1 < pageCount;
@@ -283,32 +291,36 @@ public final class SessionControlScreen extends MsmScreen {
         }
 
         int editorY = Math.min(maxEditorY, Math.max(toolbarY + 44, rowY + 2));
+        int editorWidth = Math.min(620, width);
+        int editorLeft = left + (width - editorWidth) / 2;
         this.ruleMessageField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left, editorY, width, editorHeight,
+                this.textRenderer, editorLeft, editorY, editorWidth, editorHeight,
                 Text.literal("Chat or command")));
         this.ruleMessageField.setMaxLength(256);
 
         int delayWidth = Math.min(100, Math.max(64, width / 4));
-        int modeWidth = Math.max(1, width - delayWidth - gap);
+        int modeWidth = Math.min(170, Math.max(1, editorWidth - delayWidth - gap));
         this.ruleModeButton = this.addButton(new MsmButtonWidget(
-                left, editorY + editorStep, modeWidth, editorHeight, this.editingMode.name(),
+                editorLeft, editorY + editorStep, modeWidth, editorHeight, this.editingMode.name(),
                 button -> cycleRuleMode()));
         this.ruleDelayField = this.addButton(new TextFieldWidget(
-                this.textRenderer, left + modeWidth + gap, editorY + editorStep,
+                this.textRenderer, editorLeft + modeWidth + gap, editorY + editorStep,
                 delayWidth, editorHeight, Text.literal("Delay")));
         this.ruleDelayField.setMaxLength(5);
 
-        int actionGap = 5;
-        int actionWidth = Math.max(1, (width - actionGap * 2) / 3);
+        int actionGap = 6;
+        int actionGroupWidth = Math.min(320, width);
+        int actionLeft = left + (width - actionGroupWidth) / 2;
+        int actionWidth = Math.max(1, (actionGroupWidth - actionGap * 2) / 3);
         this.ruleAddButton = this.addButton(new MsmButtonWidget(
-                left, editorY + editorActionOffset, actionWidth, editorHeight,
+                actionLeft, editorY + editorActionOffset, actionWidth, editorHeight,
                 "ADD RULE", button -> addRule()));
         this.ruleToggleButton = this.addButton(new MsmButtonWidget(
-                left + actionWidth + actionGap, editorY + editorActionOffset,
+                actionLeft + actionWidth + actionGap, editorY + editorActionOffset,
                 actionWidth, editorHeight, getSelectedRuleEnabledLabel(),
                 button -> toggleSelectedRule()));
         this.ruleDeleteButton = this.addButton(new MsmButtonWidget(
-                left + (actionWidth + actionGap) * 2, editorY + editorActionOffset,
+                actionLeft + (actionWidth + actionGap) * 2, editorY + editorActionOffset,
                 actionWidth, editorHeight, "DELETE", button -> deleteRule()));
 
         this.ruleDeleteButton.active = this.selectedRuleIndex >= 0
@@ -330,16 +342,21 @@ public final class SessionControlScreen extends MsmScreen {
         boolean compact = this.height < 340;
         boolean veryCompact = this.height < 320;
         this.settingsColumns = width >= 500 ? 3 : 2;
-        this.settingsFieldWidth = Math.max(1,
-                (width - gap * (this.settingsColumns - 1)) / this.settingsColumns);
-        this.settingsFirstX = left;
-        this.settingsSecondX = left + this.settingsFieldWidth + gap;
+        this.settingsFieldWidth = Math.min(180, Math.max(60,
+                (width - gap * (this.settingsColumns - 1)) / this.settingsColumns));
+        int fieldGroupWidth = this.settingsFieldWidth * this.settingsColumns
+                + gap * (this.settingsColumns - 1);
+        int fieldGroupLeft = left + (width - fieldGroupWidth) / 2;
+        this.settingsFirstX = fieldGroupLeft;
+        this.settingsSecondX = fieldGroupLeft + this.settingsFieldWidth + gap;
         this.settingsThirdX = this.settingsColumns == 3
-                ? this.settingsSecondX + this.settingsFieldWidth + gap : left;
+                ? this.settingsSecondX + this.settingsFieldWidth + gap : fieldGroupLeft;
 
         int baseY = this.contentTop + (veryCompact ? 8 : compact ? 18 : 28);
+        int toggleWidth = Math.min(190, width);
+        int toggleLeft = left + (width - toggleWidth) / 2;
         this.autoReconnectButton = this.addButton(new MsmButtonWidget(
-                left, baseY, width, 20, getAutoReconnectLabel(),
+                toggleLeft, baseY, toggleWidth, 20, getAutoReconnectLabel(),
                 button -> {
                     this.draft.setAutoReconnect(!this.draft.isAutoReconnect());
                     this.autoReconnectButton.setMessage(getAutoReconnectLabel());
@@ -371,7 +388,7 @@ public final class SessionControlScreen extends MsmScreen {
                 this.settingsFieldWidth, this.draft.getMaxReconnectDelaySeconds());
 
         this.retryBackoffButton = this.addButton(new MsmButtonWidget(
-                left, this.settingsRetryY, width, 20, getRetryBackoffLabel(),
+                toggleLeft, this.settingsRetryY, toggleWidth, 20, getRetryBackoffLabel(),
                 button -> {
                     this.draft.setRetryBackoff(!this.draft.isRetryBackoff());
                     this.retryBackoffButton.setMessage(getRetryBackoffLabel());

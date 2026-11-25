@@ -245,8 +245,10 @@ public final class SessionManagerScreen extends MsmScreen {
         this.compactLayout = this.width <= this.height;
 
         int margin = this.compactLayout ? 10 : 16;
-        int contentLeft = margin;
-        int contentWidth = Math.max(1, this.width - margin * 2);
+        int maxContentWidth = this.compactLayout ? 620 : 960;
+        int contentWidth = Math.max(1,
+                Math.min(this.width - margin * 2, maxContentWidth));
+        int contentLeft = Math.max(margin, (this.width - contentWidth) / 2);
         int gap = 12;
         int fieldGap = 6;
 
@@ -283,15 +285,17 @@ public final class SessionManagerScreen extends MsmScreen {
                     button -> openServerPicker()));
             this.serverListButton.active = this.serverTemplateRepository != null;
 
-            int halfWidth = Math.max(1, (innerWidth - fieldGap) / 2);
+            int actionGroupWidth = Math.min(innerWidth, 222);
+            int authWidth = Math.min(92, Math.max(1, (actionGroupWidth - fieldGap) / 2));
+            int addWidth = Math.max(1, actionGroupWidth - authWidth - fieldGap);
+            int actionLeft = innerLeft + (innerWidth - actionGroupWidth) / 2;
             this.authModeButton = this.addButton(new MsmButtonWidget(
-                    innerLeft, 126, halfWidth, 20,
+                    actionLeft, 126, authWidth, 20,
                     getAuthModeLabel(), button -> cycleAuthMode()));
             this.authModeButton.active = false;
             this.addButton(new MsmButtonWidget(
-                    innerLeft + halfWidth + fieldGap, 126,
-                    innerWidth - halfWidth - fieldGap, 20, "ADD ACCOUNT",
-                    button -> addAccount()));
+                    actionLeft + authWidth + fieldGap, 126,
+                    addWidth, 20, "ADD ACCOUNT", button -> addAccount()));
         } else {
             this.formPanelLeft = contentLeft;
             this.formPanelWidth = Math.min(330,
@@ -327,15 +331,17 @@ public final class SessionManagerScreen extends MsmScreen {
                     button -> openServerPicker()));
             this.serverListButton.active = this.serverTemplateRepository != null;
 
-            int halfWidth = Math.max(1, (innerWidth - fieldGap) / 2);
+            int actionGroupWidth = Math.min(innerWidth, 222);
+            int authWidth = Math.min(92, Math.max(1, (actionGroupWidth - fieldGap) / 2));
+            int addWidth = Math.max(1, actionGroupWidth - authWidth - fieldGap);
+            int actionLeft = innerLeft + (innerWidth - actionGroupWidth) / 2;
             this.authModeButton = this.addButton(new MsmButtonWidget(
-                    innerLeft, 174, halfWidth, 20,
+                    actionLeft, 174, authWidth, 20,
                     getAuthModeLabel(), button -> cycleAuthMode()));
             this.authModeButton.active = false;
             this.addButton(new MsmButtonWidget(
-                    innerLeft + halfWidth + fieldGap, 174,
-                    innerWidth - halfWidth - fieldGap, 20, "ADD ACCOUNT",
-                    button -> addAccount()));
+                    actionLeft + authWidth + fieldGap, 174,
+                    addWidth, 20, "ADD ACCOUNT", button -> addAccount()));
         }
 
         int pageButtonY = this.compactLayout
@@ -348,12 +354,13 @@ public final class SessionManagerScreen extends MsmScreen {
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.sessions.size());
         int rowY = this.rowStartY;
+        int rowWidth = Math.min(440, Math.max(1, this.accountsPanelWidth - 20));
+        int rowLeft = this.accountsPanelLeft + (this.accountsPanelWidth - rowWidth) / 2;
 
         for (int index = start; index < end; index++) {
             final SessionManager.Session session = this.sessions.get(index);
             MsmButtonWidget row = new MsmButtonWidget(
-                    this.accountsPanelLeft + 10, rowY,
-                    Math.max(1, this.accountsPanelWidth - 20),
+                    rowLeft, rowY, rowWidth,
                     20, getAccountLabel(session, session.getId()),
                     button -> selectAccount(session));
             row.setSelected(session.getId() == this.selectedSessionId);
@@ -379,49 +386,60 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (this.compactLayout) {
-            int actionGap = 6;
-            int actionWidth = Math.max(1, (contentWidth - actionGap) / 2);
+            int actionGap = 8;
+            int actionGroupWidth = Math.min(contentWidth, 360);
+            int actionLeft = contentLeft + (contentWidth - actionGroupWidth) / 2;
+            int actionWidth = Math.max(1, (actionGroupWidth - actionGap) / 2);
             int firstRowY = this.height - 76;
             int secondRowY = this.height - 50;
             this.connectionButton = this.addButton(new MsmButtonWidget(
-                    contentLeft, firstRowY, actionWidth, 20,
+                    actionLeft, firstRowY, actionWidth, 20,
                     (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"), button -> toggleConnection()));
             this.controlButton = this.addButton(new MsmButtonWidget(
-                    contentLeft + actionWidth + actionGap, firstRowY,
-                    contentWidth - actionWidth - actionGap, 20,
+                    actionLeft + actionWidth + actionGap, firstRowY,
+                    actionGroupWidth - actionWidth - actionGap, 20,
                     (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"), button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
-                    contentLeft, secondRowY, actionWidth, 20,
-                    "REMOVE ACCOUNT", button -> requestRemoveAccount()));
+                    actionLeft, secondRowY, actionWidth, 20, "REMOVE ACCOUNT", button -> requestRemoveAccount()));
             ((MsmButtonWidget) this.removeButton).setDanger(true);
             this.addButton(new MsmButtonWidget(
-                    contentLeft + actionWidth + actionGap, secondRowY,
-                    contentWidth - actionWidth - actionGap, 20,
-                    "CLOSE", button -> onClose()));
+                    actionLeft + actionWidth + actionGap, secondRowY,
+                    actionGroupWidth - actionWidth - actionGap, 20, "CLOSE", button -> onClose()));
         } else {
-            int actionGap = 6;
-            int actionWidth = Math.max(1, (contentWidth - actionGap * 3) / 4);
-            int actionY = this.height - 28;
-            this.connectionButton = this.addButton(new MsmButtonWidget(
-                    contentLeft, actionY, actionWidth, 20,
-                    (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"),
-                    button -> toggleConnection()));
-            this.controlButton = this.addButton(new MsmButtonWidget(
-                    contentLeft + actionWidth + actionGap, actionY, actionWidth, 20,
-                    (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"),
-                    button -> openControlManage()));
-            this.removeButton = this.addButton(new MsmButtonWidget(
-                    contentLeft + (actionWidth + actionGap) * 2, actionY,
-                    actionWidth, 20, (contentWidth < 540 ? "REMOVE" : "REMOVE ACCOUNT"),
-                    button -> requestRemoveAccount()));
-            ((MsmButtonWidget) this.removeButton).setDanger(true);
-            this.addButton(new MsmButtonWidget(
-                    contentLeft + (actionWidth + actionGap) * 3, actionY,
-                    actionWidth, 20, "CLOSE", button -> onClose()));
+            int actionGap = 8;
+            int actionTotalWidth = 510;
+            int actionLeft = contentLeft + (contentWidth - Math.min(contentWidth, actionTotalWidth)) / 2;
+            if (contentWidth < actionTotalWidth) {
+                int actionWidth = Math.max(1, (contentWidth - actionGap * 3) / 4);
+                this.connectionButton = this.addButton(new MsmButtonWidget(
+                        contentLeft, this.height - 28, actionWidth, 20,
+                        "JOIN / CONNECT", button -> toggleConnection()));
+                this.controlButton = this.addButton(new MsmButtonWidget(
+                        contentLeft + actionWidth + actionGap, this.height - 28,
+                        actionWidth, 20, "CONTROL MANAGE", button -> openControlManage()));
+                this.removeButton = this.addButton(new MsmButtonWidget(
+                        contentLeft + (actionWidth + actionGap) * 2, this.height - 28,
+                        actionWidth, 20, "REMOVE ACCOUNT", button -> requestRemoveAccount()));
+                ((MsmButtonWidget) this.removeButton).setDanger(true);
+                this.addButton(new MsmButtonWidget(
+                        contentLeft + (actionWidth + actionGap) * 3, this.height - 28,
+                        actionWidth, 20, "CLOSE", button -> onClose()));
+            } else {
+                int actionY = this.height - 28;
+                this.connectionButton = this.addButton(new MsmButtonWidget(
+                        actionLeft, actionY, 132, 20, "JOIN / CONNECT", button -> toggleConnection()));
+                this.controlButton = this.addButton(new MsmButtonWidget(
+                        actionLeft + 140, actionY, 144, 20, "CONTROL MANAGE", button -> openControlManage()));
+                this.removeButton = this.addButton(new MsmButtonWidget(
+                        actionLeft + 292, actionY, 140, 20, "REMOVE ACCOUNT", button -> requestRemoveAccount()));
+                ((MsmButtonWidget) this.removeButton).setDanger(true);
+                this.addButton(new MsmButtonWidget(
+                        actionLeft + 440, actionY, 70, 20, "CLOSE", button -> onClose()));
+            }
         }
 
         this.addButton(new MsmButtonWidget(
-                this.width - 78, 6, 70, 18, "UPDATES",
+                contentLeft + contentWidth - 78, 6, 70, 18, "UPDATES",
                 button -> openUpdateScreen()));
         refreshControls();
     }
