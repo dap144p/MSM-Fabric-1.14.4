@@ -9,4 +9,4 @@ pluginManagement {
 rootProject.name = 'MSM-Fabric'
 
 include ':msm-core'
-project(':msm-core').projectDir = file('msm-core')
+project(':msm-core').projectDir = file('dapdep-core/modules/msm-core')
