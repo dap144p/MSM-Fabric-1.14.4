@@ -257,7 +257,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.accountsPanelWidth = contentWidth;
             this.accountsLabelY = 190;
             this.rowStartY = 214;
-            this.accountsPanelBottom = Math.max(this.rowStartY + 32, this.height - 135);
+            this.accountsPanelBottom = Math.max(this.rowStartY + 50, this.height - 135);
 
             int innerLeft = contentLeft + 12;
             int innerWidth = Math.max(1, contentWidth - 24);
@@ -340,7 +340,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
         int pageButtonY = this.compactLayout
                 ? this.accountsPanelBottom - 25 : this.height - 122;
-        int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 4) / 23 + 1);
+        int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 24) / 23 + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
 
         int pageCount = Math.max(1, (this.sessions.size() + this.pageSize - 1) / this.pageSize);
