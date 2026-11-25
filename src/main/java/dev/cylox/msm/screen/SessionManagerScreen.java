@@ -211,6 +211,7 @@ public final class SessionManagerScreen extends MsmScreen {
         refreshControls();
     }
 
+    // Group the saved server profiles by their account identity.
     private static String accountKey(SessionProfile profile) {
         return profile.getAuthMode().name() + ":" + profile.getUsername();
     }
