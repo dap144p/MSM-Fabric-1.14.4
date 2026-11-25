@@ -552,6 +552,7 @@ public final class SessionControlScreen extends MsmScreen {
     }
 
     private void refreshWrappedMessages() {
+        if (this.tab != Tab.CHAT) return;
         List<String> messages = this.controller.getMessages(this.sessionId);
         int count = messages.size();
         String first = count == 0 ? null : messages.get(0);
