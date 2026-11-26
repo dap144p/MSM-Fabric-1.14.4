@@ -8,6 +8,8 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean selected;
     private boolean danger;
     private boolean trashIcon;
+    private boolean closeIcon;
+    private String trailingLabel = "";
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -34,6 +36,14 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.danger = trashIcon;
     }
 
+    public void setCloseIcon(boolean closeIcon) {
+        this.closeIcon = closeIcon;
+    }
+
+    public void setTrailingLabel(String trailingLabel) {
+        this.trailingLabel = trailingLabel == null ? "" : trailingLabel;
+    }
+
     @Override
     public void renderButton(int mouseX, int mouseY, float delta) {
         boolean hovered = mouseX >= this.x && mouseY >= this.y
@@ -46,6 +56,10 @@ public final class MsmButtonWidget extends ButtonWidget {
             background = 0xA0202833;
             accent = 0x8A303A47;
             textColor = 0xFF7F8B98;
+        } else if (this.closeIcon) {
+            background = hovered ? 0x80505D70 : 0x302A3545;
+            accent = hovered ? 0xFFB8C5D8 : 0x70435369;
+            textColor = 0xFFE5ECF5;
         } else if (this.trashIcon) {
             background = hovered ? 0xB84E2831 : 0x782A2028;
             accent = hovered ? 0xFFE76A77 : 0xB9C95361;
@@ -69,14 +83,32 @@ public final class MsmButtonWidget extends ButtonWidget {
         fill(this.x, this.y + this.height - 1,
                 this.x + this.width, this.y + this.height, 0x553B4655);
 
+        if (this.closeIcon) {
+            drawCloseX(hovered);
+            return;
+        }
         if (this.trashIcon) {
             drawTrashCan(hovered);
             return;
         }
 
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!this.trailingLabel.isEmpty()) {
+            int trailingWidth = client.textRenderer.getStringWidth(this.trailingLabel);
+            int primaryWidth = Math.max(1, this.width - trailingWidth - 24);
+            String primary = this.label;
+            if (client.textRenderer.getStringWidth(primary) > primaryWidth) {
+                primary = client.textRenderer.trimToWidth(primary, Math.max(1, primaryWidth - 3)) + "...";
+            }
+            int textY = this.y + (this.height - 8) / 2;
+            drawString(client.textRenderer, primary, this.x + 8, textY, textColor);
+            drawString(client.textRenderer, this.trailingLabel,
+                    this.x + this.width - trailingWidth - 8, textY, 0xFF7FA9F0);
+            return;
+        }
+
         int availableWidth = Math.max(1, this.width - 10);
         String visibleLabel = this.label;
-        MinecraftClient client = MinecraftClient.getInstance();
         if (client.textRenderer.getStringWidth(visibleLabel) > availableWidth) {
             String suffix = "...";
             int suffixWidth = client.textRenderer.getStringWidth(suffix);
@@ -88,6 +120,18 @@ public final class MsmButtonWidget extends ButtonWidget {
         drawCenteredString(client.textRenderer, visibleLabel,
                 this.x + this.width / 2, this.y + (this.height - 8) / 2, textColor);
     }
+    private void drawCloseX(boolean hovered) {
+        int color = hovered ? 0xFFFFFFFF : 0xFFD0D9E8;
+        int center = this.x + this.width / 2;
+        int top = this.y + 5;
+        for (int offset = 0; offset < 8; offset++) {
+            fill(center - 3 + offset, top + offset,
+                    center - 1 + offset, top + offset + 2, color);
+            fill(center + 1 - offset, top + offset,
+                    center + 3 - offset, top + offset + 2, color);
+        }
+    }
+
     private void drawTrashCan(boolean hovered) {
         int color = hovered ? 0xFFFF8792 : 0xFFD85A68;
         int center = this.x + this.width / 2;

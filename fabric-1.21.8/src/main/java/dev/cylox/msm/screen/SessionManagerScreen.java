@@ -132,7 +132,10 @@ public final class SessionManagerScreen extends MsmScreen {
 
         for (Map.Entry<String, MsmButtonWidget> entry : this.accountButtons.entrySet()) {
             AccountGroup group = grouped.get(entry.getKey());
-            if (group != null) entry.getValue().setMessage(getAccountGroupLabel(group));
+            if (group != null) {
+                entry.getValue().setMessage(getAccountGroupLabel(group));
+                entry.getValue().setTrailingLabel(getAccountServerSummary(group));
+            }
         }
         for (Map.Entry<Long, MsmButtonWidget> entry : this.rowButtons.entrySet()) {
             Optional<SessionManager.Session> session =
@@ -166,11 +169,15 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private String getAccountGroupLabel(AccountGroup group) {
+        return group.username;
+    }
+
+    private String getAccountServerSummary(AccountGroup group) {
         int online = 0;
         for (SessionManager.Session server : group.servers) {
             if (server.getState() == SessionState.ONLINE) online++;
         }
-        return group.username + "   [SERVER " + online + "/" + group.servers.size() + "]";
+        return "[SERVER " + online + "/" + group.servers.size() + "]";
     }
 
     private String getServerLabel(SessionManager.Session session, long id) {
@@ -292,11 +299,19 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (!this.manageView) {
-            int searchWidth = Math.min(220, Math.max(140, contentWidth - 40));
+            int searchWidth = Math.max(1, contentWidth - 60);
             this.searchField = this.addField(
-                    this.width / 2 - searchWidth / 2, 36, searchWidth, 20, "Search accounts...");
+                    this.accountsPanelLeft + 42, 36, searchWidth, 20, "Search accounts...");
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
+        }
+
+        if (!this.manageView && !this.addDialog) {
+            MsmButtonWidget close = new MsmButtonWidget(
+                    this.accountsPanelLeft + this.accountsPanelWidth - 26, 7,
+                    20, 20, "", button -> close());
+            close.setCloseIcon(true);
+            this.addButton(close);
         }
 
         int panelTop = this.manageView ? 42 : 66;
@@ -334,6 +349,7 @@ public final class SessionManagerScreen extends MsmScreen {
                         rowLeft + deleteWidth + accountGap, rowY, accountLabelWidth, 20,
                         getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
+                account.setTrailingLabel(getAccountServerSummary(group));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
@@ -392,7 +408,7 @@ public final class SessionManagerScreen extends MsmScreen {
             int addWidth = 78;
             int closeWidth = 72;
             int groupWidth = updateWidth + (showUpdates ? gap : 0) + addWidth + gap + closeWidth;
-            int left = this.width - 12 - groupWidth;
+            int left = this.accountsPanelLeft + this.accountsPanelWidth - 12 - groupWidth;
             if (showUpdates) {
                 this.addButton(new MsmButtonWidget(left, footerY, updateWidth, 20,
                         "UPDATES", button -> openUpdateScreen()));
@@ -400,8 +416,6 @@ public final class SessionManagerScreen extends MsmScreen {
             int addLeft = left + updateWidth + (showUpdates ? gap : 0);
             this.addButton(new MsmButtonWidget(addLeft, footerY, addWidth, 20, "ADD",
                     button -> openAddDialog()));
-            this.addButton(new MsmButtonWidget(addLeft + addWidth + gap, footerY,
-                    closeWidth, 20, "CLOSE", button -> close()));
         }
         refreshControls();
     }
@@ -686,12 +700,38 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
-        context.fill(0, 0, this.width, 30, 0x50101822);
-        context.fill(0, 30, this.width, 31, 0x803A4655);
-        context.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal(this.addDialog ? "ADD OFFLINE ACCOUNT"
-                        : this.manageView ? "MANAGE ACCOUNT" : "MULTI SESSION MANAGER"),
-                this.width / 2, 10, 0xFFF1F5FA);
+        if (!this.manageView && !this.addDialog) {
+            int outerLeft = Math.max(4, this.accountsPanelLeft - 10);
+            int outerRight = Math.min(this.width - 4,
+                    this.accountsPanelLeft + this.accountsPanelWidth + 10);
+            this.drawGlassPanel(context, outerLeft, 16, outerRight, this.height - 12);
+            this.drawGlassDivider(context, outerLeft + 12, 30, outerRight - 12);
+
+            String title = "MULTI SESSION MANAGER";
+            int titleWidth = this.textRenderer.getWidth(title);
+            int logoWidth = 8;
+            int titleStart = (this.width - titleWidth - logoWidth - 8) / 2;
+            this.text(context, "M", titleStart, 10, 0xFFB58CFF);
+            this.text(context, title, titleStart + logoWidth + 8, 10, 0xFFF1F5FA);
+
+            int searchLeft = this.accountsPanelLeft + 12;
+            int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
+            this.drawGlassPanel(context, searchLeft, 34, searchRight, 60);
+            int iconX = searchLeft + 12;
+            int iconY = 41;
+            int iconColor = 0xFFD5E0EE;
+            context.fill(iconX + 2, iconY, iconX + 8, iconY + 2, iconColor);
+            context.fill(iconX, iconY + 2, iconX + 2, iconY + 8, iconColor);
+            context.fill(iconX + 2, iconY + 8, iconX + 8, iconY + 10, iconColor);
+            context.fill(iconX + 8, iconY + 2, iconX + 10, iconY + 8, iconColor);
+            context.fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, iconColor);
+        } else {
+            context.fill(0, 0, this.width, 30, 0x50101822);
+            context.fill(0, 30, this.width, 31, 0x803A4655);
+            context.drawCenteredTextWithShadow(this.textRenderer,
+                    Text.literal(this.addDialog ? "ADD OFFLINE ACCOUNT" : "MANAGE ACCOUNT"),
+                    this.width / 2, 10, 0xFFF1F5FA);
+        }
 
         if (this.addDialog) {
             int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
@@ -717,10 +757,21 @@ public final class SessionManagerScreen extends MsmScreen {
                 context.fill(this.scrollButtonX + 4, thumbTop,
                         this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
             }
-            this.text(context, this.manageView
+            String sectionTitle = this.manageView
                     ? "SERVERS  (" + this.accountRows.size() + ")"
-                    : "ACCOUNTS  (" + this.accountRows.size() + ")",
-                    this.accountsPanelLeft + 12, top + 8, 0xFF9EADBD);
+                    : "ACCOUNTS  (" + this.accountRows.size() + ")";
+            if (this.manageView) {
+                this.text(context, sectionTitle, this.accountsPanelLeft + 12,
+                        top + 8, 0xFF9EADBD);
+            } else {
+                int sectionWidth = this.textRenderer.getWidth(sectionTitle);
+                int center = this.accountsPanelLeft + this.accountsPanelWidth / 2;
+                this.drawGlassDivider(context, this.accountsPanelLeft + 14,
+                        top + 12, center - sectionWidth / 2 - 10);
+                this.drawGlassDivider(context, center + sectionWidth / 2 + 10,
+                        top + 12, this.accountsPanelLeft + this.accountsPanelWidth - 28);
+                this.centered(context, sectionTitle, center, top + 8, 0xFF9EADBD);
+            }
             if (this.manageView) {
                 this.text(context, accountUsername(this.expandedAccountKey),
                         this.accountsPanelLeft + 12, top - 12, 0xFFE7EDF5);

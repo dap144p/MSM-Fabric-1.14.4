@@ -198,7 +198,10 @@ public final class SessionManagerScreen extends MsmScreen {
 
         for (Map.Entry<String, MsmButtonWidget> entry : this.accountButtons.entrySet()) {
             AccountGroup group = grouped.get(entry.getKey());
-            if (group != null) entry.getValue().setMessage(getAccountGroupLabel(group));
+            if (group != null) {
+                entry.getValue().setMessage(getAccountGroupLabel(group));
+                entry.getValue().setTrailingLabel(getAccountServerSummary(group));
+            }
         }
         for (Map.Entry<Long, ButtonWidget> entry : this.rowButtons.entrySet()) {
             Optional<SessionManager.Session> session = this.sessionManager.find(entry.getKey());
@@ -229,11 +232,15 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private String getAccountGroupLabel(AccountGroup group) {
+        return group.username;
+    }
+
+    private String getAccountServerSummary(AccountGroup group) {
         int online = 0;
         for (SessionManager.Session server : group.servers) {
             if (server.getState() == SessionState.ONLINE) online++;
         }
-        return group.username + "   [SERVER " + online + "/" + group.servers.size() + "]";
+        return "[SERVER " + online + "/" + group.servers.size() + "]";
     }
 
     private String getServerLabel(SessionManager.Session session, long id) {
@@ -374,13 +381,21 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (!this.manageView) {
-            int searchWidth = Math.min(220, Math.max(140, contentWidth - 40));
+            int searchWidth = Math.max(1, contentWidth - 60);
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    this.width / 2 - searchWidth / 2, 36,
+                    this.accountsPanelLeft + 42, 36,
                     searchWidth, 20, "Search accounts..."));
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
+        }
+
+        if (!this.manageView && !this.addDialog) {
+            MsmButtonWidget close = new MsmButtonWidget(
+                    this.accountsPanelLeft + this.accountsPanelWidth - 26, 7,
+                    20, 20, "", button -> onClose());
+            close.setCloseIcon(true);
+            this.addButton(close);
         }
 
         int panelTop = this.manageView ? 42 : 66;
@@ -418,6 +433,7 @@ public final class SessionManagerScreen extends MsmScreen {
                         rowLeft + deleteWidth + accountGap, rowY, accountLabelWidth, 20,
                         getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
+                account.setTrailingLabel(getAccountServerSummary(group));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
@@ -474,11 +490,9 @@ public final class SessionManagerScreen extends MsmScreen {
             int addWidth = 78;
             int closeWidth = 72;
             int groupWidth = addWidth + gap + closeWidth;
-            int left = this.width - 12 - groupWidth;
+            int left = this.accountsPanelLeft + this.accountsPanelWidth - 12 - addWidth;
             this.addButton(new MsmButtonWidget(left, footerY, addWidth, 20, "ADD",
                     button -> openAddDialog()));
-            this.addButton(new MsmButtonWidget(left + addWidth + gap, footerY,
-                    closeWidth, 20, "CLOSE", button -> onClose()));
         }
         refreshControls();
     }
@@ -881,11 +895,39 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        drawGlassDivider(12, 28, this.width - 12);
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                this.addDialog ? "ADD OFFLINE ACCOUNT"
-                        : this.manageView ? "MANAGE ACCOUNT" : "MULTI SESSION MANAGER",
-                this.width / 2, 11, 0xFFF1F5FA);
+        if (!this.manageView && !this.addDialog) {
+            int outerLeft = Math.max(4, this.accountsPanelLeft - 10);
+            int outerRight = Math.min(this.width - 4,
+                    this.accountsPanelLeft + this.accountsPanelWidth + 10);
+            drawGlassPanel(outerLeft, 16, outerRight, this.height - 12);
+            drawGlassDivider(outerLeft + 12, 30, outerRight - 12);
+
+            String title = "MULTI SESSION MANAGER";
+            int titleWidth = MinecraftClient.getInstance().textRenderer.getStringWidth(title);
+            int logoWidth = 8;
+            int titleStart = (this.width - titleWidth - logoWidth - 8) / 2;
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    "M", titleStart, 10, 0xFFB58CFF);
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    title, titleStart + logoWidth + 8, 10, 0xFFF1F5FA);
+
+            int searchLeft = this.accountsPanelLeft + 12;
+            int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
+            drawGlassPanel(searchLeft, 34, searchRight, 60);
+            int iconX = searchLeft + 12;
+            int iconY = 41;
+            int iconColor = 0xFFD5E0EE;
+            fill(iconX + 2, iconY, iconX + 8, iconY + 2, iconColor);
+            fill(iconX, iconY + 2, iconX + 2, iconY + 8, iconColor);
+            fill(iconX + 2, iconY + 8, iconX + 8, iconY + 10, iconColor);
+            fill(iconX + 8, iconY + 2, iconX + 10, iconY + 8, iconColor);
+            fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, iconColor);
+        } else {
+            drawGlassDivider(12, 28, this.width - 12);
+            drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                    this.addDialog ? "ADD OFFLINE ACCOUNT" : "MANAGE ACCOUNT",
+                    this.width / 2, 11, 0xFFF1F5FA);
+        }
 
         if (this.addDialog) {
             int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
@@ -912,10 +954,21 @@ public final class SessionManagerScreen extends MsmScreen {
                 fill(this.scrollButtonX + 4, thumbTop,
                         this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
             }
-            drawSectionTitle(this.manageView
+            String sectionTitle = this.manageView
                     ? "SERVERS  (" + this.accountRows.size() + ")"
-                    : "ACCOUNTS  (" + this.accountRows.size() + ")",
-                    this.accountsPanelLeft + 12, top + 8);
+                    : "ACCOUNTS  (" + this.accountRows.size() + ")";
+            if (this.manageView) {
+                drawSectionTitle(sectionTitle, this.accountsPanelLeft + 12, top + 8);
+            } else {
+                int sectionWidth = MinecraftClient.getInstance().textRenderer.getStringWidth(sectionTitle);
+                int center = this.accountsPanelLeft + this.accountsPanelWidth / 2;
+                drawGlassDivider(this.accountsPanelLeft + 14, top + 12,
+                        center - sectionWidth / 2 - 10);
+                drawGlassDivider(center + sectionWidth / 2 + 10, top + 12,
+                        this.accountsPanelLeft + this.accountsPanelWidth - 28);
+                drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                        sectionTitle, center, top + 8, 0xFF9EADBD);
+            }
             if (this.manageView) {
                 drawString(MinecraftClient.getInstance().textRenderer,
                         accountUsername(this.managedAccountKey),
