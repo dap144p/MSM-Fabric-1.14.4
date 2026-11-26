@@ -884,22 +884,12 @@ public final class SessionControlScreen extends MsmScreen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
 
-        context.fill(0, 0, this.width, 36, 0x50101822);
-        context.fill(0, this.height - 36, this.width, this.height, 0x68101822);
-        context.fill(0, 35, this.width, 36, 0x603A4655);
-
         boolean sidebar = this.width >= 520;
         if (sidebar) {
             drawPanel(context, 12, 44, 120, this.contentBottom, 0x4A18212C);
         }
         drawPanel(context, this.contentLeft, this.contentTop,
                 this.width - 12, this.contentBottom, 0x52141D28);
-
-        this.text(context, "MSM", 14, 9, 0xFFFFFFFF);
-        this.text(context, "CONTROL MANAGE", 48, 9, 0xFFE0E8F0);
-        this.text(context, fitText(this.username, Math.max(80, this.width - 180)),
-                14, 22, 0xFF9EADBD);
-        this.text(context, connectionSummary(), this.width - 82, 12, 0xFFB8C8D8);
 
         String title = this.tab == Tab.CHAT ? "CHAT"
                 : this.tab == Tab.AUTO_CHAT ? "AUTO CHAT" : "SETTINGS";
