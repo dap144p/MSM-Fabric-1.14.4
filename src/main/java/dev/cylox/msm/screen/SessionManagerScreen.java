@@ -34,6 +34,7 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private static final int PAGE_SIZE = 6;
+    private static final long DOUBLE_CLICK_WINDOW_MS = 350L;
     private static final String DEFAULT_STATUS = "Select an account and open MANAGE to view its servers.";
 
     private final Screen parent;
@@ -75,6 +76,11 @@ public final class SessionManagerScreen extends MsmScreen {
     private MsmButtonWidget offlineAccountButton;
     private MsmButtonWidget microsoftAccountButton;
     private MsmButtonWidget deleteAccountButton;
+    private MsmButtonWidget manageButton;
+    private String lastClickedAccountKey;
+    private long lastAccountClickTime;
+    private long lastClickedServerId = -1L;
+    private long lastServerClickTime;
     private ButtonWidget connectionButton;
     private ButtonWidget controlButton;
     private ButtonWidget removeButton;
@@ -292,8 +298,20 @@ public final class SessionManagerScreen extends MsmScreen {
                 : this.sessionManager.find(this.selectedSessionId);
     }
 
+    private boolean hasSelectedAccount() {
+        if (this.managedAccountKey == null) return false;
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(this.managedAccountKey)) return true;
+        }
+        return false;
+    }
+
     private void refreshControls() {
         Optional<SessionManager.Session> selected = getSelectedSession();
+        if (this.manageButton != null) {
+            this.manageButton.active = this.manageView
+                    ? selected.isPresent() : hasSelectedAccount();
+        }
         if (selected.isPresent()) {
             SessionManager.Session session = selected.get();
             SessionState currentState = session.getState();
@@ -360,6 +378,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.offlineAccountButton = null;
         this.microsoftAccountButton = null;
         this.deleteAccountButton = null;
+        this.manageButton = null;
         this.accountButtons.clear();
         this.serverManageButtons.clear();
         this.searchField = null;
@@ -450,6 +469,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.accountGridColumns = this.manageView ? 1
                 : rowWidth >= 360 ? 3 : rowWidth >= 220 ? 2 : 1;
         int accountRowStep = 64;
+        int rowStep = this.manageView ? 32 : accountRowStep;
         int accountCardHeight = 56;
         int listBottom = this.accountsPanelBottom - 10;
         int availableRows = this.manageView
@@ -490,9 +510,6 @@ public final class SessionManagerScreen extends MsmScreen {
                 account.setSelected(group.key.equals(this.managedAccountKey));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
-                this.addButton(new MsmButtonWidget(
-                        cardLeft + 6, cardTop + 32, innerWidth, 18,
-                        "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
                 MsmButtonWidget server = new MsmButtonWidget(
@@ -500,12 +517,7 @@ public final class SessionManagerScreen extends MsmScreen {
                         button -> selectAccount(session));
                 server.setSelected(session.getId() == this.selectedSessionId);
                 this.rowButtons.put(session.getId(), server);
-                MsmButtonWidget manage = new MsmButtonWidget(
-                        rowLeft + labelWidth + 8, rowY + 1, actionWidth, 20,
-                        "MANAGE", button -> openControlManageFor(session));
-                this.serverManageButtons.put(session.getId(), manage);
                 this.addButton(server);
-                this.addButton(manage);
             }
             rowY += rowStep;
         }
@@ -528,7 +540,7 @@ public final class SessionManagerScreen extends MsmScreen {
         if (this.manageView) {
             int groupWidth = Math.min(540, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            int width = Math.max(1, (groupWidth - gap * 4) / 5);
             this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
                     button -> openAddDialog()));
             this.connectionButton = this.addButton(new MsmButtonWidget(
@@ -539,11 +551,19 @@ public final class SessionManagerScreen extends MsmScreen {
             ((MsmButtonWidget) this.removeButton).setDanger(true);
             this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
+            this.manageButton = this.addButton(new MsmButtonWidget(
+                    left + (width + gap) * 4, footerY, width, 20,
+                    "MANAGE", button -> openControlManage()));
         } else {
             int backWidth = 78;
-            int left = this.width - 12 - backWidth;
+            int manageWidth = 84;
+            int groupWidth = backWidth + gap + manageWidth;
+            int left = this.width - 12 - groupWidth;
             this.addButton(new MsmButtonWidget(left, footerY, backWidth, 20, "BACK",
                     button -> MinecraftClient.getInstance().openScreen(this.parent)));
+            this.manageButton = this.addButton(new MsmButtonWidget(
+                    left + backWidth + gap, footerY, manageWidth, 20,
+                    "MANAGE", button -> openAccountManage(this.managedAccountKey)));
         }
         refreshControls();
     }
@@ -551,6 +571,16 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void selectAccountGroup(String key) {
         if (key == null) return;
+        long now = System.currentTimeMillis();
+        if (key.equals(this.lastClickedAccountKey)
+                && now - this.lastAccountClickTime <= DOUBLE_CLICK_WINDOW_MS) {
+            this.lastClickedAccountKey = null;
+            this.lastAccountClickTime = 0L;
+            openAccountManage(key);
+            return;
+        }
+        this.lastClickedAccountKey = key;
+        this.lastAccountClickTime = now;
         this.managedAccountKey = key;
         this.status = "Selected account " + accountUsername(key) + ".";
         refreshSessions();
@@ -896,6 +926,16 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private void selectAccount(SessionManager.Session session) {
+        long now = System.currentTimeMillis();
+        if (session.getId() == this.lastClickedServerId
+                && now - this.lastServerClickTime <= DOUBLE_CLICK_WINDOW_MS) {
+            this.lastClickedServerId = -1L;
+            this.lastServerClickTime = 0L;
+            openControlManageFor(session);
+            return;
+        }
+        this.lastClickedServerId = session.getId();
+        this.lastServerClickTime = now;
         this.selectedSessionId = session.getId();
         this.managedAccountKey = accountKey(session.getProfile());
         this.lastObservedState = null;
