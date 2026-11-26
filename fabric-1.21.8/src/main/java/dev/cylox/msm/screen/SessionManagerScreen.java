@@ -173,6 +173,10 @@ public final class SessionManagerScreen extends MsmScreen {
         return profile.getAuthMode().name() + ":" + profile.getUsername();
     }
 
+    private static String accountKey(AccountIdentity identity) {
+        return identity.getAuthMode().name() + ":" + identity.getUsername();
+    }
+
     private AccountGroup findAccountGroup(String username, SessionAuthMode mode) {
         if (username == null || username.trim().isEmpty() || mode == null) return null;
         String key = mode.name() + ":" + username.trim();
@@ -303,17 +307,15 @@ public final class SessionManagerScreen extends MsmScreen {
             this.usernameField.setMaxLength(16);
             this.usernameField.setText(this.manageView ? accountUsername(this.expandedAccountKey) : this.usernameValue);
             this.usernameField.setEditable(!this.manageView);
-            this.serverField = this.addField(innerLeft, top + 64, innerWidth, 20, "Server address");
-            this.serverField.setMaxLength(255);
-            this.serverField.setPlaceholder(Text.literal("server.example"));
-            this.serverField.setText(this.serverValue);
-            int authWidth = 86;
-            this.authModeButton = this.addButton(new MsmButtonWidget(
-                    innerLeft, top + 98, authWidth, 20, "OFFLINE", button -> { }));
-            this.authModeButton.active = false;
+            if (this.manageView) {
+                this.serverField = this.addField(innerLeft, top + 64, innerWidth, 20, "Server address");
+                this.serverField.setMaxLength(255);
+                this.serverField.setPlaceholder(Text.literal("server.example"));
+                this.serverField.setText(this.serverValue);
+            }
             this.addAccountButton = this.addButton(new MsmButtonWidget(
-                    innerLeft + authWidth + 8, top + 98, innerWidth - authWidth - 8, 20,
-                    this.manageView ? "ADD SERVER" : "ADD ACCOUNT", button -> addAccount()));
+                    innerLeft, top + (this.manageView ? 98 : 66), innerWidth, 20,
+                    this.manageView ? "ADD SERVER" : "CREATE ACCOUNT", button -> addAccount()));
             this.addButton(new MsmButtonWidget(
                     left + dialogWidth - 80, top + 8, 66, 18, "CANCEL",
                     button -> this.client.setScreen(this.parent)));
