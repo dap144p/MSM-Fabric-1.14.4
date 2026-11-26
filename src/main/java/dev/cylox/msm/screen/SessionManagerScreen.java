@@ -986,7 +986,7 @@ public final class SessionManagerScreen extends MsmScreen {
         } else {
         }
 
-        if (!this.addDialog) {
+        {
             int top = this.manageView ? 42 : 66;
             int bottom = this.height - 58;
             if (this.manageView) {
