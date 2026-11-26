@@ -19,6 +19,13 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class SessionManagerScreen extends MsmScreen {
+    @Override
+    protected String getMsmPageTitle() {
+        return this.addDialog
+                ? (this.manageView ? "ADD SERVER" : "ADD ACCOUNT")
+                : (this.manageView ? "MANAGE ACCOUNT" : "ACCOUNT MANAGER");
+    }
+
     private static final int PAGE_SIZE = 6;
     private static final String DEFAULT_STATUS =
             "Add an account once, then add servers to it. Select a server to connect or manage.";
@@ -305,14 +312,6 @@ public final class SessionManagerScreen extends MsmScreen {
                     this.accountsPanelLeft + 42, 36, searchWidth, 20, "Search accounts...");
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
-        }
-
-        if (!this.manageView && !this.addDialog) {
-            MsmButtonWidget close = new MsmButtonWidget(
-                    this.width - 32, 7,
-                    20, 20, "", button -> close());
-            close.setCloseIcon(true);
-            this.addButton(close);
         }
 
         int panelTop = this.manageView ? 42 : 66;
@@ -702,14 +701,7 @@ public final class SessionManagerScreen extends MsmScreen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
         if (!this.manageView && !this.addDialog) {
-            context.fill(0, 0, this.width, 36, 0x50101822);
-            context.fill(0, 35, this.width, 36, 0x603A4655);
             context.fill(0, this.height - 36, this.width, this.height, 0x68101822);
-            this.drawGlassDivider(context, 12, 30, this.width - 12);
-
-            String title = "MULTI SESSION MANAGER";
-            this.text(context, title, 14, 10, 0xFFE0E8F0);
-
             int searchLeft = this.accountsPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
             context.fill(searchLeft, 34, searchRight, 60, 0x50101822);
@@ -722,11 +714,6 @@ public final class SessionManagerScreen extends MsmScreen {
             context.fill(iconX + 8, iconY + 2, iconX + 10, iconY + 8, iconColor);
             context.fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, iconColor);
         } else {
-            context.fill(0, 0, this.width, 30, 0x50101822);
-            context.fill(0, 30, this.width, 31, 0x803A4655);
-            context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal(this.addDialog ? "ADD OFFLINE ACCOUNT" : "MANAGE ACCOUNT"),
-                    this.width / 2, 10, 0xFFF1F5FA);
         }
 
         if (this.addDialog) {

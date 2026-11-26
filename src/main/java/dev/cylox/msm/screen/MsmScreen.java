@@ -1,11 +1,52 @@
 package dev.cylox.msm.screen;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
 abstract class MsmScreen extends Screen {
+    private final Text msmTitle;
+
     protected MsmScreen(Text title) {
         super(title);
+        this.msmTitle = title;
+    }
+
+    protected String getMsmPageTitle() {
+        String value = this.msmTitle.getString();
+        int separator = value.indexOf(" - ");
+        return (separator >= 0 ? value.substring(0, separator) : value).toUpperCase();
+    }
+
+    @Override
+    public void render(int mouseX, int mouseY, float delta) {
+        super.render(mouseX, mouseY, delta);
+        int color = 0xFFE0E8F0;
+        fill(0, 0, this.width, 27, 0xB0101822);
+        fill(0, 26, this.width, 27, 0x803A4655);
+        String label = "MULTI SESSIONS MANAGER  /  " + getMsmPageTitle();
+        String fitted = MinecraftClient.getInstance().textRenderer.trimToWidth(
+                label, Math.max(1, this.width - 52));
+        drawString(MinecraftClient.getInstance().textRenderer, fitted, 14, 9, color);
+        int x = this.width - 19;
+        int icon = 0xFFE0E8F0;
+        fill(x - 4, 8, x - 2, 10, icon);
+        fill(x + 2, 8, x + 4, 10, icon);
+        fill(x - 2, 10, x, 12, icon);
+        fill(x, 12, x + 2, 14, icon);
+        fill(x - 2, 14, x, 16, icon);
+        fill(x, 16, x + 2, 18, icon);
+        fill(x - 4, 18, x - 2, 20, icon);
+        fill(x + 2, 18, x + 4, 20, icon);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && mouseX >= this.width - 28 && mouseY <= 27) {
+            MinecraftClient.getInstance().openScreen(null);
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     protected void renderMsmBackground() {

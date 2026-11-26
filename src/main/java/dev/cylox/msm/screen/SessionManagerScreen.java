@@ -23,6 +23,13 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class SessionManagerScreen extends MsmScreen {
+    @Override
+    protected String getMsmPageTitle() {
+        return this.addDialog
+                ? (this.manageView ? "ADD SERVER" : "ADD ACCOUNT")
+                : (this.manageView ? "MANAGE ACCOUNT" : "ACCOUNT MANAGER");
+    }
+
     private static final int PAGE_SIZE = 6;
     private static final String DEFAULT_STATUS = "Select an account and open MANAGE to view its servers.";
 
@@ -389,14 +396,6 @@ public final class SessionManagerScreen extends MsmScreen {
                     searchWidth, 20, "Search accounts..."));
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
-        }
-
-        if (!this.manageView && !this.addDialog) {
-            MsmButtonWidget close = new MsmButtonWidget(
-                    this.width - 32, 7,
-                    20, 20, "", button -> onClose());
-            close.setCloseIcon(true);
-            this.addButton(close);
         }
 
         int panelTop = this.manageView ? 42 : 66;
@@ -896,15 +895,7 @@ public final class SessionManagerScreen extends MsmScreen {
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
         if (!this.manageView && !this.addDialog) {
-            fill(0, 0, this.width, 36, 0x50101822);
-            fill(0, 35, this.width, 36, 0x603A4655);
             fill(0, this.height - 36, this.width, this.height, 0x68101822);
-            drawGlassDivider(12, 30, this.width - 12);
-
-            String title = "MULTI SESSION MANAGER";
-            drawString(MinecraftClient.getInstance().textRenderer,
-                    title, 14, 10, 0xFFE0E8F0);
-
             int searchLeft = this.accountsPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
             fill(searchLeft, 34, searchRight, 60, 0x50101822);
@@ -917,10 +908,6 @@ public final class SessionManagerScreen extends MsmScreen {
             fill(iconX + 8, iconY + 2, iconX + 10, iconY + 8, iconColor);
             fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, iconColor);
         } else {
-            drawGlassDivider(12, 28, this.width - 12);
-            drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                    this.addDialog ? "ADD OFFLINE ACCOUNT" : "MANAGE ACCOUNT",
-                    this.width / 2, 11, 0xFFF1F5FA);
         }
 
         if (this.addDialog) {
