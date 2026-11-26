@@ -12,6 +12,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean trashIcon;
     private boolean closeIcon;
     private String trailingLabel = "";
+    private boolean leftAligned;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -50,6 +51,10 @@ public final class MsmButtonWidget extends ButtonWidget {
 
     public void setTrailingLabel(String trailingLabel) {
         this.trailingLabel = trailingLabel == null ? "" : trailingLabel;
+    }
+
+    public void setLeftAligned(boolean leftAligned) {
+        this.leftAligned = leftAligned;
     }
 
     @Override
@@ -118,6 +123,19 @@ public final class MsmButtonWidget extends ButtonWidget {
             return;
         }
 
+        if (this.leftAligned) {
+            int availableWidth = Math.max(1, this.getWidth() - 14);
+            String visibleLabel = this.label;
+            if (client.textRenderer.getWidth(visibleLabel) > availableWidth) {
+                visibleLabel = client.textRenderer.trimToWidth(visibleLabel,
+                        Math.max(1, availableWidth - client.textRenderer.getWidth("..."))) + "...";
+            }
+            int textY = top + (this.getHeight() - 8) / 2;
+            context.drawTextWithShadow(client.textRenderer, Text.literal(visibleLabel),
+                    left + 8, textY, textColor);
+            return;
+        }
+
         int availableWidth = Math.max(1, this.getWidth() - 10);
         String visibleLabel = this.label;
         if (client.textRenderer.getWidth(visibleLabel) > availableWidth) {
@@ -152,5 +170,11 @@ public final class MsmButtonWidget extends ButtonWidget {
         context.fill(center - 4, top + 4, center - 3, top + 12, color);
         context.fill(center + 3, top + 4, center + 4, top + 12, color);
         context.fill(center - 3, top + 12, center + 3, top + 13, color);
+        for (int offset = 0; offset < 7; offset++) {
+            context.fill(center - 3 + offset, top + 4 + offset,
+                    center - 1 + offset, top + 6 + offset, color);
+            context.fill(center + 1 - offset, top + 4 + offset,
+                    center + 3 - offset, top + 6 + offset, color);
+        }
     }
 }
