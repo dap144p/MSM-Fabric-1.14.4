@@ -425,7 +425,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     this.width < 420 ? "MS SOON" : "MICROSOFT SOON",
                     button -> this.status = "Microsoft sign-in is postponed."));
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
-                    addLeft, 37, addWidth, 20, "ADD ACCOUNT", button -> openAddDialog()));
+                    addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
 
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
