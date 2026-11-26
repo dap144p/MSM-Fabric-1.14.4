@@ -667,7 +667,7 @@ public final class SessionControlScreen extends MsmScreen {
         }
 
         renderMsmFooter(this.status, 230,
-                this.tab == Tab.SETTINGS && hasPendingChanges() ? 0xFFFFD27A : 0xFF9EADBD);
+                0xFF9EADBD);
         super.render(mouseX, mouseY, delta);
     }
 
