@@ -542,13 +542,31 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private void openAddDialog() {
-        String username = this.manageView ? accountUsername(this.managedAccountKey) : "";
+        if (!this.manageView) {
+            this.addDialog = true;
+            this.usernameValue = "";
+            int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
+            int left = (this.width - dialogWidth) / 2;
+            int innerLeft = left + 14;
+            int innerWidth = dialogWidth - 28;
+            int top = Math.max(34, (this.height - 154) / 2);
+            this.usernameField = this.addButton(new TextFieldWidget(
+                    MinecraftClient.getInstance().textRenderer,
+                    innerLeft, top + 42, innerWidth, 20, "Account username"));
+            this.usernameField.setMaxLength(16);
+            this.addButton(new MsmButtonWidget(innerLeft, top + 78, innerWidth, 20,
+                    "CREATE ACCOUNT", button -> addAccount()));
+            this.addButton(new MsmButtonWidget(left + dialogWidth - 80, top + 8, 66, 18,
+                    "CANCEL", button -> openScreen(this.status, this.pageIndex, this.selectedSessionId)));
+            return;
+        }
+        String username = accountUsername(this.managedAccountKey);
         MinecraftClient.getInstance().openScreen(new SessionManagerScreen(
                 this, this.store, this.sessionManager, this.secondarySessions,
                 this.automationScheduler, this.serverTemplateRepository,
                 this.status, this.pageIndex, this.selectedSessionId,
                 SessionAuthMode.OFFLINE_LOCAL, username, "", "",
-                this.searchValue, this.managedAccountKey, this.manageView, true));
+                this.searchValue, this.managedAccountKey, true, true));
     }
 
     private void openControlManageFor(SessionManager.Session session) {
