@@ -632,16 +632,12 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        drawGlassPanel(8, 6, this.width - 8, 52);
         drawGlassPanel(8, 54, this.width - 8, this.height - 36);
         if (this.tab == Tab.CHAT) {
             drawGlassPanel(16, 52, this.width - 16, this.height - 104);
         } else if (this.tab == Tab.AUTO_CHAT) {
             drawGlassPanel(16, 52, this.width - 16, Math.max(110, this.height - 114));
         }
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
-
         if (this.tab == Tab.CHAT) {
             renderChat();
         } else if (this.tab == Tab.AUTO_CHAT) {
