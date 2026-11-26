@@ -391,26 +391,24 @@ public final class SessionManagerScreen extends MsmScreen {
                     ? accountUsername(this.managedAccountKey) : this.usernameValue);
             this.usernameField.setEditable(!this.manageView);
 
-            int serverListWidth = Math.min(88, Math.max(68, innerWidth / 4));
-            int serverFieldWidth = Math.max(1, innerWidth - serverListWidth - 8);
-            this.serverField = this.addButton(new TextFieldWidget(
-                    MinecraftClient.getInstance().textRenderer,
-                    innerLeft, top + 64, serverFieldWidth, 20, "Server address"));
-            this.serverField.setMaxLength(255);
-            this.serverField.setText(this.serverValue);
-            this.serverListButton = this.addButton(new MsmButtonWidget(
-                    innerLeft + serverFieldWidth + 8, top + 64,
-                    serverListWidth, 20, "SERVERS", button -> openServerPicker()));
-            this.serverListButton.active = this.serverTemplateRepository != null;
+            if (this.manageView) {
+                int serverListWidth = Math.min(88, Math.max(68, innerWidth / 4));
+                int serverFieldWidth = Math.max(1, innerWidth - serverListWidth - 8);
+                this.serverField = this.addButton(new TextFieldWidget(
+                        MinecraftClient.getInstance().textRenderer,
+                        innerLeft, top + 64, serverFieldWidth, 20, "Server address"));
+                this.serverField.setMaxLength(255);
+                this.serverField.setText(this.serverValue);
+                this.serverListButton = this.addButton(new MsmButtonWidget(
+                        innerLeft + serverFieldWidth + 8, top + 64,
+                        serverListWidth, 20, "SERVERS", button -> openServerPicker()));
+                this.serverListButton.active = this.serverTemplateRepository != null;
+            }
 
-            int authWidth = 86;
-            this.authModeButton = this.addButton(new MsmButtonWidget(
-                    innerLeft, top + 98, authWidth, 20, "OFFLINE", button -> { }));
-            this.authModeButton.active = false;
             this.addButton(new MsmButtonWidget(
-                    innerLeft + authWidth + 8, top + 98,
-                    innerWidth - authWidth - 8, 20,
-                    this.manageView ? "ADD SERVER" : "ADD ACCOUNT",
+                    innerLeft, top + (this.manageView ? 98 : 64),
+                    innerWidth, 20,
+                    this.manageView ? "ADD SERVER" : "CREATE ACCOUNT",
                     button -> addAccount()));
             this.addButton(new MsmButtonWidget(
                     left + dialogWidth - 80, top + 8, 66, 18, "CANCEL",
