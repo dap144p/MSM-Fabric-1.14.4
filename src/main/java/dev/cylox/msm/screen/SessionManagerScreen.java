@@ -420,7 +420,7 @@ public final class SessionManagerScreen extends MsmScreen {
             int cardLeft = this.formPanelLeft + 10;
             int cardWidth = Math.max(1, this.formPanelWidth - 20);
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, 112, cardWidth, 76, "", button -> openAddDialog()));
+                    cardLeft, 112, cardWidth, 76, "ADD ACCOUNT", button -> openAddDialog()));
             this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
                     cardLeft, 202, cardWidth, 76, "",
                     button -> this.status = "Microsoft sign-in is postponed."));
@@ -440,25 +440,17 @@ public final class SessionManagerScreen extends MsmScreen {
             if (!this.manageView && entry.server == null) {
                 AccountGroup group = entry.account;
                 int manageWidth = 58;
-                int deleteWidth = 20;
                 int accountGap = 6;
-                int accountLabelWidth = Math.max(1,
-                        rowWidth - manageWidth - deleteWidth - accountGap * 2);
-                MsmButtonWidget delete = new MsmButtonWidget(
-                        rowLeft, rowY, deleteWidth, 20, "",
-                        button -> requestDeleteAccount(group.key));
-                delete.setTrashIcon(true);
-                this.addButton(delete);
+                int accountLabelWidth = Math.max(1, rowWidth - manageWidth - accountGap);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        rowLeft + deleteWidth + accountGap, rowY, accountLabelWidth, 20,
+                        rowLeft, rowY, accountLabelWidth, 20,
                         getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
                 account.setTrailingLabel(getAccountServerSummary(group));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        rowLeft + deleteWidth + accountGap + accountLabelWidth + accountGap,
-                        rowY + 1, manageWidth, 18,
+                        rowLeft + accountLabelWidth + accountGap, rowY + 1, manageWidth, 18,
                         "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
@@ -493,18 +485,23 @@ public final class SessionManagerScreen extends MsmScreen {
         int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
-            int groupWidth = Math.min(500, contentWidth);
+            int groupWidth = Math.min(540, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            int width = Math.max(1, (groupWidth - gap * 4) / 5);
             this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
                     button -> openAddDialog()));
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     left + width + gap, footerY, width, 20, "JOIN", button -> toggleConnection()));
             this.removeButton = this.addButton(new MsmButtonWidget(
-                    left + (width + gap) * 2, footerY, width, 20, "REMOVE",
+                    left + (width + gap) * 2, footerY, width, 20, "REMOVE SERVER",
                     button -> requestRemoveAccount()));
             ((MsmButtonWidget) this.removeButton).setDanger(true);
-            this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
+            MsmButtonWidget deleteAccount = new MsmButtonWidget(
+                    left + (width + gap) * 3, footerY, width, 20, "DELETE ACCOUNT",
+                    button -> requestDeleteAccount(this.managedAccountKey));
+            deleteAccount.setDanger(true);
+            this.addButton(deleteAccount);
+            this.addButton(new MsmButtonWidget(left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
         } else {
             int backWidth = 78;
