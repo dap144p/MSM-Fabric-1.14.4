@@ -78,6 +78,7 @@ public final class SessionManagerScreen extends MsmScreen {
     private MsmButtonWidget offlineAccountButton;
     private MsmButtonWidget microsoftAccountButton;
     private MsmButtonWidget addAccountButton;
+    private MsmButtonWidget deleteAccountButton;
     private MsmButtonWidget connectionButton;
     private MsmButtonWidget controlButton;
     private MsmButtonWidget removeButton;
@@ -172,7 +173,7 @@ public final class SessionManagerScreen extends MsmScreen {
             AccountGroup group = grouped.get(entry.getKey());
             if (group != null) {
                 entry.getValue().setMessage(getAccountGroupLabel(group));
-                entry.getValue().setTrailingLabel(getAccountServerSummary(group));
+                entry.getValue().setSelected(group.key.equals(this.expandedAccountKey));
             }
         }
         for (Map.Entry<Long, MsmButtonWidget> entry : this.rowButtons.entrySet()) {
@@ -301,6 +302,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.offlineAccountButton = null;
         this.microsoftAccountButton = null;
         this.addAccountButton = null;
+        this.deleteAccountButton = null;
         this.searchField = null;
         this.usernameField = null;
         this.serverField = null;
@@ -354,17 +356,17 @@ public final class SessionManagerScreen extends MsmScreen {
 
         if (!this.manageView) {
             int addWidth = this.width < 420 ? 94 : 112;
-            int microsoftWidth = this.width < 420 ? 72 : 124;
+            int deleteWidth = 20;
             int actionGap = 5;
             int actionsRight = contentLeft + contentWidth;
-            int addLeft = actionsRight - addWidth;
-            int microsoftLeft = addLeft - actionGap - microsoftWidth;
-            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
-                    microsoftLeft, 37, microsoftWidth, 20,
-                    this.width < 420 ? "MS SOON" : "MICROSOFT SOON",
-                    button -> this.status = "Microsoft sign-in is postponed."));
+            int deleteLeft = actionsRight - deleteWidth;
+            int addLeft = deleteLeft - actionGap - addWidth;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
+            this.deleteAccountButton = this.addButton(new MsmButtonWidget(
+                    deleteLeft, 37, deleteWidth, 20, "",
+                    button -> requestDeleteAccount(this.expandedAccountKey)));
+            this.deleteAccountButton.setTrashIcon(true);
 
             this.searchField = this.addField(
                     contentLeft, 72, Math.max(1, Math.min(280, contentWidth)), 20,
@@ -376,7 +378,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
         this.scrollTrackTop = panelTop + 8;
         this.scrollTrackBottom = this.accountsPanelBottom - 10;
-        int rowStep = this.manageView ? 32 : 36;
+        int rowStep = this.manageView ? 32 : 42;
         int listBottom = this.accountsPanelBottom - 10;
         int availableRows = Math.max(1, (listBottom - this.rowStartY) / rowStep + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
@@ -395,26 +397,19 @@ public final class SessionManagerScreen extends MsmScreen {
             AccountListEntry entry = this.accountRows.get(index);
             if (!this.manageView && entry.server == null) {
                 AccountGroup group = entry.account;
-                int deleteWidth = 20;
                 int manageWidth = 58;
-                int accountGap = 6;
-                int accountLeft = rowLeft + deleteWidth + accountGap;
-                int accountLabelWidth = Math.max(1, rowWidth - deleteWidth
-                        - manageWidth - accountGap * 2);
-                MsmButtonWidget delete = new MsmButtonWidget(
-                        rowLeft, rowY + 4, deleteWidth, 20, "",
-                        button -> requestDeleteAccount(group.key));
-                delete.setTrashIcon(true);
-                this.addButton(delete);
+                int accountGap = 8;
+                int accountLabelWidth = Math.max(1, rowWidth - manageWidth - accountGap);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        accountLeft, rowY, accountLabelWidth, 28,
+                        rowLeft, rowY, accountLabelWidth, 18,
                         getAccountGroupLabel(group),
-                        button -> openAccountManage(group.key));
-                account.setTrailingLabel(getAccountServerSummary(group));
+                        button -> selectAccountGroup(group.key));
+                account.setLeftAligned(true);
+                account.setSelected(group.key.equals(this.expandedAccountKey));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        accountLeft + accountLabelWidth + accountGap, rowY + 4, manageWidth, 20,
+                        rowLeft + accountLabelWidth + accountGap, rowY, manageWidth, 20,
                         "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
@@ -487,8 +482,16 @@ public final class SessionManagerScreen extends MsmScreen {
         return this.usernameValue;
     }
 
+    private void selectAccountGroup(String key) {
+        if (key == null) return;
+        this.expandedAccountKey = key;
+        this.status = "Selected account " + accountUsername(key) + ".";
+        refreshSessions();
+    }
+
     private void openAccountManage(String key) {
         this.snapshotFormValues();
+        this.expandedAccountKey = key;
         String username = accountUsername(key);
         this.client.setScreen(new SessionManagerScreen(
                 this, "Manage account " + username + ".", 0, -1L, key,
@@ -632,6 +635,10 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private void requestDeleteAccount(String targetAccountKey) {
+        if (targetAccountKey == null || targetAccountKey.trim().isEmpty()) {
+            this.status = "Select an account first.";
+            return;
+        }
         for (AccountGroup group : this.accountGroups) {
             if (group.key.equals(targetAccountKey)) {
                 final String username = group.username;
@@ -672,6 +679,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     this.client.setScreen(this);
                     return;
                 }
+                this.expandedAccountKey = null;
                 String message = "Deleted account " + username + " and all "
                         + targets.size() + " saved servers.";
                 this.openScreen(message, this.pageIndex, -1L);
@@ -824,8 +832,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.drawGlassDivider(context, left, 88, right);
         } else {
             this.drawSectionTitle(context,
-                    "ACCOUNTS  (" + this.accountRows.size() + ")", left, 40);
-            this.text(context, "Manage your Minecraft accounts", left, 59, 0xFF8492A3);
+                    "ACCOUNTS  (" + this.accountGroups.size() + ")", left, 40);
             this.drawGlassDivider(context, left, 96, right);
         }
 
@@ -853,7 +860,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowStep = this.manageView ? 32 : 36;
+        int rowStep = this.manageView ? 32 : 42;
         for (int index = start; index < end; index++) {
             this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
             rowY += rowStep;
@@ -875,14 +882,13 @@ public final class SessionManagerScreen extends MsmScreen {
         super.render(context, mouseX, mouseY, delta);
 
         if (!this.manageView && !this.addDialog) {
-            int rowLeft = this.accountsPanelLeft + 20 + 6 + 8;
+            int rowLeft = this.accountsPanelLeft + 8;
             rowY = this.rowStartY;
             for (int index = start; index < end; index++) {
                 AccountListEntry entry = this.accountRows.get(index);
                 if (entry.server == null) {
-                    String type = entry.account.authMode == SessionAuthMode.OFFLINE_LOCAL
-                            ? "OFFLINE ACCOUNT" : "MICROSOFT ACCOUNT";
-                    this.text(context, type, rowLeft, rowY + 19, 0xFF8492A3);
+                    this.text(context, getAccountServerSummary(entry.account),
+                            rowLeft, rowY + 22, 0xFF8492A3);
                 }
                 rowY += rowStep;
             }
@@ -896,7 +902,7 @@ public final class SessionManagerScreen extends MsmScreen {
                 && this.searchField != null && this.searchField.isFocused()) {
             String filter = this.searchField.getText();
             this.client.setScreen(new SessionManagerScreen(
-                    this.parent, this.status, 0, -1L, null, false, false,
+                    this.parent, this.status, 0, -1L, this.expandedAccountKey, false, false,
                     filter, this.authMode, this.usernameValue, "", this.floatingOverlay));
             return true;
         }
