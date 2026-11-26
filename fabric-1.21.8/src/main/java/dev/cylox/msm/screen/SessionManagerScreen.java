@@ -61,6 +61,7 @@ public final class SessionManagerScreen extends MsmScreen {
     private int formPanelWidth;
     private int accountsPanelLeft;
     private int accountsPanelWidth;
+    private int accountGridColumns = 1;
     private boolean compactLayout;
     private String expandedAccountKey;
     private final boolean floatingOverlay;
@@ -215,12 +216,16 @@ public final class SessionManagerScreen extends MsmScreen {
         return group.username;
     }
 
-    private String getAccountServerSummary(AccountGroup group) {
+    private String getAccountServerCount(AccountGroup group) {
         int online = 0;
         for (SessionManager.Session server : group.servers) {
             if (server.getState() == SessionState.ONLINE) online++;
         }
-        return "[SERVER " + online + "/" + group.servers.size() + "]";
+        return online + "/" + group.servers.size();
+    }
+
+    private String getAccountServerSummary(AccountGroup group) {
+        return "[SERVER " + getAccountServerCount(group) + "]";
     }
 
     private String getServerLabel(SessionManager.Session session, long id) {
@@ -389,18 +394,29 @@ public final class SessionManagerScreen extends MsmScreen {
         this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
         this.scrollTrackTop = panelTop + 8;
         this.scrollTrackBottom = this.accountsPanelBottom - 10;
-        int rowStep = this.manageView ? 32 : 42;
+        int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
+        this.accountGridColumns = this.manageView ? 1
+                : rowWidth >= 360 ? 3 : rowWidth >= 220 ? 2 : 1;
+        int accountRowStep = 64;
+        int accountCardHeight = 56;
         int listBottom = this.accountsPanelBottom - 10;
-        int availableRows = Math.max(1, (listBottom - this.rowStartY) / rowStep + 1);
-        this.pageSize = Math.min(PAGE_SIZE, availableRows);
+        int availableRows = this.manageView
+                ? Math.max(1, (listBottom - this.rowStartY) / 32 + 1)
+                : Math.max(1, (listBottom - this.rowStartY - accountCardHeight)
+                    / accountRowStep + 1);
+        int rowCapacity = this.manageView ? availableRows
+                : availableRows * this.accountGridColumns;
+        this.pageSize = Math.min(PAGE_SIZE, rowCapacity);
         this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
 
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
         int rowLeft = this.accountsPanelLeft;
+        int cardGap = 8;
+        int cardWidth = Math.max(1,
+                (rowWidth - cardGap * (this.accountGridColumns - 1)) / this.accountGridColumns);
         int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
@@ -408,19 +424,22 @@ public final class SessionManagerScreen extends MsmScreen {
             AccountListEntry entry = this.accountRows.get(index);
             if (!this.manageView && entry.server == null) {
                 AccountGroup group = entry.account;
-                int manageWidth = 58;
-                int accountGap = 8;
-                int accountLabelWidth = Math.max(1, rowWidth - manageWidth - accountGap);
+                int accountIndex = index - start;
+                int cardColumn = accountIndex % this.accountGridColumns;
+                int cardRow = accountIndex / this.accountGridColumns;
+                int cardLeft = rowLeft + cardColumn * (cardWidth + cardGap);
+                int cardTop = this.rowStartY + cardRow * 64;
+                int innerWidth = Math.max(1, cardWidth - 12);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        rowLeft, rowY, accountLabelWidth, 18,
+                        cardLeft + 6, cardTop + 5, innerWidth, 18,
                         getAccountGroupLabel(group),
                         button -> selectAccountGroup(group.key));
-                account.setLeftAligned(true);
+                account.setTrailingLabel(getAccountServerCount(group));
                 account.setSelected(group.key.equals(this.expandedAccountKey));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        rowLeft + accountLabelWidth + accountGap, rowY, manageWidth, 20,
+                        cardLeft + 6, cardTop + 32, innerWidth, 18,
                         "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
@@ -871,9 +890,24 @@ public final class SessionManagerScreen extends MsmScreen {
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowStep = this.manageView ? 32 : 42;
+        int rowStep = this.manageView ? 32 : 64;
         for (int index = start; index < end; index++) {
-            this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
+            if (this.manageView) {
+                this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
+            } else {
+                int accountIndex = index - start;
+                int cardColumn = accountIndex % this.accountGridColumns;
+                int cardRow = accountIndex / this.accountGridColumns;
+                int cardGap = 8;
+                int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
+                int cardWidth = Math.max(1,
+                        (rowWidth - cardGap * (this.accountGridColumns - 1))
+                                / this.accountGridColumns);
+                int cardLeft = left + cardColumn * (cardWidth + cardGap);
+                int cardTop = this.rowStartY + cardRow * 64;
+                this.drawGlassPanel(context, cardLeft, cardTop,
+                        cardLeft + cardWidth, cardTop + 56);
+            }
             rowY += rowStep;
         }
 
@@ -892,18 +926,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
         super.render(context, mouseX, mouseY, delta);
 
-        if (!this.manageView && !this.addDialog) {
-            int rowLeft = this.accountsPanelLeft + 8;
-            rowY = this.rowStartY;
-            for (int index = start; index < end; index++) {
-                AccountListEntry entry = this.accountRows.get(index);
-                if (entry.server == null) {
-                    this.text(context, getAccountServerSummary(entry.account),
-                            rowLeft, rowY + 22, 0xFF8492A3);
-                }
-                rowY += rowStep;
-            }
-        }
+        
     }
 
 
