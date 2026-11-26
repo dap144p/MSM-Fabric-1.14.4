@@ -413,7 +413,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     button -> requestRemoveServer()));
             this.removeButton.setDanger(true);
             MsmButtonWidget deleteAccount = new MsmButtonWidget(
-                    left + (width + gap) * 3, footerY, width, 20, "DELETE ACCOUNT",
+                    left + (width + gap) * 3, footerY, width, 20, "DELETE",
                     button -> requestDeleteAccount(this.expandedAccountKey));
             deleteAccount.setDanger(true);
             this.addButton(deleteAccount);
@@ -801,21 +801,11 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void drawProviderIcons(DrawContext context) {
         int iconX = this.formPanelLeft + 26;
-        int firstY = 112;
         int secondY = 202;
-        context.fill(iconX + 2, firstY + 24, iconX + 24, firstY + 34, 0xFF75452B);
-        context.fill(iconX, firstY + 18, iconX + 22, firstY + 28, 0xFF8B5734);
-        context.fill(iconX + 2, firstY + 12, iconX + 24, firstY + 22, 0xFF4D9A36);
-        context.fill(iconX + 8, firstY + 8, iconX + 24, firstY + 18, 0xFF63B83F);
-        context.fill(iconX + 2, firstY + 12, iconX + 8, firstY + 18, 0xFF75C94A);
-        context.fill(iconX + 4, firstY + 28, iconX + 8, firstY + 32, 0xFF5B3828);
-        context.fill(iconX + 16, firstY + 22, iconX + 20, firstY + 26, 0xFF5B3828);
         context.fill(iconX, secondY + 16, iconX + 14, secondY + 30, 0xFFF25022);
         context.fill(iconX + 17, secondY + 16, iconX + 31, secondY + 30, 0xFF7FBA00);
         context.fill(iconX, secondY + 33, iconX + 14, secondY + 47, 0xFF00A4EF);
         context.fill(iconX + 17, secondY + 33, iconX + 31, secondY + 47, 0xFFFFB900);
-        this.text(context, "Add Offline", iconX + 38, firstY + 24, 0xFFE8EDF3);
-        this.text(context, "Account", iconX + 38, firstY + 36, 0xFFE8EDF3);
         this.text(context, "Add Microsoft", iconX + 38, secondY + 24, 0xFFE8EDF3);
         this.text(context, "Account", iconX + 38, secondY + 36, 0xFFE8EDF3);
     }
