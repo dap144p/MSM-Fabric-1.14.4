@@ -210,6 +210,47 @@ public final class SessionAutomationScheduler
         });
     }
 
+    /**
+     * Disconnects a session and removes its automation data after the disconnect
+     * lifecycle callback has finished on the automation worker.
+     */
+    public void disconnectAndForgetSession(long sessionId, Consumer<Throwable> completion) {
+        SessionManager.Session session = requireSession(sessionId);
+        this.worker.execute(() -> {
+            this.reconnectQueue.remove(sessionId);
+            this.manualConnectQueue.remove(sessionId);
+            this.reconnectAttempts.remove(sessionId);
+            cancelChatTasks(sessionId);
+            if (this.activeReconnectSession == sessionId) {
+                this.activeReconnectSession = -1L;
+                cancelReconnectTask();
+            }
+
+            try {
+                SessionState state = this.controller.getState(sessionId);
+                if (state == SessionState.CONNECTING || state == SessionState.ONLINE) {
+                    this.controller.disconnect(sessionId);
+                }
+            } catch (Throwable exception) {
+                if (completion != null) completion.accept(exception);
+                return;
+            }
+
+            // Queue removal after onDisconnected() so lifecycle handling cannot recreate settings.
+            this.worker.execute(() -> {
+                try {
+                    this.store.delete(session.getProfile());
+                    this.settingsBySession.remove(sessionId);
+                    if (completion != null) completion.accept(null);
+                } catch (IOException exception) {
+                    LOGGER.warn("Could not remove automation settings for session {}: {}",
+                            sessionId, exception.getMessage());
+                    if (completion != null) completion.accept(exception);
+                }
+            });
+        });
+    }
+
     @Override
     public void onJoinedGame(long sessionId) {
         this.worker.execute(() -> {

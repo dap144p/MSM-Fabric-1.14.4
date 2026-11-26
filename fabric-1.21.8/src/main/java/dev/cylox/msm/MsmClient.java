@@ -110,7 +110,7 @@ public final class MsmClient implements ClientModInitializer {
         }
 
         SessionManager.Session managed = optional.get();
-        automationScheduler.forgetSession(sessionId, failure ->
+        automationScheduler.disconnectAndForgetSession(sessionId, failure ->
                 MinecraftClient.getInstance().execute(() -> {
                     if (failure != null) {
                         completion.accept(failure);

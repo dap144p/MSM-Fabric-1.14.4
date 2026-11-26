@@ -604,9 +604,6 @@ public final class SessionManagerScreen extends MsmScreen {
             finishDeleteAccount(accountKey, username, targets, null);
             return;
         }
-        for (SessionManager.Session session : targets) {
-            this.automationScheduler.disconnectManually(session.getId());
-        }
         forgetAccountSession(accountKey, username, targets, 0, null);
     }
 
@@ -619,7 +616,7 @@ public final class SessionManagerScreen extends MsmScreen {
         }
         long sessionId = targets.get(index).getId();
         try {
-            this.automationScheduler.forgetSession(sessionId, failure ->
+            this.automationScheduler.disconnectAndForgetSession(sessionId, failure ->
                     MinecraftClient.getInstance().execute(() ->
                             forgetAccountSession(accountKey, username, targets, index + 1,
                                     failure == null ? cleanupFailure : failure)));
