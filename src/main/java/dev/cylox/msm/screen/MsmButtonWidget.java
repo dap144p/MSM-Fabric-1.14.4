@@ -10,6 +10,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean trashIcon;
     private boolean closeIcon;
     private String trailingLabel = "";
+    private boolean leftAligned;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -42,6 +43,10 @@ public final class MsmButtonWidget extends ButtonWidget {
 
     public void setTrailingLabel(String trailingLabel) {
         this.trailingLabel = trailingLabel == null ? "" : trailingLabel;
+    }
+
+    public void setLeftAligned(boolean leftAligned) {
+        this.leftAligned = leftAligned;
     }
 
     @Override
@@ -104,6 +109,18 @@ public final class MsmButtonWidget extends ButtonWidget {
             drawString(client.textRenderer, primary, this.x + 8, textY, textColor);
             drawString(client.textRenderer, this.trailingLabel,
                     this.x + this.width - trailingWidth - 8, textY, 0xFF7FA9F0);
+            return;
+        }
+
+        if (this.leftAligned) {
+            int availableWidth = Math.max(1, this.width - 14);
+            String visibleLabel = this.label;
+            if (client.textRenderer.getStringWidth(visibleLabel) > availableWidth) {
+                visibleLabel = client.textRenderer.trimToWidth(visibleLabel,
+                        Math.max(1, availableWidth - client.textRenderer.getStringWidth("..."))) + "...";
+            }
+            drawString(client.textRenderer, visibleLabel, this.x + 8,
+                    this.y + (this.height - 8) / 2, textColor);
             return;
         }
 
