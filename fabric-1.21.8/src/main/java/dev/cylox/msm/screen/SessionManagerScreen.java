@@ -459,11 +459,26 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private void openAddDialog() {
-        String username = this.manageView ? accountUsername(this.expandedAccountKey) : "";
+        if (!this.manageView) {
+            this.addDialog = true;
+            this.usernameValue = "";
+            int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
+            int left = (this.width - dialogWidth) / 2;
+            int innerLeft = left + 14;
+            int innerWidth = dialogWidth - 28;
+            int top = Math.max(34, (this.height - 154) / 2);
+            this.usernameField = this.addField(innerLeft, top + 42, innerWidth, 20, "Account username");
+            this.usernameField.setMaxLength(16);
+            this.addButton(new MsmButtonWidget(innerLeft, top + 78, innerWidth, 20,
+                    "CREATE ACCOUNT", button -> addAccount()));
+            this.addButton(new MsmButtonWidget(left + dialogWidth - 80, top + 8, 66, 18,
+                    "CANCEL", button -> openScreen(this.status, this.pageIndex, this.selectedSessionId)));
+            return;
+        }
+        String username = accountUsername(this.expandedAccountKey);
         this.client.setScreen(new SessionManagerScreen(
                 this, this.status, this.pageIndex, this.selectedSessionId, this.expandedAccountKey,
-                this.manageView, true, this.searchValue,
-                SessionAuthMode.OFFLINE_LOCAL, username, ""));
+                true, true, this.searchValue, SessionAuthMode.OFFLINE_LOCAL, username, ""));
     }
 
     private void openControlManageFor(SessionManager.Session session) {
