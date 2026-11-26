@@ -108,11 +108,11 @@ public final class MsmButtonWidget extends ButtonWidget {
         context.fill(center - 4, top + 4, center - 3, top + 12, color);
         context.fill(center + 3, top + 4, center + 4, top + 12, color);
         context.fill(center - 3, top + 12, center + 3, top + 13, color);
-        for (int offset = 0; offset < 5; offset++) {
-            context.fill(center - 2 + offset, top + 5 + offset,
+        for (int offset = 0; offset < 7; offset++) {
+            context.fill(center - 3 + offset, top + 4 + offset,
                     center - 1 + offset, top + 6 + offset, color);
-            context.fill(center + 1 - offset, top + 5 + offset,
-                    center + 2 - offset, top + 6 + offset, color);
+            context.fill(center + 1 - offset, top + 4 + offset,
+                    center + 3 - offset, top + 6 + offset, color);
         }
     }
 }

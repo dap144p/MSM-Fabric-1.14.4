@@ -55,7 +55,6 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
                     left + 12, top + 119, panelWidth - 24, 18,
                     "Enter confirmation code..."));
             this.confirmationField.setMaxLength(9);
-            this.confirmationField.setFocused(true);
             MsmButtonWidget confirm = new MsmButtonWidget(
                     left + 12, top + 145, buttonWidth, 20,
                     "CONFIRM", button -> confirmRemoval());
