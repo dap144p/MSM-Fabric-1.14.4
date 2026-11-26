@@ -27,6 +27,21 @@ public final class SessionManagerScreen extends MsmScreen {
                 : "ACCOUNT MANAGER";
     }
 
+    @Override
+    protected int getMsmHeaderLeft() {
+        return this.floatingOverlay && !this.manageView ? this.overlayLeft : 0;
+    }
+
+    @Override
+    protected int getMsmHeaderRight() {
+        return this.floatingOverlay && !this.manageView ? this.overlayRight : this.width;
+    }
+
+    @Override
+    protected int getMsmHeaderTop() {
+        return this.floatingOverlay && !this.manageView ? this.overlayTop : 0;
+    }
+
     private static final int PAGE_SIZE = 6;
     private static final String DEFAULT_STATUS =
             "Add an account once, then add servers to it. Select a server to connect or manage.";
@@ -48,6 +63,13 @@ public final class SessionManagerScreen extends MsmScreen {
     private int accountsPanelWidth;
     private boolean compactLayout;
     private String expandedAccountKey;
+    private final boolean floatingOverlay;
+    private int overlayLeft;
+    private int overlayTop;
+    private int overlayRight;
+    private int overlayBottom;
+    private int microsoftCardY = 202;
+    private int microsoftCardHeight = 76;
 
     private TextFieldWidget searchField;
     private TextFieldWidget usernameField;
@@ -78,14 +100,15 @@ public final class SessionManagerScreen extends MsmScreen {
 
     public SessionManagerScreen(Screen parent) {
         this(parent, DEFAULT_STATUS, 0, -1L, null, false, false, "",
-                SessionAuthMode.OFFLINE_LOCAL, "", "");
+                SessionAuthMode.OFFLINE_LOCAL, "", "", true);
     }
 
     private SessionManagerScreen(Screen parent, String status, int page,
                                  long selectedSessionId, String expandedAccountKey,
                                  boolean manageView, boolean addDialog, String searchValue,
                                  SessionAuthMode authMode,
-                                 String usernameValue, String serverValue) {
+                                 String usernameValue, String serverValue,
+                                 boolean floatingOverlay) {
         super(Text.literal("Multi Session Manager"), parent);
         this.status = status == null ? DEFAULT_STATUS : status;
         this.requestedPage = Math.max(0, page);
@@ -97,6 +120,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.authMode = authMode == null ? SessionAuthMode.OFFLINE_LOCAL : authMode;
         this.usernameValue = usernameValue == null ? "" : usernameValue;
         this.serverValue = serverValue == null ? "" : serverValue;
+        this.floatingOverlay = floatingOverlay;
         refreshSessions();
     }
 
@@ -284,9 +308,35 @@ public final class SessionManagerScreen extends MsmScreen {
         refreshSessions();
         this.serverManageButtons.clear();
 
-        int contentWidth = Math.max(1, this.manageView
-                ? Math.min(this.width - 24, 560) : this.width - 24);
-        int contentLeft = this.manageView ? Math.max(12, (this.width - contentWidth) / 2) : 12;
+        boolean floatingAccountManager = this.floatingOverlay && !this.manageView;
+        int contentWidth;
+        int contentLeft;
+        int panelTop;
+        if (floatingAccountManager) {
+            int windowWidth = Math.max(1, Math.min(680, this.width - 24));
+            int windowHeight = Math.max(1, Math.min(420, this.height - 24));
+            this.overlayLeft = (this.width - windowWidth) / 2;
+            this.overlayRight = this.overlayLeft + windowWidth;
+            this.overlayTop = (this.height - windowHeight) / 2;
+            this.overlayBottom = this.overlayTop + windowHeight;
+            contentLeft = this.overlayLeft + 12;
+            contentWidth = windowWidth - 24;
+            panelTop = this.overlayTop + 64;
+            this.rowStartY = panelTop + 30;
+            this.accountsPanelBottom = this.overlayBottom - 42;
+        } else {
+            this.overlayLeft = 0;
+            this.overlayTop = 0;
+            this.overlayRight = this.width;
+            this.overlayBottom = this.height;
+            contentWidth = Math.max(1, this.manageView
+                    ? Math.min(this.width - 24, 560) : this.width - 24);
+            contentLeft = this.manageView
+                    ? Math.max(12, (this.width - contentWidth) / 2) : 12;
+            panelTop = this.manageView ? 42 : 66;
+            this.rowStartY = 96;
+            this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
+        }
         this.formPanelLeft = contentLeft;
         this.formPanelWidth = this.manageView ? 0
                 : Math.max(150, Math.min(220, (contentWidth - 12) / 3));
@@ -294,8 +344,6 @@ public final class SessionManagerScreen extends MsmScreen {
                 : contentLeft + this.formPanelWidth + 12;
         this.accountsPanelWidth = this.manageView ? contentWidth
                 : contentWidth - this.formPanelWidth - 12;
-        this.rowStartY = 96;
-        this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
 
         if (this.addDialog) {
             int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
@@ -324,13 +372,13 @@ public final class SessionManagerScreen extends MsmScreen {
 
         if (!this.manageView) {
             int searchWidth = Math.max(1, contentWidth - 60);
+            int searchY = floatingAccountManager ? this.overlayTop + 34 : 36;
             this.searchField = this.addField(
-                    contentLeft + 42, 36, searchWidth, 20, "Search accounts...");
+                    contentLeft + 42, searchY, searchWidth, 20, "Search accounts...");
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
 
-        int panelTop = this.manageView ? 42 : 66;
         this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
         this.scrollTrackTop = panelTop + 24;
         this.scrollTrackBottom = this.accountsPanelBottom - 22;
@@ -342,10 +390,18 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             int cardLeft = this.formPanelLeft + 10;
             int cardWidth = Math.max(1, this.formPanelWidth - 20);
+            int cardHeight = floatingAccountManager
+                    ? Math.max(34, Math.min(76, (this.accountsPanelBottom - panelTop - 30) / 2))
+                    : 76;
+            int accountCardY = floatingAccountManager ? panelTop + 10 : 112;
+            this.microsoftCardY = floatingAccountManager
+                    ? accountCardY + cardHeight + 10 : 202;
+            this.microsoftCardHeight = cardHeight;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, 112, cardWidth, 76, "ADD ACCOUNT", button -> openAddDialog()));
+                    cardLeft, accountCardY, cardWidth, cardHeight,
+                    "ADD ACCOUNT", button -> openAddDialog()));
             this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, 202, cardWidth, 76, "",
+                    cardLeft, this.microsoftCardY, cardWidth, cardHeight, "",
                     button -> this.status = "Microsoft sign-in is postponed."));
         }
 
@@ -413,7 +469,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.addButton(next);
         }
 
-        int footerY = this.height - 28;
+        int footerY = floatingAccountManager ? this.overlayBottom - 28 : this.height - 28;
         int gap = 5;
         if (this.manageView) {
             int groupWidth = Math.min(540, contentWidth);
@@ -458,7 +514,7 @@ public final class SessionManagerScreen extends MsmScreen {
         String username = accountUsername(key);
         this.client.setScreen(new SessionManagerScreen(
                 this, "Manage account " + username + ".", 0, -1L, key,
-                true, false, "", SessionAuthMode.OFFLINE_LOCAL, username, ""));
+                true, false, "", SessionAuthMode.OFFLINE_LOCAL, username, "", false));
     }
 
     private void openAddDialog() {
@@ -481,7 +537,7 @@ public final class SessionManagerScreen extends MsmScreen {
         String username = accountUsername(this.expandedAccountKey);
         this.client.setScreen(new SessionManagerScreen(
                 this, this.status, this.pageIndex, this.selectedSessionId, this.expandedAccountKey,
-                true, true, this.searchValue, SessionAuthMode.OFFLINE_LOCAL, username, ""));
+                true, true, this.searchValue, SessionAuthMode.OFFLINE_LOCAL, username, "", false));
     }
 
     private void openControlManageFor(SessionManager.Session session) {
@@ -551,7 +607,7 @@ public final class SessionManagerScreen extends MsmScreen {
                 this.client.setScreen(new SessionManagerScreen(this, "Account "
                         + identity.getUsername() + " created. Add servers whenever you're ready.",
                         0, -1L, this.expandedAccountKey, true, false, "",
-                        identity.getAuthMode(), identity.getUsername(), ""));
+                        identity.getAuthMode(), identity.getUsername(), "", false));
                 return;
             }
 
@@ -741,7 +797,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.client.setScreen(new SessionManagerScreen(
                 this.parent, newStatus, page, selectedId, this.expandedAccountKey,
                 this.manageView, false, this.searchValue, this.authMode,
-                this.usernameValue, this.serverValue));
+                this.usernameValue, this.serverValue, this.floatingOverlay));
     }
 
     private String fitText(String value, int pixelWidth) {
@@ -763,13 +819,25 @@ public final class SessionManagerScreen extends MsmScreen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderMsmBackground(context, mouseX, mouseY, delta);
+        if (this.floatingOverlay && !this.manageView) {
+            if (this.parent != null) {
+                this.parent.render(context, mouseX, mouseY, delta);
+            } else {
+                this.renderMsmBackground(context, mouseX, mouseY, delta);
+            }
+            context.fill(0, 0, this.width, this.height, 0x99070B12);
+            this.drawGlassPanel(context, this.overlayLeft, this.overlayTop,
+                    this.overlayRight, this.overlayBottom);
+        } else {
+            this.renderMsmBackground(context, mouseX, mouseY, delta);
+        }
         if (!this.manageView && !this.addDialog) {
             int searchLeft = this.formPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
-            context.fill(searchLeft, 34, searchRight, 60, 0x50101822);
+            int searchTop = this.floatingOverlay ? this.overlayTop + 32 : 34;
+            context.fill(searchLeft, searchTop, searchRight, searchTop + 26, 0x50101822);
             int iconX = searchLeft + 12;
-            int iconY = 41;
+            int iconY = searchTop + 7;
             int iconColor = 0xFFD5E0EE;
             context.fill(iconX + 2, iconY, iconX + 8, iconY + 2, iconColor);
             context.fill(iconX, iconY + 2, iconX + 2, iconY + 8, iconColor);
@@ -780,8 +848,10 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         {
-            int top = this.manageView ? 42 : 66;
-            int bottom = this.height - 58;
+            int top = this.manageView ? 42
+                    : this.floatingOverlay ? this.overlayTop + 64 : 66;
+            int bottom = this.floatingOverlay && !this.manageView
+                    ? this.overlayBottom - 42 : this.height - 58;
             if (this.manageView) {
                 this.drawGlassPanel(context, this.accountsPanelLeft, top,
                         this.accountsPanelLeft + this.accountsPanelWidth, bottom);
@@ -841,8 +911,13 @@ public final class SessionManagerScreen extends MsmScreen {
             this.text(context, "OFFLINE ACCOUNT", left + 14, top + 12, 0xFF9EADBD);
         }
         if (!this.addDialog) {
-            renderMsmFooter(context, this.status,
-                    this.manageView ? Math.min(500, this.width - 24) : 100);
+            if (this.floatingOverlay && !this.manageView) {
+                renderFloatingFooter(context, this.status,
+                        MsmClient.getUpdateManager() != null ? 170 : 83);
+            } else {
+                renderMsmFooter(context, this.status,
+                        this.manageView ? Math.min(500, this.width - 24) : 100);
+            }
         }
         super.render(context, mouseX, mouseY, delta);
         if (!this.manageView && !this.addDialog) drawProviderIcons(context);
@@ -850,13 +925,25 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void drawProviderIcons(DrawContext context) {
         int iconX = this.formPanelLeft + 26;
-        int secondY = 202;
-        context.fill(iconX, secondY + 16, iconX + 14, secondY + 30, 0xFFF25022);
-        context.fill(iconX + 17, secondY + 16, iconX + 31, secondY + 30, 0xFF7FBA00);
-        context.fill(iconX, secondY + 33, iconX + 14, secondY + 47, 0xFF00A4EF);
-        context.fill(iconX + 17, secondY + 33, iconX + 31, secondY + 47, 0xFFFFB900);
-        this.text(context, "Add Microsoft", iconX + 38, secondY + 24, 0xFFE8EDF3);
-        this.text(context, "Account", iconX + 38, secondY + 36, 0xFFE8EDF3);
+        int iconTop = this.microsoftCardY + Math.max(0, (this.microsoftCardHeight - 48) / 2);
+        context.fill(iconX, iconTop, iconX + 14, iconTop + 14, 0xFFF25022);
+        context.fill(iconX + 17, iconTop, iconX + 31, iconTop + 14, 0xFF7FBA00);
+        context.fill(iconX, iconTop + 17, iconX + 14, iconTop + 31, 0xFF00A4EF);
+        context.fill(iconX + 17, iconTop + 17, iconX + 31, iconTop + 31, 0xFFFFB900);
+        this.text(context, "Add Microsoft", iconX + 38, iconTop + 4, 0xFFE8EDF3);
+        this.text(context, "Account", iconX + 38, iconTop + 17, 0xFFE8EDF3);
+    }
+
+    private void renderFloatingFooter(DrawContext context, String footerStatus, int rightReserved) {
+        int footerTop = this.overlayBottom - 36;
+        context.fill(this.overlayLeft + 1, footerTop, this.overlayRight - 1,
+                this.overlayBottom - 1, 0x68101822);
+        int availableWidth = Math.max(1,
+                this.overlayRight - this.overlayLeft - 28 - Math.max(0, rightReserved));
+        String visible = this.textRenderer.trimToWidth(
+                footerStatus == null ? "" : footerStatus, availableWidth);
+        context.drawTextWithShadow(this.textRenderer, Text.literal(visible),
+                this.overlayLeft + 14, footerTop + 14, 0xFF9EADBD);
     }
 
     @Override
@@ -866,7 +953,7 @@ public final class SessionManagerScreen extends MsmScreen {
             String filter = this.searchField.getText();
             this.client.setScreen(new SessionManagerScreen(
                     this.parent, this.status, 0, -1L, null, false, false,
-                    filter, this.authMode, this.usernameValue, ""));
+                    filter, this.authMode, this.usernameValue, "", this.floatingOverlay));
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);

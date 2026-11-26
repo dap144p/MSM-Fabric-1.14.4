@@ -23,29 +23,49 @@ public abstract class MsmScreen extends Screen {
         return (separator >= 0 ? value.substring(0, separator) : value).toUpperCase();
     }
 
+    protected int getMsmHeaderLeft() {
+        return 0;
+    }
+
+    protected int getMsmHeaderRight() {
+        return this.width;
+    }
+
+    protected int getMsmHeaderTop() {
+        return 0;
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        context.fill(0, 0, this.width, 27, 0xB0101822);
-        context.fill(0, 26, this.width, 27, 0x803A4655);
+        int left = getMsmHeaderLeft();
+        int right = getMsmHeaderRight();
+        int top = getMsmHeaderTop();
+        context.fill(left, top, right, top + 27, 0xB0101822);
+        context.fill(left, top + 26, right, top + 27, 0x803A4655);
         String label = "MULTI SESSIONS MANAGER  /  " + getMsmPageTitle();
-        String fitted = this.textRenderer.trimToWidth(label, Math.max(1, this.width - 52));
-        context.drawTextWithShadow(this.textRenderer, Text.literal(fitted), 14, 9, 0xFFE0E8F0);
-        int x = this.width - 19;
+        String fitted = this.textRenderer.trimToWidth(label, Math.max(1, right - left - 52));
+        context.drawTextWithShadow(this.textRenderer, Text.literal(fitted),
+                left + 14, top + 9, 0xFFE0E8F0);
+        int x = right - 19;
         int icon = 0xFFE0E8F0;
-        context.fill(x - 4, 8, x - 2, 10, icon);
-        context.fill(x + 2, 8, x + 4, 10, icon);
-        context.fill(x - 2, 10, x, 12, icon);
-        context.fill(x, 12, x + 2, 14, icon);
-        context.fill(x - 2, 14, x, 16, icon);
-        context.fill(x, 16, x + 2, 18, icon);
-        context.fill(x - 4, 18, x - 2, 20, icon);
-        context.fill(x + 2, 18, x + 4, 20, icon);
+        context.fill(x - 4, top + 8, x - 2, top + 10, icon);
+        context.fill(x + 2, top + 8, x + 4, top + 10, icon);
+        context.fill(x - 2, top + 10, x, top + 12, icon);
+        context.fill(x, top + 12, x + 2, top + 14, icon);
+        context.fill(x - 2, top + 14, x, top + 16, icon);
+        context.fill(x, top + 16, x + 2, top + 18, icon);
+        context.fill(x - 4, top + 18, x - 2, top + 20, icon);
+        context.fill(x + 2, top + 18, x + 4, top + 20, icon);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && mouseX >= this.width - 28 && mouseY <= 27) {
+        int left = getMsmHeaderLeft();
+        int right = getMsmHeaderRight();
+        int top = getMsmHeaderTop();
+        if (button == 0 && mouseX >= right - 28 && mouseX <= right
+                && mouseX >= left && mouseY >= top && mouseY <= top + 27) {
             this.client.setScreen(null);
             return true;
         }
