@@ -3,12 +3,15 @@ package dev.cylox.msm.screen;
 import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.network.SecondarySessionController;
+import dev.cylox.msm.profile.AccountIdentity;
+import dev.cylox.msm.profile.AccountIdentityStore;
 import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
 import dev.cylox.msm.server.ServerTemplateRepository;
 import dev.cylox.msm.session.SessionManager;
 import dev.cylox.msm.session.SessionState;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -35,6 +38,8 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private final Screen parent;
     private final SessionProfileStore store;
+    private final AccountIdentityStore accountStore;
+    private final List<AccountIdentity> identities = new ArrayList<AccountIdentity>();
     private final SessionManager sessionManager;
     private final SecondarySessionController secondarySessions;
     private final SessionAutomationScheduler automationScheduler;
@@ -126,6 +131,8 @@ public final class SessionManagerScreen extends MsmScreen {
 
         this.parent = parent;
         this.store = store;
+        this.accountStore = new AccountIdentityStore(
+                FabricLoader.getInstance().getConfigDir().resolve("msm-accounts.properties"));
         this.sessionManager = sessionManager;
         this.secondarySessions = secondarySessions;
         this.automationScheduler = automationScheduler;
@@ -144,7 +151,13 @@ public final class SessionManagerScreen extends MsmScreen {
 
         try {
             this.profiles.addAll(this.store.load());
-        } catch (IOException exception) {
+            this.identities.addAll(this.accountStore.load());
+            for (SessionProfile profile : this.profiles) {
+                AccountIdentity identity = new AccountIdentity(profile.getUsername(), profile.getAuthMode());
+                if (!this.identities.contains(identity)) this.identities.add(identity);
+            }
+            this.accountStore.save(this.identities);
+        } catch (IOException | IllegalArgumentException exception) {
             this.status = "Could not load accounts: " + exception.getMessage();
         }
         synchronizeSessions();
@@ -172,6 +185,10 @@ public final class SessionManagerScreen extends MsmScreen {
         this.accountGroups.clear();
         this.accountRows.clear();
         Map<String, AccountGroup> grouped = new LinkedHashMap<String, AccountGroup>();
+        for (AccountIdentity identity : this.identities) {
+            String key = accountKey(identity);
+            grouped.put(key, new AccountGroup(key, identity.getUsername(), identity.getAuthMode()));
+        }
 
         for (SessionManager.Session session : this.sessionManager.getSessions()) {
             if (!this.profiles.contains(session.getProfile())) continue;
@@ -230,6 +247,10 @@ public final class SessionManagerScreen extends MsmScreen {
     // Group the saved server profiles by their account identity.
     private static String accountKey(SessionProfile profile) {
         return profile.getAuthMode().name() + ":" + profile.getUsername();
+    }
+
+    private static String accountKey(AccountIdentity identity) {
+        return identity.getAuthMode().name() + ":" + identity.getUsername();
     }
 
     private String accountUsername(String key) {
@@ -577,6 +598,27 @@ public final class SessionManagerScreen extends MsmScreen {
         SessionManager.Session created = null;
         snapshotFormValues();
         try {
+            if (!this.manageView) {
+                AccountIdentity identity = new AccountIdentity(this.usernameValue, SessionAuthMode.OFFLINE_LOCAL);
+                if (this.identities.contains(identity)) {
+                    this.status = "This account already exists.";
+                    return;
+                }
+                this.identities.add(identity);
+                try {
+                    this.accountStore.save(this.identities);
+                } catch (IOException exception) {
+                    this.identities.remove(identity);
+                    throw exception;
+                }
+                this.managedAccountKey = accountKey(identity);
+                this.manageView = true;
+                this.addDialog = false;
+                this.searchValue = "";
+                openScreen("Account " + identity.getUsername()
+                        + " created. Add servers whenever you're ready.", 0, -1L);
+                return;
+            }
             SessionProfile profile = new SessionProfile(
                     this.usernameValue,
                     this.serverValue,
@@ -617,10 +659,6 @@ public final class SessionManagerScreen extends MsmScreen {
                 final String username = group.username;
                 final List<SessionManager.Session> targets =
                         new ArrayList<SessionManager.Session>(group.servers);
-                if (targets.isEmpty()) {
-                    this.status = "This account has no saved servers.";
-                    return;
-                }
                 MinecraftClient.getInstance().openScreen(new ConfirmRemoveAccountScreen(
                         this, username, targets.size() + " saved servers",
                         () -> beginDeleteAccount(accountKey, username, targets), true));
@@ -672,7 +710,14 @@ public final class SessionManagerScreen extends MsmScreen {
         }
         try {
             this.store.save(updatedProfiles);
+            List<AccountIdentity> updatedIdentities = new ArrayList<AccountIdentity>(this.identities);
+            updatedIdentities.remove(new AccountIdentity(username, SessionAuthMode.OFFLINE_LOCAL));
+            this.accountStore.save(updatedIdentities);
+            this.identities.clear();
+            this.identities.addAll(updatedIdentities);
         } catch (IOException exception) {
+            try { this.store.save(this.profiles); }
+            catch (IOException rollbackException) { exception.addSuppressed(rollbackException); }
             this.status = "Could not save account deletion: " + exception.getMessage();
             MinecraftClient.getInstance().openScreen(this);
             return;
