@@ -321,24 +321,25 @@ public final class SessionManagerScreen extends MsmScreen {
             if (!this.manageView && entry.server == null) {
                 AccountGroup group = entry.account;
                 int manageWidth = 72;
-                int deleteWidth = 66;
-                int accountGap = 5;
+                int deleteWidth = 20;
+                int accountGap = 6;
                 int accountLabelWidth = Math.max(1,
                         rowWidth - manageWidth - deleteWidth - accountGap * 2);
+                MsmButtonWidget delete = new MsmButtonWidget(
+                        rowLeft, rowY, deleteWidth, 20, "",
+                        button -> requestDeleteAccount(group.key));
+                delete.setTrashIcon(true);
+                this.addButton(delete);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        rowLeft, rowY, accountLabelWidth, 20, getAccountGroupLabel(group),
+                        rowLeft + deleteWidth + accountGap, rowY, accountLabelWidth, 20,
+                        getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        rowLeft + accountLabelWidth + accountGap, rowY, manageWidth, 20,
+                        rowLeft + deleteWidth + accountGap + accountLabelWidth + accountGap,
+                        rowY, manageWidth, 20,
                         "MANAGE", button -> openAccountManage(group.key)));
-                MsmButtonWidget delete = new MsmButtonWidget(
-                        rowLeft + accountLabelWidth + accountGap + manageWidth + accountGap,
-                        rowY, deleteWidth, 20, "DELETE",
-                        button -> requestDeleteAccount(group.key));
-                delete.setDanger(true);
-                this.addButton(delete);
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
                 MsmButtonWidget server = new MsmButtonWidget(

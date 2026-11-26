@@ -7,6 +7,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private String label;
     private boolean selected;
     private boolean danger;
+    private boolean trashIcon;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -28,6 +29,11 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.danger = danger;
     }
 
+    public void setTrashIcon(boolean trashIcon) {
+        this.trashIcon = trashIcon;
+        this.danger = trashIcon;
+    }
+
     @Override
     public void renderButton(int mouseX, int mouseY, float delta) {
         boolean hovered = mouseX >= this.x && mouseY >= this.y
@@ -40,6 +46,10 @@ public final class MsmButtonWidget extends ButtonWidget {
             background = 0xA0202833;
             accent = 0x8A303A47;
             textColor = 0xFF7F8B98;
+        } else if (this.trashIcon) {
+            background = hovered ? 0xB84E2831 : 0x782A2028;
+            accent = hovered ? 0xFFE76A77 : 0xB9C95361;
+            textColor = 0xFFFFE8EA;
         } else if (this.danger) {
             background = hovered ? 0xD3663941 : 0xB8472B32;
             accent = 0xFFCC6874;
@@ -59,6 +69,11 @@ public final class MsmButtonWidget extends ButtonWidget {
         fill(this.x, this.y + this.height - 1,
                 this.x + this.width, this.y + this.height, 0x553B4655);
 
+        if (this.trashIcon) {
+            drawTrashCan(hovered);
+            return;
+        }
+
         int availableWidth = Math.max(1, this.width - 10);
         String visibleLabel = this.label;
         MinecraftClient client = MinecraftClient.getInstance();
@@ -72,5 +87,21 @@ public final class MsmButtonWidget extends ButtonWidget {
 
         drawCenteredString(client.textRenderer, visibleLabel,
                 this.x + this.width / 2, this.y + (this.height - 8) / 2, textColor);
+    }
+    private void drawTrashCan(boolean hovered) {
+        int color = hovered ? 0xFFFF8792 : 0xFFD85A68;
+        int center = this.x + this.width / 2;
+        int top = this.y + 3;
+        fill(center - 2, top, center + 2, top + 2, color);
+        fill(center - 5, top + 2, center + 5, top + 3, color);
+        fill(center - 4, top + 4, center - 3, top + 12, color);
+        fill(center + 3, top + 4, center + 4, top + 12, color);
+        fill(center - 3, top + 12, center + 3, top + 13, color);
+        for (int offset = 0; offset < 5; offset++) {
+            fill(center - 2 + offset, top + 5 + offset,
+                    center - 1 + offset, top + 6 + offset, color);
+            fill(center + 1 - offset, top + 5 + offset,
+                    center + 2 - offset, top + 6 + offset, color);
+        }
     }
 }

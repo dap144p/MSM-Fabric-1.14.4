@@ -9,6 +9,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private String label;
     private boolean selected;
     private boolean danger;
+    private boolean trashIcon;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -36,6 +37,11 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.danger = danger;
     }
 
+    public void setTrashIcon(boolean trashIcon) {
+        this.trashIcon = trashIcon;
+        this.danger = trashIcon;
+    }
+
     @Override
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         boolean hovered = this.isHovered();
@@ -47,6 +53,10 @@ public final class MsmButtonWidget extends ButtonWidget {
             background = 0xA0202833;
             accent = 0x8A303A47;
             textColor = 0xFF7F8B98;
+        } else if (this.trashIcon) {
+            background = hovered ? 0xB84E2831 : 0x782A2028;
+            accent = hovered ? 0xFFE76A77 : 0xB9C95361;
+            textColor = 0xFFFFE8EA;
         } else if (this.danger) {
             background = hovered ? 0xD3663941 : 0xB8472B32;
             accent = 0xFFCC6874;
@@ -70,6 +80,11 @@ public final class MsmButtonWidget extends ButtonWidget {
         context.fill(left, top, right, top + 1, accent);
         context.fill(left, bottom - 1, right, bottom, 0x553B4655);
 
+        if (this.trashIcon) {
+            drawTrashCan(context, hovered);
+            return;
+        }
+
         int availableWidth = Math.max(1, this.getWidth() - 10);
         String visibleLabel = this.label;
         MinecraftClient client = MinecraftClient.getInstance();
@@ -83,5 +98,21 @@ public final class MsmButtonWidget extends ButtonWidget {
 
         context.drawCenteredTextWithShadow(client.textRenderer, Text.literal(visibleLabel),
                 left + this.getWidth() / 2, top + (this.getHeight() - 8) / 2, textColor);
+    }
+    private void drawTrashCan(DrawContext context, boolean hovered) {
+        int color = hovered ? 0xFFFF8792 : 0xFFD85A68;
+        int center = this.getX() + this.getWidth() / 2;
+        int top = this.getY() + 3;
+        context.fill(center - 2, top, center + 2, top + 2, color);
+        context.fill(center - 5, top + 2, center + 5, top + 3, color);
+        context.fill(center - 4, top + 4, center - 3, top + 12, color);
+        context.fill(center + 3, top + 4, center + 4, top + 12, color);
+        context.fill(center - 3, top + 12, center + 3, top + 13, color);
+        for (int offset = 0; offset < 5; offset++) {
+            context.fill(center - 2 + offset, top + 5 + offset,
+                    center - 1 + offset, top + 6 + offset, color);
+            context.fill(center + 1 - offset, top + 5 + offset,
+                    center + 2 - offset, top + 6 + offset, color);
+        }
     }
 }

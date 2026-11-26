@@ -3,9 +3,15 @@ package dev.cylox.msm.screen;
 import dev.cylox.msm.MsmClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
+import java.security.SecureRandom;
+
 public final class ConfirmRemoveAccountScreen extends MsmScreen {
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final char[] CODE_CHARACTERS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
     private final long sessionId;
     private final String username;
     private final String serverAddress;
@@ -13,6 +19,9 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     private final int accountServerCount;
     private final Runnable accountRemovalAction;
     private boolean removing;
+    private MsmButtonWidget confirmButton;
+    private TextFieldWidget confirmationField;
+    private final String confirmationCode;
     private String status = "Only this server and its automation settings will be removed.";
 
     public ConfirmRemoveAccountScreen(Screen parent, long sessionId,
@@ -24,6 +33,7 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         this.accountRemoval = false;
         this.accountServerCount = 1;
         this.accountRemovalAction = null;
+        this.confirmationCode = "";
     }
 
     public ConfirmRemoveAccountScreen(Screen parent, String username,
@@ -38,10 +48,31 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         this.accountRemoval = true;
         this.accountServerCount = Math.max(0, serverCount);
         this.accountRemovalAction = accountRemovalAction;
+        this.confirmationCode = createConfirmationCode();
     }
 
     @Override
     protected void init() {
+        if (this.accountRemoval) {
+            int panelWidth = Math.max(1, Math.min(380, this.width - 24));
+            int left = (this.width - panelWidth) / 2;
+            int top = this.height / 2 - 86;
+            int buttonGap = 8;
+            int buttonWidth = Math.max(1, (panelWidth - 24 - buttonGap) / 2);
+            this.confirmationField = this.addField(
+                    left + 12, top + 119, panelWidth - 24, 18,
+                    "Enter confirmation code...");
+            this.confirmationField.setMaxLength(9);
+            this.confirmationField.setFocused(true);
+            this.confirmButton = this.addAction(
+                    left + 12, top + 145, buttonWidth, 20,
+                    "CONFIRM", button -> remove());
+            this.confirmButton.setDanger(true);
+            this.confirmButton.active = false;
+            this.addAction(left + 12 + buttonWidth + buttonGap, top + 145,
+                    buttonWidth, 20, "CANCEL", button -> close());
+            return;
+        }
         int panelWidth = Math.min(340, this.width - 24);
         int left = (this.width - panelWidth) / 2;
         int buttonWidth = Math.max(1, (panelWidth - 34) / 2);
@@ -54,8 +85,30 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
                 buttonWidth, 20, "CANCEL", button -> close());
     }
 
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.accountRemoval && this.confirmButton != null) {
+            this.confirmButton.active = !this.removing && isConfirmationCodeValid();
+        }
+    }
+
+    private boolean isConfirmationCodeValid() {
+        return this.confirmationField != null
+                && this.confirmationCode.equalsIgnoreCase(this.confirmationField.getText().trim());
+    }
+
+    private static String createConfirmationCode() {
+        StringBuilder code = new StringBuilder(9);
+        for (int index = 0; index < 8; index++) {
+            if (index == 4) code.append('-');
+            code.append(CODE_CHARACTERS[RANDOM.nextInt(CODE_CHARACTERS.length)]);
+        }
+        return code.toString();
+    }
+
     private void remove() {
-        if (this.removing) return;
+        if (this.removing || (this.accountRemoval && !isConfirmationCodeValid())) return;
         this.removing = true;
         if (this.accountRemoval) {
             this.status = "Deleting the account and all " + this.accountServerCount + " servers...";
@@ -83,24 +136,49 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderMsmBackground(context, mouseX, mouseY, delta);
-        int panelWidth = Math.min(340, this.width - 24);
-        int left = (this.width - panelWidth) / 2;
-        int top = this.height / 2 - 66;
-        drawGlassPanel(context, left, top, left + panelWidth, this.height / 2 + 66);
-        centered(context, this.accountRemoval ? "DELETE ACCOUNT?" : "REMOVE SERVER?",
-                this.width / 2, top + 15, 0xFFFFD6D6);
-        centered(context, this.username, this.width / 2, top + 37, 0xFF6FC4DE);
-        centered(context, fit(this.serverAddress, panelWidth - 24),
-                this.width / 2, top + 52, 0xFFB3BFCD);
-        centered(context, this.accountRemoval ? "All saved servers will be disconnected"
-                        : "Only this server's automation settings",
-                this.width / 2, top + 75, 0xFF9EADBD);
-        centered(context, this.accountRemoval ? "and removed with their saved settings."
-                        : "will be deleted. Other servers stay saved.",
-                this.width / 2, top + 87, 0xFF9EADBD);
-        centered(context, fit(this.status, panelWidth - 24),
-                this.width / 2, top + 103, 0xFF9EADBD);
+        int panelWidth;
+        int left;
+        int top;
+        if (this.accountRemoval) {
+            if (this.parent instanceof SessionManagerScreen) {
+                ((SessionManagerScreen) this.parent).render(context, mouseX, mouseY, delta);
+            } else {
+                this.renderMsmBackground(context, mouseX, mouseY, delta);
+            }
+            context.fill(0, 0, this.width, this.height, 0x99070B12);
+            panelWidth = Math.max(1, Math.min(380, this.width - 24));
+            left = (this.width - panelWidth) / 2;
+            top = this.height / 2 - 86;
+            drawGlassPanel(context, left, top, left + panelWidth, top + 174);
+            centered(context, "DELETE ACCOUNT", this.width / 2, top + 10, 0xFFFF8792);
+            this.text(context, "USERNAME", left + 12, top + 28, 0xFF9EADBD);
+            centered(context, this.username, this.width / 2, top + 41, 0xFF6FC4DE);
+            centered(context, "Delete account and all its",
+                    this.width / 2, top + 58, 0xFFE1E7EF);
+            centered(context, "configurations permanently.",
+                    this.width / 2, top + 70, 0xFFE1E7EF);
+            centered(context, "To confirm, enter this code:",
+                    this.width / 2, top + 86, 0xFF9EADBD);
+            drawGlassPanel(context, left + 12, top + 99, left + panelWidth - 12, top + 116);
+            centered(context, this.confirmationCode, this.width / 2, top + 103, 0xFFFF8792);
+            drawGlassPanel(context, left + 12, top + 119, left + panelWidth - 12, top + 137);
+        } else {
+            this.renderMsmBackground(context, mouseX, mouseY, delta);
+            panelWidth = Math.min(340, this.width - 24);
+            left = (this.width - panelWidth) / 2;
+            top = this.height / 2 - 66;
+            drawGlassPanel(context, left, top, left + panelWidth, this.height / 2 + 66);
+            centered(context, "REMOVE SERVER?", this.width / 2, top + 15, 0xFFFFD6D6);
+            centered(context, this.username, this.width / 2, top + 37, 0xFF6FC4DE);
+            centered(context, fit(this.serverAddress, panelWidth - 24),
+                    this.width / 2, top + 52, 0xFFB3BFCD);
+            centered(context, "Only this server's automation settings",
+                    this.width / 2, top + 75, 0xFF9EADBD);
+            centered(context, "will be deleted. Other servers stay saved.",
+                    this.width / 2, top + 87, 0xFF9EADBD);
+            centered(context, fit(this.status, panelWidth - 24),
+                    this.width / 2, top + 103, 0xFF9EADBD);
+        }
         super.render(context, mouseX, mouseY, delta);
     }
 }
