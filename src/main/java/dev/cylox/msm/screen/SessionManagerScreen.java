@@ -404,14 +404,25 @@ public final class SessionManagerScreen extends MsmScreen {
             AccountListEntry entry = this.accountRows.get(index);
             if (!this.manageView && entry.server == null) {
                 AccountGroup group = entry.account;
+                int manageWidth = 72;
+                int deleteWidth = 66;
+                int accountGap = 5;
+                int accountLabelWidth = Math.max(1,
+                        rowWidth - manageWidth - deleteWidth - accountGap * 2);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        rowLeft, rowY, labelWidth, 20, getAccountGroupLabel(group),
+                        rowLeft, rowY, accountLabelWidth, 20, getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        rowLeft + labelWidth + 8, rowY, actionWidth, 20,
+                        rowLeft + accountLabelWidth + accountGap, rowY, manageWidth, 20,
                         "MANAGE", button -> openAccountManage(group.key)));
+                MsmButtonWidget delete = new MsmButtonWidget(
+                        rowLeft + accountLabelWidth + accountGap + manageWidth + accountGap,
+                        rowY, deleteWidth, 20, "DELETE",
+                        button -> requestDeleteAccount(group.key));
+                delete.setDanger(true);
+                this.addButton(delete);
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
                 MsmButtonWidget server = new MsmButtonWidget(
@@ -447,7 +458,7 @@ public final class SessionManagerScreen extends MsmScreen {
         if (this.manageView) {
             int groupWidth = Math.min(500, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 4) / 5);
+            int width = Math.max(1, (groupWidth - gap * 3) / 4);
             this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
                     button -> openAddDialog()));
             this.connectionButton = this.addButton(new MsmButtonWidget(
@@ -456,11 +467,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     left + (width + gap) * 2, footerY, width, 20, "REMOVE",
                     button -> requestRemoveAccount()));
             ((MsmButtonWidget) this.removeButton).setDanger(true);
-            MsmButtonWidget deleteAccount = this.addButton(new MsmButtonWidget(
-                    left + (width + gap) * 3, footerY, width, 20, "DELETE",
-                    button -> requestDeleteAccount()));
-            deleteAccount.setDanger(true);
-            this.addButton(new MsmButtonWidget(left + (width + gap) * 4, footerY, width, 20,
+            this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
         } else {
             int addWidth = 78;
@@ -573,9 +580,9 @@ public final class SessionManagerScreen extends MsmScreen {
         }
     }
 
-    private void requestDeleteAccount() {
+    private void requestDeleteAccount(String targetAccountKey) {
         for (AccountGroup group : this.accountGroups) {
-            if (group.key.equals(this.managedAccountKey)) {
+            if (group.key.equals(targetAccountKey)) {
                 final String accountKey = group.key;
                 final String username = group.username;
                 final List<SessionManager.Session> targets =
