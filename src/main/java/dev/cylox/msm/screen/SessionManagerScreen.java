@@ -412,14 +412,14 @@ public final class SessionManagerScreen extends MsmScreen {
         int rowY = this.rowStartY;
         int rowWidth = Math.max(1, Math.min(this.manageView ? 520 : 480, contentWidth - 44));
         int rowLeft = this.accountsPanelLeft + 12;
-        int actionWidth = 82;
+        int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
         for (int index = start; index < end; index++) {
             AccountListEntry entry = this.accountRows.get(index);
             if (!this.manageView && entry.server == null) {
                 AccountGroup group = entry.account;
-                int manageWidth = 72;
+                int manageWidth = 58;
                 int deleteWidth = 20;
                 int accountGap = 6;
                 int accountLabelWidth = Math.max(1,
@@ -438,7 +438,7 @@ public final class SessionManagerScreen extends MsmScreen {
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
                         rowLeft + deleteWidth + accountGap + accountLabelWidth + accountGap,
-                        rowY, manageWidth, 20,
+                        rowY + 1, manageWidth, 18,
                         "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
@@ -449,7 +449,7 @@ public final class SessionManagerScreen extends MsmScreen {
                 this.rowButtons.put(session.getId(), server);
                 this.addButton(server);
                 MsmButtonWidget manage = new MsmButtonWidget(
-                        rowLeft + labelWidth + 8, rowY, actionWidth, 20,
+                        rowLeft + labelWidth + 8, rowY + 1, actionWidth, 18,
                         "MANAGE", button -> openControlManageFor(session));
                 this.serverManageButtons.put(session.getId(), manage);
                 this.addButton(manage);
