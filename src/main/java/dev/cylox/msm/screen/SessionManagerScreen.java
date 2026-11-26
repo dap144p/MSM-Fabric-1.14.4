@@ -28,9 +28,9 @@ import java.util.Optional;
 public final class SessionManagerScreen extends MsmScreen {
     @Override
     protected String getMsmPageTitle() {
-        return this.addDialog
-                ? (this.manageView ? "ADD SERVER" : "ADD ACCOUNT")
-                : (this.manageView ? "MANAGE ACCOUNT" : "ACCOUNT MANAGER");
+        return this.manageView
+                ? (this.addDialog ? "ADD SERVER" : "MANAGE ACCOUNT")
+                : "ACCOUNT MANAGER";
     }
 
     private static final int PAGE_SIZE = 6;
