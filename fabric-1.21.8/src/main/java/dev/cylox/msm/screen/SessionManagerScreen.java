@@ -264,12 +264,13 @@ public final class SessionManagerScreen extends MsmScreen {
         refreshSessions();
         this.serverManageButtons.clear();
 
-        int contentWidth = Math.max(1, Math.min(this.width - 24, 560));
-        int contentLeft = Math.max(12, (this.width - contentWidth) / 2);
+        int contentWidth = Math.max(1, this.manageView
+                ? Math.min(this.width - 24, 560) : this.width - 24);
+        int contentLeft = this.manageView ? Math.max(12, (this.width - contentWidth) / 2) : 12;
         this.accountsPanelLeft = contentLeft;
         this.accountsPanelWidth = contentWidth;
         this.rowStartY = 96;
-        this.accountsPanelBottom = this.height - 58;
+        this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
 
         if (this.addDialog) {
             int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
@@ -308,7 +309,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
         if (!this.manageView && !this.addDialog) {
             MsmButtonWidget close = new MsmButtonWidget(
-                    this.accountsPanelLeft + this.accountsPanelWidth - 26, 7,
+                    this.width - 32, 7,
                     20, 20, "", button -> close());
             close.setCloseIcon(true);
             this.addButton(close);
@@ -326,7 +327,8 @@ public final class SessionManagerScreen extends MsmScreen {
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.max(1, Math.min(this.manageView ? 520 : 480, contentWidth - 44));
+        int rowWidth = Math.max(1, this.manageView
+                ? Math.min(520, contentWidth - 44) : contentWidth - 24);
         int rowLeft = this.accountsPanelLeft + 12;
         int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
@@ -700,20 +702,17 @@ public final class SessionManagerScreen extends MsmScreen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
         if (!this.manageView && !this.addDialog) {
-            int outerLeft = Math.max(4, this.accountsPanelLeft - 10);
-            int outerRight = Math.min(this.width - 4,
-                    this.accountsPanelLeft + this.accountsPanelWidth + 10);
-            this.drawGlassPanel(context, outerLeft, 16, outerRight, this.height - 12);
-            this.drawGlassDivider(context, outerLeft + 12, 30, outerRight - 12);
+            context.fill(0, 0, this.width, 36, 0x50101822);
+            context.fill(0, 35, this.width, 36, 0x603A4655);
+            context.fill(0, this.height - 36, this.width, this.height, 0x68101822);
+            this.drawGlassDivider(context, 12, 30, this.width - 12);
 
             String title = "MULTI SESSION MANAGER";
-            int titleWidth = this.textRenderer.getWidth(title);
-            int titleStart = (this.width - titleWidth) / 2;
-            this.text(context, title, titleStart, 10, 0xFFF1F5FA);
+            this.text(context, title, 14, 10, 0xFFE0E8F0);
 
             int searchLeft = this.accountsPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
-            this.drawGlassPanel(context, searchLeft, 34, searchRight, 60);
+            context.fill(searchLeft, 34, searchRight, 60, 0x50101822);
             int iconX = searchLeft + 12;
             int iconY = 41;
             int iconColor = 0xFFD5E0EE;
@@ -740,8 +739,12 @@ public final class SessionManagerScreen extends MsmScreen {
         } else {
             int top = this.manageView ? 42 : 66;
             int bottom = this.height - 58;
-            this.drawGlassPanel(context, this.accountsPanelLeft, top,
-                    this.accountsPanelLeft + this.accountsPanelWidth, bottom);
+            if (this.manageView) {
+                this.drawGlassPanel(context, this.accountsPanelLeft, top,
+                        this.accountsPanelLeft + this.accountsPanelWidth, bottom);
+            } else {
+                context.fill(8, top, this.width - 8, bottom, 0x52141D28);
+            }
             if (this.pageCount > 1) {
                 int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
                 int thumbHeight = Math.max(9,
