@@ -868,13 +868,8 @@ public final class SessionManagerScreen extends MsmScreen {
                     dialogLeft + 14, top + 12, 0xFF9EADBD);
         }
         if (!this.addDialog) {
-            if (this.floatingOverlay && !this.manageView) {
-                renderFloatingFooter(context, this.status,
-                        MsmClient.getUpdateManager() != null ? 170 : 83);
-            } else {
-                renderMsmFooter(context, this.status,
-                        this.manageView ? Math.min(500, this.width - 24) : 100);
-            }
+            renderMsmFooter(context, this.status,
+                    this.manageView ? Math.min(500, this.width - 24) : 100);
         }
 
         super.render(context, mouseX, mouseY, delta);
