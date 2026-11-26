@@ -776,14 +776,7 @@ public final class SessionManagerScreen extends MsmScreen {
         } else {
         }
 
-        if (this.addDialog) {
-            int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
-            int left = (this.width - dialogWidth) / 2;
-            int top = Math.max(34, (this.height - 154) / 2);
-            this.drawGlassPanel(context, left, top, left + dialogWidth, top + 142);
-            this.text(context, "OFFLINE ACCOUNT", left + 14, top + 12, 0xFF9EADBD);
-            this.text(context, "Microsoft sign-in is postponed.", left + 14, top + 126, 0xFF9EADBD);
-        } else {
+        if (!this.addDialog) {
             int top = this.manageView ? 42 : 66;
             int bottom = this.height - 58;
             if (this.manageView) {
@@ -836,6 +829,13 @@ public final class SessionManagerScreen extends MsmScreen {
                         Text.literal(empty), this.accountsPanelLeft + this.accountsPanelWidth / 2,
                         top + 38, 0xFF9EADBD);
             }
+        }
+        if (this.addDialog) {
+            int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
+            int left = (this.width - dialogWidth) / 2;
+            int top = Math.max(34, (this.height - 154) / 2);
+            this.drawGlassPanel(context, left, top, left + dialogWidth, top + 112);
+            this.text(context, "OFFLINE ACCOUNT", left + 14, top + 12, 0xFF9EADBD);
         }
         if (!this.addDialog) {
             renderMsmFooter(context, this.status,
