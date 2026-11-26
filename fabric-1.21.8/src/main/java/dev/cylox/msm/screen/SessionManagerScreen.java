@@ -413,6 +413,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
+        int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
         int rowLeft = this.accountsPanelLeft;
         int cardGap = 8;
         int cardWidth = Math.max(1,
