@@ -66,6 +66,8 @@ public final class SessionManagerScreen extends MsmScreen {
     private TextFieldWidget serverField;
     private ButtonWidget authModeButton;
     private ButtonWidget serverListButton;
+    private MsmButtonWidget offlineAccountButton;
+    private MsmButtonWidget microsoftAccountButton;
     private ButtonWidget connectionButton;
     private ButtonWidget controlButton;
     private ButtonWidget removeButton;
@@ -327,6 +329,8 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     protected void init() {
         this.rowButtons.clear();
+        this.offlineAccountButton = null;
+        this.microsoftAccountButton = null;
         this.accountButtons.clear();
         this.serverManageButtons.clear();
         this.searchField = null;
@@ -342,8 +346,13 @@ public final class SessionManagerScreen extends MsmScreen {
         int contentWidth = Math.max(1, this.manageView
                 ? Math.min(this.width - 24, 560) : this.width - 24);
         int contentLeft = this.manageView ? Math.max(12, (this.width - contentWidth) / 2) : 12;
-        this.accountsPanelLeft = contentLeft;
-        this.accountsPanelWidth = contentWidth;
+        this.formPanelLeft = contentLeft;
+        this.formPanelWidth = this.manageView ? 0
+                : Math.max(150, Math.min(220, (contentWidth - 12) / 3));
+        this.accountsPanelLeft = this.manageView ? contentLeft
+                : contentLeft + this.formPanelWidth + 12;
+        this.accountsPanelWidth = this.manageView ? contentWidth
+                : contentWidth - this.formPanelWidth - 12;
         this.rowStartY = 96;
         this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
 
@@ -392,7 +401,7 @@ public final class SessionManagerScreen extends MsmScreen {
             int searchWidth = Math.max(1, contentWidth - 60);
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    this.accountsPanelLeft + 42, 36,
+                    contentLeft + 42, 36,
                     searchWidth, 20, "Search accounts..."));
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
@@ -407,11 +416,21 @@ public final class SessionManagerScreen extends MsmScreen {
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
         this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
+        if (!this.manageView) {
+            int cardLeft = this.formPanelLeft + 10;
+            int cardWidth = Math.max(1, this.formPanelWidth - 20);
+            this.offlineAccountButton = this.addButton(new MsmButtonWidget(
+                    cardLeft, 112, cardWidth, 76, "", button -> openAddDialog()));
+            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
+                    cardLeft, 202, cardWidth, 76, "",
+                    button -> this.status = "Microsoft sign-in is postponed."));
+        }
+
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
         int rowWidth = Math.max(1, this.manageView
-                ? Math.min(520, contentWidth - 44) : contentWidth - 24);
+                ? Math.min(520, contentWidth - 44) : this.accountsPanelWidth - 24);
         int rowLeft = this.accountsPanelLeft + 12;
         int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
@@ -488,10 +507,10 @@ public final class SessionManagerScreen extends MsmScreen {
             this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
         } else {
-            int addWidth = 78;
-            int left = this.accountsPanelLeft + this.accountsPanelWidth - 12 - addWidth;
-            this.addButton(new MsmButtonWidget(left, footerY, addWidth, 20, "ADD",
-                    button -> openAddDialog()));
+            int backWidth = 78;
+            int left = this.width - 12 - backWidth;
+            this.addButton(new MsmButtonWidget(left, footerY, backWidth, 20, "BACK",
+                    button -> MinecraftClient.getInstance().openScreen(this.parent)));
         }
         refreshControls();
     }
@@ -895,7 +914,7 @@ public final class SessionManagerScreen extends MsmScreen {
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
         if (!this.manageView && !this.addDialog) {
-            int searchLeft = this.accountsPanelLeft + 12;
+            int searchLeft = this.formPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
             fill(searchLeft, 34, searchRight, 60, 0x50101822);
             int iconX = searchLeft + 12;
@@ -924,7 +943,12 @@ public final class SessionManagerScreen extends MsmScreen {
                 drawGlassPanel(this.accountsPanelLeft, top,
                         this.accountsPanelLeft + this.accountsPanelWidth, bottom);
             } else {
-                fill(8, top, this.width - 8, bottom, 0x52141D28);
+                drawGlassPanel(this.formPanelLeft, top,
+                        this.formPanelLeft + this.formPanelWidth, bottom);
+                fill(this.accountsPanelLeft, top,
+                        this.accountsPanelLeft + this.accountsPanelWidth, bottom, 0x52141D28);
+                drawCenteredString(MinecraftClient.getInstance().textRenderer, "ADD ACCOUNT",
+                        this.formPanelLeft + this.formPanelWidth / 2, top + 12, 0xFFE7EDF5);
             }
             if (this.pageCount > 1) {
                 int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
@@ -963,15 +987,42 @@ public final class SessionManagerScreen extends MsmScreen {
                         : this.searchValue.isEmpty() ? "No accounts added yet."
                         : "No accounts match your search.";
                 drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                        empty, this.width / 2, top + 38, 0xFF9EADBD);
+                        empty, this.accountsPanelLeft + this.accountsPanelWidth / 2,
+                        top + 38, 0xFF9EADBD);
             }
         }
 
         if (!this.addDialog) {
             renderMsmFooter(this.status,
-                    this.manageView ? Math.min(500, this.width - 24) : 180);
+                    this.manageView ? Math.min(500, this.width - 24) : 100);
         }
         super.render(mouseX, mouseY, delta);
+        if (!this.manageView && !this.addDialog) drawProviderIcons();
+    }
+
+    private void drawProviderIcons() {
+        int iconX = this.formPanelLeft + 26;
+        int firstY = 112;
+        int secondY = 202;
+        fill(iconX + 2, firstY + 24, iconX + 24, firstY + 34, 0xFF75452B);
+        fill(iconX, firstY + 18, iconX + 22, firstY + 28, 0xFF8B5734);
+        fill(iconX + 2, firstY + 12, iconX + 24, firstY + 22, 0xFF4D9A36);
+        fill(iconX + 8, firstY + 8, iconX + 24, firstY + 18, 0xFF63B83F);
+        fill(iconX + 2, firstY + 12, iconX + 8, firstY + 18, 0xFF75C94A);
+        fill(iconX + 4, firstY + 28, iconX + 8, firstY + 32, 0xFF5B3828);
+        fill(iconX + 16, firstY + 22, iconX + 20, firstY + 26, 0xFF5B3828);
+        fill(iconX, secondY + 16, iconX + 14, secondY + 30, 0xFFF25022);
+        fill(iconX + 17, secondY + 16, iconX + 31, secondY + 30, 0xFF7FBA00);
+        fill(iconX, secondY + 33, iconX + 14, secondY + 47, 0xFF00A4EF);
+        fill(iconX + 17, secondY + 33, iconX + 31, secondY + 47, 0xFFFFB900);
+        drawString(MinecraftClient.getInstance().textRenderer, "Add Offline",
+                iconX + 38, firstY + 24, 0xFFE8EDF3);
+        drawString(MinecraftClient.getInstance().textRenderer, "Account",
+                iconX + 38, firstY + 36, 0xFFE8EDF3);
+        drawString(MinecraftClient.getInstance().textRenderer, "Add Microsoft",
+                iconX + 38, secondY + 24, 0xFFE8EDF3);
+        drawString(MinecraftClient.getInstance().textRenderer, "Account",
+                iconX + 38, secondY + 36, 0xFFE8EDF3);
     }
 
     @Override

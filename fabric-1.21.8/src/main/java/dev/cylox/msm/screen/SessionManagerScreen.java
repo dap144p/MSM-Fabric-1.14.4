@@ -52,6 +52,8 @@ public final class SessionManagerScreen extends MsmScreen {
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private MsmButtonWidget authModeButton;
+    private MsmButtonWidget offlineAccountButton;
+    private MsmButtonWidget microsoftAccountButton;
     private MsmButtonWidget addAccountButton;
     private MsmButtonWidget connectionButton;
     private MsmButtonWidget controlButton;
@@ -263,6 +265,8 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     protected void init() {
         this.clearChildren();
+        this.offlineAccountButton = null;
+        this.microsoftAccountButton = null;
         this.rowButtons.clear();
         this.accountButtons.clear();
         this.connectionButton = null;
@@ -274,8 +278,13 @@ public final class SessionManagerScreen extends MsmScreen {
         int contentWidth = Math.max(1, this.manageView
                 ? Math.min(this.width - 24, 560) : this.width - 24);
         int contentLeft = this.manageView ? Math.max(12, (this.width - contentWidth) / 2) : 12;
-        this.accountsPanelLeft = contentLeft;
-        this.accountsPanelWidth = contentWidth;
+        this.formPanelLeft = contentLeft;
+        this.formPanelWidth = this.manageView ? 0
+                : Math.max(150, Math.min(220, (contentWidth - 12) / 3));
+        this.accountsPanelLeft = this.manageView ? contentLeft
+                : contentLeft + this.formPanelWidth + 12;
+        this.accountsPanelWidth = this.manageView ? contentWidth
+                : contentWidth - this.formPanelWidth - 12;
         this.rowStartY = 96;
         this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
 
@@ -309,7 +318,7 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             int searchWidth = Math.max(1, contentWidth - 60);
             this.searchField = this.addField(
-                    this.accountsPanelLeft + 42, 36, searchWidth, 20, "Search accounts...");
+                    contentLeft + 42, 36, searchWidth, 20, "Search accounts...");
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
@@ -323,11 +332,21 @@ public final class SessionManagerScreen extends MsmScreen {
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
         this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
+        if (!this.manageView) {
+            int cardLeft = this.formPanelLeft + 10;
+            int cardWidth = Math.max(1, this.formPanelWidth - 20);
+            this.offlineAccountButton = this.addButton(new MsmButtonWidget(
+                    cardLeft, 112, cardWidth, 76, "", button -> openAddDialog()));
+            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
+                    cardLeft, 202, cardWidth, 76, "",
+                    button -> this.status = "Microsoft sign-in is postponed."));
+        }
+
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
         int rowWidth = Math.max(1, this.manageView
-                ? Math.min(520, contentWidth - 44) : contentWidth - 24);
+                ? Math.min(520, contentWidth - 44) : this.accountsPanelWidth - 24);
         int rowLeft = this.accountsPanelLeft + 12;
         int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
@@ -406,16 +425,15 @@ public final class SessionManagerScreen extends MsmScreen {
         } else {
             boolean showUpdates = MsmClient.getUpdateManager() != null;
             int updateWidth = showUpdates ? 82 : 0;
-            int addWidth = 78;
-            int groupWidth = updateWidth + (showUpdates ? gap : 0) + addWidth;
-            int left = this.accountsPanelLeft + this.accountsPanelWidth - 12 - groupWidth;
+            int backWidth = 78;
+            int groupWidth = updateWidth + (showUpdates ? gap : 0) + backWidth;
+            int left = this.width - 12 - groupWidth;
             if (showUpdates) {
                 this.addButton(new MsmButtonWidget(left, footerY, updateWidth, 20,
                         "UPDATES", button -> openUpdateScreen()));
             }
-            int addLeft = left + updateWidth + (showUpdates ? gap : 0);
-            this.addButton(new MsmButtonWidget(addLeft, footerY, addWidth, 20, "ADD",
-                    button -> openAddDialog()));
+            this.addButton(new MsmButtonWidget(left + updateWidth + (showUpdates ? gap : 0),
+                    footerY, backWidth, 20, "BACK", button -> this.client.setScreen(this.parent)));
         }
         refreshControls();
     }
@@ -701,7 +719,7 @@ public final class SessionManagerScreen extends MsmScreen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderMsmBackground(context, mouseX, mouseY, delta);
         if (!this.manageView && !this.addDialog) {
-            int searchLeft = this.accountsPanelLeft + 12;
+            int searchLeft = this.formPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
             context.fill(searchLeft, 34, searchRight, 60, 0x50101822);
             int iconX = searchLeft + 12;
@@ -729,7 +747,12 @@ public final class SessionManagerScreen extends MsmScreen {
                 this.drawGlassPanel(context, this.accountsPanelLeft, top,
                         this.accountsPanelLeft + this.accountsPanelWidth, bottom);
             } else {
-                context.fill(8, top, this.width - 8, bottom, 0x52141D28);
+                this.drawGlassPanel(context, this.formPanelLeft, top,
+                        this.formPanelLeft + this.formPanelWidth, bottom);
+                context.fill(this.accountsPanelLeft, top,
+                        this.accountsPanelLeft + this.accountsPanelWidth, bottom, 0x52141D28);
+                this.centered(context, "ADD ACCOUNT",
+                        this.formPanelLeft + this.formPanelWidth / 2, top + 12, 0xFFE7EDF5);
             }
             if (this.pageCount > 1) {
                 int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
@@ -767,14 +790,37 @@ public final class SessionManagerScreen extends MsmScreen {
                         : this.searchValue.isEmpty() ? "No accounts added yet."
                         : "No accounts match your search.";
                 context.drawCenteredTextWithShadow(this.textRenderer,
-                        Text.literal(empty), this.width / 2, top + 38, 0xFF9EADBD);
+                        Text.literal(empty), this.accountsPanelLeft + this.accountsPanelWidth / 2,
+                        top + 38, 0xFF9EADBD);
             }
         }
         if (!this.addDialog) {
             renderMsmFooter(context, this.status,
-                    this.manageView ? Math.min(500, this.width - 24) : 180);
+                    this.manageView ? Math.min(500, this.width - 24) : 100);
         }
         super.render(context, mouseX, mouseY, delta);
+        if (!this.manageView && !this.addDialog) drawProviderIcons(context);
+    }
+
+    private void drawProviderIcons(DrawContext context) {
+        int iconX = this.formPanelLeft + 26;
+        int firstY = 112;
+        int secondY = 202;
+        context.fill(iconX + 2, firstY + 24, iconX + 24, firstY + 34, 0xFF75452B);
+        context.fill(iconX, firstY + 18, iconX + 22, firstY + 28, 0xFF8B5734);
+        context.fill(iconX + 2, firstY + 12, iconX + 24, firstY + 22, 0xFF4D9A36);
+        context.fill(iconX + 8, firstY + 8, iconX + 24, firstY + 18, 0xFF63B83F);
+        context.fill(iconX + 2, firstY + 12, iconX + 8, firstY + 18, 0xFF75C94A);
+        context.fill(iconX + 4, firstY + 28, iconX + 8, firstY + 32, 0xFF5B3828);
+        context.fill(iconX + 16, firstY + 22, iconX + 20, firstY + 26, 0xFF5B3828);
+        context.fill(iconX, secondY + 16, iconX + 14, secondY + 30, 0xFFF25022);
+        context.fill(iconX + 17, secondY + 16, iconX + 31, secondY + 30, 0xFF7FBA00);
+        context.fill(iconX, secondY + 33, iconX + 14, secondY + 47, 0xFF00A4EF);
+        context.fill(iconX + 17, secondY + 33, iconX + 31, secondY + 47, 0xFFFFB900);
+        this.text(context, "Add Offline", iconX + 38, firstY + 24, 0xFFE8EDF3);
+        this.text(context, "Account", iconX + 38, firstY + 36, 0xFFE8EDF3);
+        this.text(context, "Add Microsoft", iconX + 38, secondY + 24, 0xFFE8EDF3);
+        this.text(context, "Account", iconX + 38, secondY + 36, 0xFFE8EDF3);
     }
 
     @Override
