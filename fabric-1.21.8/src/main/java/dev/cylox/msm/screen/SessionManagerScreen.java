@@ -2,6 +2,7 @@ package dev.cylox.msm.screen;
 
 import dev.cylox.msm.MsmClient;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
+import dev.cylox.msm.profile.AccountIdentity;
 import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.session.SessionManager;
@@ -106,6 +107,10 @@ public final class SessionManagerScreen extends MsmScreen {
 
         List<SessionProfile> profiles = MsmClient.getProfiles();
         Map<String, AccountGroup> grouped = new LinkedHashMap<>();
+        for (AccountIdentity identity : MsmClient.getAccountIdentities()) {
+            String key = identity.getAuthMode().name() + ":" + identity.getUsername();
+            grouped.put(key, new AccountGroup(key, identity.getUsername(), identity.getAuthMode()));
+        }
         for (SessionManager.Session session : MsmClient.getSessionManager().getSessions()) {
             if (!profiles.contains(session.getProfile())) continue;
             this.sessions.add(session);
@@ -514,6 +519,22 @@ public final class SessionManagerScreen extends MsmScreen {
     private void addAccount() {
         snapshotFormValues();
         try {
+            if (!this.manageView) {
+                AccountIdentity identity = new AccountIdentity(this.usernameValue, SessionAuthMode.OFFLINE_LOCAL);
+                MsmClient.addAccountIdentity(identity);
+                this.expandedAccountKey = accountKey(identity);
+                this.manageView = true;
+                this.addDialog = false;
+                this.searchValue = "";
+                this.usernameValue = identity.getUsername();
+                refreshSessions();
+                this.client.setScreen(new SessionManagerScreen(this, "Account "
+                        + identity.getUsername() + " created. Add servers whenever you're ready.",
+                        0, -1L, this.expandedAccountKey, true, false, "",
+                        identity.getAuthMode(), identity.getUsername(), ""));
+                return;
+            }
+
             AccountGroup existing = findAccountGroup(this.usernameValue, this.authMode);
             String username = existing == null ? this.usernameValue : existing.username;
             SessionProfile profile = new SessionProfile(
@@ -561,10 +582,6 @@ public final class SessionManagerScreen extends MsmScreen {
             if (group.key.equals(targetAccountKey)) {
                 final String username = group.username;
                 final List<SessionManager.Session> targets = new ArrayList<>(group.servers);
-                if (targets.isEmpty()) {
-                    this.status = "This account has no saved servers.";
-                    return;
-                }
                 this.client.setScreen(new ConfirmRemoveAccountScreen(
                         this, username, targets.size(),
                         () -> beginDeleteAccount(username, targets)));
@@ -578,6 +595,10 @@ public final class SessionManagerScreen extends MsmScreen {
         this.client.setScreen(this);
         this.status = "Disconnecting and deleting all servers for " + username + "...";
         SessionAutomationScheduler scheduler = MsmClient.getAutomationScheduler();
+        if (targets.isEmpty()) {
+            removeNextAccountServer(username, targets, 0, 0, null);
+            return;
+        }
         if (scheduler == null) {
             this.status = "Account deletion is unavailable because automation is not initialized.";
             return;
@@ -589,6 +610,14 @@ public final class SessionManagerScreen extends MsmScreen {
                                          int index, int removed, Throwable firstFailure) {
         if (index >= targets.size()) {
             if (removed == targets.size() && firstFailure == null) {
+                try {
+                    MsmClient.removeAccountIdentity(username, SessionAuthMode.OFFLINE_LOCAL);
+                } catch (IOException exception) {
+                    this.status = "Servers removed, but account identity could not be deleted: "
+                            + exception.getMessage();
+                    this.client.setScreen(this);
+                    return;
+                }
                 String message = "Deleted account " + username + " and all "
                         + targets.size() + " saved servers.";
                 this.openScreen(message, this.pageIndex, -1L);
