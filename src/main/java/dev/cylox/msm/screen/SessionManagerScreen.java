@@ -586,7 +586,7 @@ public final class SessionManagerScreen extends MsmScreen {
                 }
                 MinecraftClient.getInstance().openScreen(new ConfirmRemoveAccountScreen(
                         this, username, targets.size() + " saved servers",
-                        () -> beginDeleteAccount(accountKey, username, targets)));
+                        () -> beginDeleteAccount(accountKey, username, targets), true));
                 return;
             }
         }

@@ -10,11 +10,18 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     private final String username;
     private final String serverAddress;
     private final Runnable onConfirm;
+    private final boolean accountRemoval;
     private ButtonWidget confirmButton;
     private boolean removing;
 
     public ConfirmRemoveAccountScreen(Screen parent, String username,
                                       String serverAddress, Runnable onConfirm) {
+        this(parent, username, serverAddress, onConfirm, false);
+    }
+
+    public ConfirmRemoveAccountScreen(Screen parent, String username,
+                                      String serverAddress, Runnable onConfirm,
+                                      boolean accountRemoval) {
         super(new LiteralText("Remove Account"));
         if (parent == null || onConfirm == null) {
             throw new IllegalArgumentException("Parent screen and removal action are required");
@@ -23,6 +30,7 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         this.username = username == null ? "" : username;
         this.serverAddress = serverAddress == null ? "" : serverAddress;
         this.onConfirm = onConfirm;
+        this.accountRemoval = accountRemoval;
     }
 
     @Override
@@ -35,7 +43,8 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
 
         this.confirmButton = this.addButton(new MsmButtonWidget(
                 buttonLeft, this.height / 2 + 28, buttonWidth, 20,
-                "REMOVE", button -> confirmRemoval()));
+                this.accountRemoval ? "DELETE ACCOUNT" : "REMOVE SERVER",
+                button -> confirmRemoval()));
         ((MsmButtonWidget) this.confirmButton).setDanger(true);
 
         this.addButton(new MsmButtonWidget(
@@ -72,17 +81,20 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         drawGlassPanel(left, top, left + panelWidth, this.height / 2 + 62);
 
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "REMOVE ACCOUNT?", this.width / 2, top + 16, 0xFFF1F5FA);
+                this.accountRemoval ? "DELETE ACCOUNT?" : "REMOVE SERVER?",
+                this.width / 2, top + 16, 0xFFF1F5FA);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.username, this.width / 2, top + 37, 0xFF6FC4DE);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 fitText(this.serverAddress, panelWidth - 28),
                 this.width / 2, top + 52, 0xFFB3BFCD);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "AutoChat and AutoReconnect settings",
+                this.accountRemoval ? "All saved servers and their"
+                        : "This server's AutoChat and AutoReconnect",
                 this.width / 2, top + 70, 0xFF9EADBD);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                "for this account will also be deleted.",
+                this.accountRemoval ? "automation settings will be deleted."
+                        : "settings will be deleted.",
                 this.width / 2, top + 82, 0xFF9EADBD);
 
         super.render(mouseX, mouseY, delta);
