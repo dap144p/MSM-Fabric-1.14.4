@@ -234,7 +234,18 @@ public final class SessionManagerScreen extends MsmScreen {
                 ? Optional.empty() : MsmClient.getSessionManager().find(this.selectedSessionId);
     }
 
+    private boolean hasSelectedAccount() {
+        if (this.expandedAccountKey == null) return false;
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(this.expandedAccountKey)) return true;
+        }
+        return false;
+    }
+
     private void refreshControls() {
+        if (this.deleteAccountButton != null) {
+            this.deleteAccountButton.active = hasSelectedAccount();
+        }
         Optional<SessionManager.Session> selected = getSelectedSession();
         if (selected.isPresent()) {
             SessionManager.Session session = selected.get();
