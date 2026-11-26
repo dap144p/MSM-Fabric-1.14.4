@@ -902,12 +902,9 @@ public final class SessionManagerScreen extends MsmScreen {
 
             String title = "MULTI SESSION MANAGER";
             int titleWidth = MinecraftClient.getInstance().textRenderer.getStringWidth(title);
-            int logoWidth = 8;
-            int titleStart = (this.width - titleWidth - logoWidth - 8) / 2;
+            int titleStart = (this.width - titleWidth) / 2;
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "M", titleStart, 10, 0xFFB58CFF);
-            drawString(MinecraftClient.getInstance().textRenderer,
-                    title, titleStart + logoWidth + 8, 10, 0xFFF1F5FA);
+                    title, titleStart, 10, 0xFFF1F5FA);
 
             int searchLeft = this.accountsPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
