@@ -918,9 +918,6 @@ public final class SessionControlScreen extends MsmScreen {
             drawPanel(context, this.contentLeft + 12, this.chatPanelTop,
                     this.contentLeft + this.contentWidth - 12,
                     this.chatPanelBottom, 0x50101822);
-            this.text(context, fitText(this.status,
-                            Math.max(50, this.contentWidth - 36)),
-                    this.contentLeft + 12, this.chatPanelBottom + 4, 0xFF9EADBD);
         } else if (this.tab == Tab.AUTO_CHAT) {
             int left = this.contentLeft + 12;
             this.text(context, "MESSAGE RULES", left,
@@ -958,10 +955,12 @@ public final class SessionControlScreen extends MsmScreen {
 
         boolean pending = hasPendingChanges();
         String footer = pending ? "●  UNSAVED CHANGES" : "No pending changes";
+        if (this.tab == Tab.CHAT && this.status != null && !this.status.isEmpty()) {
+            footer = this.status + "  |  " + footer;
+        }
         int statusColor = pending ? 0xFFFFD27A : 0xFF9EADBD;
-        int statusWidth = Math.max(40, this.width - 230);
-        this.text(context, fitText(footer, statusWidth),
-                14, this.height - 22, statusColor);
+        renderMsmFooter(context, fitText(footer, Math.max(40, this.width - 230)),
+                230, statusColor);
 
         super.render(context, mouseX, mouseY, delta);
         if (this.tab == Tab.CHAT) renderChat(context);

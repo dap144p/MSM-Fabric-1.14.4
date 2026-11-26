@@ -86,8 +86,9 @@ public final class ServerTemplatePickerScreen extends MsmScreen {
             this.addButton(next);
         }
 
+        int backWidth = Math.min(96, contentWidth);
         this.addButton(new MsmButtonWidget(
-                left, this.height - 24, contentWidth, 20,
+                this.width - 12 - backWidth, this.height - 28, backWidth, 20,
                 "BACK", button -> onClose()));
     }
 
@@ -128,15 +129,14 @@ public final class ServerTemplatePickerScreen extends MsmScreen {
         } else {
             drawCenteredString(MinecraftClient.getInstance().textRenderer,
                     "SAVED MULTIPLAYER SERVERS", this.width / 2, 31, 0xA0A0A0);
-            drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                    "PAGE " + (this.pageIndex + 1) + "/" + Math.max(1,
-                            (this.servers.size() + this.pageSize - 1) / this.pageSize),
-                    this.width / 2, this.height - 64, 0xA0A0A0);
         }
-        if (this.status != null && !this.status.isEmpty()) {
-            drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                    fitText(this.status, this.width - 24), this.width / 2, this.height - 80, 0xA0A0A0);
+        String footer = this.status == null ? "" : this.status;
+        if (!this.servers.isEmpty()) {
+            String page = "PAGE " + (this.pageIndex + 1) + "/"
+                    + Math.max(1, (this.servers.size() + this.pageSize - 1) / this.pageSize);
+            footer = page + (footer.isEmpty() ? "" : "  |  " + footer);
         }
+        renderMsmFooter(footer, 108);
         super.render(mouseX, mouseY, delta);
     }
 

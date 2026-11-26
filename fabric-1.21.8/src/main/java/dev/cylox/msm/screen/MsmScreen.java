@@ -70,6 +70,17 @@ public abstract class MsmScreen extends Screen {
         return this.addDrawableChild(field);
     }
 
+    protected void renderMsmFooter(DrawContext context, String status, int rightReserved) {
+        renderMsmFooter(context, status, rightReserved, 0xFF9EADBD);
+    }
+
+    protected void renderMsmFooter(DrawContext context, String status, int rightReserved, int color) {
+        context.fill(0, this.height - 36, this.width, this.height, 0x68101822);
+        int availableWidth = Math.max(1, this.width - 28 - Math.max(0, rightReserved));
+        String visible = this.textRenderer.trimToWidth(status == null ? "" : status, availableWidth);
+        context.drawTextWithShadow(this.textRenderer, Text.literal(visible), 14, this.height - 22, color);
+    }
+
     protected void renderMsmBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context, mouseX, mouseY, delta);
         context.fill(0, 0, this.width, this.height, 0x28070B12);

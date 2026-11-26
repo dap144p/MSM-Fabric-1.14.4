@@ -647,8 +647,6 @@ public final class SessionControlScreen extends MsmScreen {
             drawCenteredString(MinecraftClient.getInstance().textRenderer,
                     this.draft.getRules().size() + " RULES  |  " + getAutoChatLabel(),
                     this.width / 2, 48, 0xA0A0A0);
-            drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                    this.status, this.width / 2, this.height - 48, 0xA0A0A0);
         } else {
             drawString(MinecraftClient.getInstance().textRenderer,
                     "RECONNECT DELAY", this.settingsFirstX,
@@ -665,8 +663,6 @@ public final class SessionControlScreen extends MsmScreen {
             drawString(MinecraftClient.getInstance().textRenderer,
                     "GLOBAL CHAT INTERVAL", this.settingsSecondX,
                     this.settingsChatY - 12, 0xFF9EADBD);
-            drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                    this.status, this.width / 2, this.height - 48, 0xA0A0A0);
         }
 
         super.render(mouseX, mouseY, delta);

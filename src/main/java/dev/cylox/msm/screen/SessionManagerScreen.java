@@ -895,7 +895,6 @@ public final class SessionManagerScreen extends MsmScreen {
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
         if (!this.manageView && !this.addDialog) {
-            fill(0, this.height - 36, this.width, this.height, 0x68101822);
             int searchLeft = this.accountsPanelLeft + 12;
             int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
             fill(searchLeft, 34, searchRight, 60, 0x50101822);
@@ -966,11 +965,12 @@ public final class SessionManagerScreen extends MsmScreen {
                 drawCenteredString(MinecraftClient.getInstance().textRenderer,
                         empty, this.width / 2, top + 38, 0xFF9EADBD);
             }
-            drawString(MinecraftClient.getInstance().textRenderer,
-                    fitText(this.status, this.width - 32),
-                    16, this.height - 48, 0xFF9EADBD);
         }
 
+        if (!this.addDialog) {
+            renderMsmFooter(this.status,
+                    this.manageView ? Math.min(500, this.width - 24) : 180);
+        }
         super.render(mouseX, mouseY, delta);
     }
 

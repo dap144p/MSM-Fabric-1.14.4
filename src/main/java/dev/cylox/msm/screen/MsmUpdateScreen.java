@@ -38,7 +38,7 @@ public final class MsmUpdateScreen extends MsmScreen {
                 left, centerY + 24, buttonWidth, 20, "DOWNLOAD JAR",
                 button -> downloadUpdate()));
         this.backButton = this.addButton(new MsmButtonWidget(
-                left, centerY + 50, buttonWidth, 20, "BACK",
+                this.width - 96, this.height - 28, 84, 20, "BACK",
                 button -> onClose()));
 
         this.downloadButton.active = false;
@@ -130,11 +130,7 @@ public final class MsmUpdateScreen extends MsmScreen {
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 target, this.width / 2, centerY - 52, 0xFF9EADBD);
 
-        String visibleStatus = MinecraftClient.getInstance().textRenderer.trimToWidth(
-                this.status == null ? "" : this.status, Math.max(1, this.width - 28));
-        drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                visibleStatus, this.width / 2, centerY + 78, 0xFF9EADBD);
-
+        renderMsmFooter(this.status, 108);
         super.render(mouseX, mouseY, delta);
     }
 }

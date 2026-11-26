@@ -49,6 +49,18 @@ abstract class MsmScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
+    protected void renderMsmFooter(String status, int rightReserved) {
+        renderMsmFooter(status, rightReserved, 0xFF9EADBD);
+    }
+
+    protected void renderMsmFooter(String status, int rightReserved, int color) {
+        fill(0, this.height - 36, this.width, this.height, 0x68101822);
+        int availableWidth = Math.max(1, this.width - 28 - Math.max(0, rightReserved));
+        String visible = MinecraftClient.getInstance().textRenderer.trimToWidth(
+                status == null ? "" : status, availableWidth);
+        drawString(MinecraftClient.getInstance().textRenderer, visible, 14, this.height - 22, color);
+    }
+
     protected void renderMsmBackground() {
         renderBackground();
         fill(0, 0, this.width, this.height, 0x28070B12);

@@ -47,7 +47,9 @@ public final class SessionChatScreen extends MsmScreen {
         int sendWidth = Math.min(64, Math.max(40, width / 5));
         sendWidth = Math.min(sendWidth, Math.max(1, width - gap - 1));
         int fieldWidth = Math.max(1, width - sendWidth - gap);
-        int actionWidth = Math.max(1, (width - gap) / 2);
+        int actionGroupWidth = Math.min(216, width);
+        int actionWidth = Math.max(1, (actionGroupWidth - gap) / 2);
+        int actionLeft = left + width - actionGroupWidth;
 
         this.messageField = this.addButton(new TextFieldWidget(
                 MinecraftClient.getInstance().textRenderer,
@@ -58,10 +60,10 @@ public final class SessionChatScreen extends MsmScreen {
                 "SEND", button -> sendMessage()));
 
         this.connectionButton = this.addButton(new MsmButtonWidget(
-                left, this.height - 24, actionWidth, 20,
+                actionLeft, this.height - 24, actionWidth, 20,
                 "JOIN / CONNECT", button -> toggleConnection()));
         this.addButton(new MsmButtonWidget(
-                left + actionWidth + gap, this.height - 24,
+                actionLeft + actionWidth + gap, this.height - 24,
                 actionWidth, 20, "BACK", button -> onClose()));
 
         refreshWrappedMessages();
@@ -244,7 +246,7 @@ public final class SessionChatScreen extends MsmScreen {
         this.renderMsmBackground();
         drawGlassPanel(8, 6, this.width - 8, this.height - 8);
         drawGlassPanel(16, 28, this.width - 16, this.height - 101);
-        drawGlassPanel(8, this.height - 100, this.width - 8, this.height - 52);
+        drawGlassPanel(8, this.height - 100, this.width - 8, this.height - 36);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 10, 0xFFFFFF);
 
@@ -261,8 +263,7 @@ public final class SessionChatScreen extends MsmScreen {
             y += lineHeight;
         }
 
-        drawString(MinecraftClient.getInstance().textRenderer,
-                fitText(this.status, this.width - 24), 12, this.height - 93, 0xA0A0A0);
+        renderMsmFooter(this.status, Math.min(216, this.width - 24));
         super.render(mouseX, mouseY, delta);
     }
 }
