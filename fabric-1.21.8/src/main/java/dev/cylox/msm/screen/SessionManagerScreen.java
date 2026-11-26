@@ -300,50 +300,32 @@ public final class SessionManagerScreen extends MsmScreen {
         this.clearChildren();
         this.offlineAccountButton = null;
         this.microsoftAccountButton = null;
+        this.addAccountButton = null;
+        this.searchField = null;
+        this.usernameField = null;
+        this.serverField = null;
         this.rowButtons.clear();
         this.accountButtons.clear();
+        this.serverManageButtons.clear();
         this.connectionButton = null;
         this.removeButton = null;
         this.controlButton = null;
         refreshSessions();
-        this.serverManageButtons.clear();
 
-        boolean floatingAccountManager = this.floatingOverlay && !this.manageView;
-        int contentWidth;
-        int contentLeft;
-        int panelTop;
-        if (floatingAccountManager) {
-            int windowWidth = Math.max(1, Math.min(680, this.width - 24));
-            int windowHeight = Math.max(1, Math.min(420, this.height - 24));
-            this.overlayLeft = (this.width - windowWidth) / 2;
-            this.overlayRight = this.overlayLeft + windowWidth;
-            this.overlayTop = (this.height - windowHeight) / 2;
-            this.overlayBottom = this.overlayTop + windowHeight;
-            contentLeft = this.overlayLeft + 12;
-            contentWidth = windowWidth - 24;
-            panelTop = this.overlayTop + 64;
-            this.rowStartY = panelTop + 30;
-            this.accountsPanelBottom = this.overlayBottom - 42;
-        } else {
-            this.overlayLeft = 0;
-            this.overlayTop = 0;
-            this.overlayRight = this.width;
-            this.overlayBottom = this.height;
-            contentWidth = Math.max(1, this.manageView
-                    ? Math.min(this.width - 24, 560) : this.width - 24);
-            contentLeft = this.manageView
-                    ? Math.max(12, (this.width - contentWidth) / 2) : 12;
-            panelTop = this.manageView ? 42 : 66;
-            this.rowStartY = 96;
-            this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
-        }
+        this.overlayLeft = 0;
+        this.overlayTop = 0;
+        this.overlayRight = this.width;
+        this.overlayBottom = this.height;
+
+        int contentLeft = 14;
+        int contentWidth = Math.max(1, this.width - 28);
+        int panelTop = this.manageView ? 74 : 94;
         this.formPanelLeft = contentLeft;
-        this.formPanelWidth = this.manageView ? 0
-                : Math.max(150, Math.min(220, (contentWidth - 12) / 3));
-        this.accountsPanelLeft = this.manageView ? contentLeft
-                : contentLeft + this.formPanelWidth + 12;
-        this.accountsPanelWidth = this.manageView ? contentWidth
-                : contentWidth - this.formPanelWidth - 12;
+        this.formPanelWidth = 0;
+        this.accountsPanelLeft = contentLeft;
+        this.accountsPanelWidth = contentWidth;
+        this.rowStartY = this.manageView ? 96 : 104;
+        this.accountsPanelBottom = this.height - (this.manageView ? 58 : 44);
 
         if (this.addDialog) {
             int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
@@ -371,47 +353,41 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (!this.manageView) {
-            int searchWidth = Math.max(1, contentWidth - 60);
-            int searchY = floatingAccountManager ? this.overlayTop + 34 : 36;
+            int addWidth = this.width < 420 ? 94 : 112;
+            int microsoftWidth = this.width < 420 ? 72 : 124;
+            int actionGap = 5;
+            int actionsRight = contentLeft + contentWidth;
+            int addLeft = actionsRight - addWidth;
+            int microsoftLeft = addLeft - actionGap - microsoftWidth;
+            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
+                    microsoftLeft, 37, microsoftWidth, 20,
+                    this.width < 420 ? "MS SOON" : "MICROSOFT SOON",
+                    button -> this.status = "Microsoft sign-in is postponed."));
+            this.offlineAccountButton = this.addButton(new MsmButtonWidget(
+                    addLeft, 37, addWidth, 20, "ADD ACCOUNT", button -> openAddDialog()));
+
             this.searchField = this.addField(
-                    contentLeft + 42, searchY, searchWidth, 20, "Search accounts...");
+                    contentLeft, 72, Math.max(1, Math.min(280, contentWidth)), 20,
+                    "Search accounts...");
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
 
         this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
-        this.scrollTrackTop = panelTop + 24;
-        this.scrollTrackBottom = this.accountsPanelBottom - 22;
-        int listBottom = this.accountsPanelBottom - 28;
-        int availableRows = Math.max(1, (listBottom - this.rowStartY) / 24 + 1);
+        this.scrollTrackTop = panelTop + 8;
+        this.scrollTrackBottom = this.accountsPanelBottom - 10;
+        int rowStep = this.manageView ? 32 : 36;
+        int listBottom = this.accountsPanelBottom - 10;
+        int availableRows = Math.max(1, (listBottom - this.rowStartY) / rowStep + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
         this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
-        if (!this.manageView) {
-            int cardLeft = this.formPanelLeft + 10;
-            int cardWidth = Math.max(1, this.formPanelWidth - 20);
-            int cardAvailableHeight = this.accountsPanelBottom - panelTop - 50;
-            int cardHeight = floatingAccountManager
-                    ? Math.max(20, Math.min(76, (cardAvailableHeight - 8) / 2))
-                    : 76;
-            int accountCardY = floatingAccountManager ? panelTop + 42 : 112;
-            this.microsoftCardY = floatingAccountManager
-                    ? accountCardY + cardHeight + 8 : 202;
-            this.microsoftCardHeight = cardHeight;
-            this.offlineAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, accountCardY, cardWidth, cardHeight,
-                    "ADD ACCOUNT", button -> openAddDialog()));
-            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, this.microsoftCardY, cardWidth, cardHeight, "",
-                    button -> this.status = "Microsoft sign-in is postponed."));
-        }
 
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.max(1, this.manageView
-                ? Math.min(520, contentWidth - 44) : this.accountsPanelWidth - 24);
-        int rowLeft = this.accountsPanelLeft + 12;
+        int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
+        int rowLeft = this.accountsPanelLeft;
         int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
@@ -426,40 +402,40 @@ public final class SessionManagerScreen extends MsmScreen {
                 int accountLabelWidth = Math.max(1, rowWidth - deleteWidth
                         - manageWidth - accountGap * 2);
                 MsmButtonWidget delete = new MsmButtonWidget(
-                        rowLeft, rowY + 1, deleteWidth, 18, "",
+                        rowLeft, rowY + 4, deleteWidth, 20, "",
                         button -> requestDeleteAccount(group.key));
                 delete.setTrashIcon(true);
                 this.addButton(delete);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        accountLeft, rowY, accountLabelWidth, 20,
+                        accountLeft, rowY, accountLabelWidth, 28,
                         getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
                 account.setTrailingLabel(getAccountServerSummary(group));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        accountLeft + accountLabelWidth + accountGap, rowY + 1, manageWidth, 18,
+                        accountLeft + accountLabelWidth + accountGap, rowY + 4, manageWidth, 20,
                         "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
                 MsmButtonWidget server = new MsmButtonWidget(
-                        rowLeft, rowY, labelWidth, 20, getServerLabel(session, session.getId()),
+                        rowLeft, rowY, labelWidth, 22, getServerLabel(session, session.getId()),
                         button -> selectServer(session, entry.account.key));
                 server.setSelected(session.getId() == this.selectedSessionId);
                 this.rowButtons.put(session.getId(), server);
-                this.addButton(server);
                 MsmButtonWidget manage = new MsmButtonWidget(
-                        rowLeft + labelWidth + 8, rowY + 1, actionWidth, 18,
+                        rowLeft + labelWidth + 8, rowY + 1, actionWidth, 20,
                         "MANAGE", button -> openControlManageFor(session));
                 this.serverManageButtons.put(session.getId(), manage);
+                this.addButton(server);
                 this.addButton(manage);
             }
-            rowY += 24;
+            rowY += rowStep;
         }
 
         if (this.pageCount > 1) {
             MsmButtonWidget previous = new MsmButtonWidget(
-                    this.scrollButtonX, panelTop + 6, 14, 14, "^",
+                    this.scrollButtonX, panelTop + 2, 14, 14, "^",
                     button -> openPage(this.pageIndex - 1));
             MsmButtonWidget next = new MsmButtonWidget(
                     this.scrollButtonX, this.accountsPanelBottom - 19, 14, 14, "v",
@@ -470,7 +446,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.addButton(next);
         }
 
-        int footerY = floatingAccountManager ? this.overlayBottom - 28 : this.height - 28;
+        int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
             int groupWidth = Math.min(540, contentWidth);
@@ -501,6 +477,7 @@ public final class SessionManagerScreen extends MsmScreen {
         }
         refreshControls();
     }
+
 
     private String accountUsername(String key) {
         if (key == null) return this.usernameValue;
@@ -832,84 +809,63 @@ public final class SessionManagerScreen extends MsmScreen {
         } else {
             this.renderMsmBackground(context, mouseX, mouseY, delta);
         }
-        if (!this.manageView && !this.addDialog) {
-            int searchLeft = this.formPanelLeft + 12;
-            int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
-            int searchTop = this.floatingOverlay ? this.overlayTop + 32 : 34;
-            context.fill(searchLeft, searchTop, searchRight, searchTop + 26, 0x50101822);
-            int iconX = searchLeft + 12;
-            int iconY = searchTop + 7;
-            int iconColor = 0xFFD5E0EE;
-            context.fill(iconX + 2, iconY, iconX + 8, iconY + 2, iconColor);
-            context.fill(iconX, iconY + 2, iconX + 2, iconY + 8, iconColor);
-            context.fill(iconX + 2, iconY + 8, iconX + 8, iconY + 10, iconColor);
-            context.fill(iconX + 8, iconY + 2, iconX + 10, iconY + 8, iconColor);
-            context.fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, iconColor);
+
+        int left = this.accountsPanelLeft;
+        int right = left + this.accountsPanelWidth;
+        if (this.manageView) {
+            this.text(context, accountUsername(this.expandedAccountKey),
+                    left, 40, 0xFFE7EDF5);
+            String accountType = this.expandedAccountKey != null
+                    && this.expandedAccountKey.startsWith(SessionAuthMode.OFFLINE_LOCAL.name() + ":")
+                    ? "OFFLINE ACCOUNT" : "MICROSOFT ACCOUNT";
+            this.text(context, accountType, left, 53, 0xFF8492A3);
+            this.drawSectionTitle(context,
+                    "SERVERS  (" + this.accountRows.size() + ")", left, 74);
+            this.drawGlassDivider(context, left, 88, right);
         } else {
+            this.drawSectionTitle(context,
+                    "ACCOUNTS  (" + this.accountRows.size() + ")", left, 40);
+            this.text(context, "Manage your Minecraft accounts", left, 59, 0xFF8492A3);
+            this.drawGlassDivider(context, left, 96, right);
         }
 
-        {
-            int top = this.manageView ? 42
-                    : this.floatingOverlay ? this.overlayTop + 64 : 66;
-            int bottom = this.floatingOverlay && !this.manageView
-                    ? this.overlayBottom - 42 : this.height - 58;
-            if (this.manageView) {
-                this.drawGlassPanel(context, this.accountsPanelLeft, top,
-                        this.accountsPanelLeft + this.accountsPanelWidth, bottom);
-            } else {
-                this.drawGlassPanel(context, this.formPanelLeft, top,
-                        this.formPanelLeft + this.formPanelWidth, bottom);
-                context.fill(this.accountsPanelLeft, top,
-                        this.accountsPanelLeft + this.accountsPanelWidth, bottom, 0x52141D28);
-                this.centered(context, "ADD ACCOUNT",
-                        this.formPanelLeft + this.formPanelWidth / 2, top + 12, 0xFFE7EDF5);
-            }
-            if (this.pageCount > 1) {
-                int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
-                int thumbHeight = Math.max(9,
-                        trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
-                int thumbTravel = Math.max(0, trackHeight - thumbHeight);
-                int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
-                        / Math.max(1, this.pageCount - 1);
-                context.fill(this.scrollButtonX + 6, this.scrollTrackTop,
-                        this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
-                context.fill(this.scrollButtonX + 4, thumbTop,
-                        this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
-            }
-            String sectionTitle = this.manageView
-                    ? "SERVERS  (" + this.accountRows.size() + ")"
-                    : "ACCOUNTS  (" + this.accountRows.size() + ")";
-            if (this.manageView) {
-                this.text(context, sectionTitle, this.accountsPanelLeft + 12,
-                        top + 8, 0xFF9EADBD);
-            } else {
-                int sectionWidth = this.textRenderer.getWidth(sectionTitle);
-                int center = this.accountsPanelLeft + this.accountsPanelWidth / 2;
-                this.drawGlassDivider(context, this.accountsPanelLeft + 14,
-                        top + 12, center - sectionWidth / 2 - 10);
-                this.drawGlassDivider(context, center + sectionWidth / 2 + 10,
-                        top + 12, this.accountsPanelLeft + this.accountsPanelWidth - 28);
-                this.centered(context, sectionTitle, center, top + 8, 0xFF9EADBD);
-            }
-            if (this.manageView) {
-                this.text(context, accountUsername(this.expandedAccountKey),
-                        this.accountsPanelLeft + 12, top - 12, 0xFFE7EDF5);
-            }
-            if (this.accountRows.isEmpty()) {
-                String empty = this.manageView ? "No servers added to this account yet."
-                        : this.searchValue.isEmpty() ? "No accounts added yet."
-                        : "No accounts match your search.";
-                context.drawCenteredTextWithShadow(this.textRenderer,
-                        Text.literal(empty), this.accountsPanelLeft + this.accountsPanelWidth / 2,
-                        top + 38, 0xFF9EADBD);
-            }
+        if (this.pageCount > 1) {
+            int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+            int thumbHeight = Math.max(9,
+                    trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
+            int thumbTravel = Math.max(0, trackHeight - thumbHeight);
+            int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
+                    / Math.max(1, this.pageCount - 1);
+            context.fill(this.scrollButtonX + 6, this.scrollTrackTop,
+                    this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
+            context.fill(this.scrollButtonX + 4, thumbTop,
+                    this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
         }
+
+        if (this.accountRows.isEmpty()) {
+            String empty = this.manageView ? "No servers added to this account yet."
+                    : this.searchValue.isEmpty() ? "No accounts added yet."
+                    : "No accounts match your search.";
+            context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(empty),
+                    this.width / 2, this.rowStartY + 10, 0xFF9EADBD);
+        }
+
+        int start = this.pageIndex * this.pageSize;
+        int end = Math.min(start + this.pageSize, this.accountRows.size());
+        int rowY = this.rowStartY;
+        int rowStep = this.manageView ? 32 : 36;
+        for (int index = start; index < end; index++) {
+            this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
+            rowY += rowStep;
+        }
+
         if (this.addDialog) {
             int dialogWidth = Math.min(380, Math.max(250, this.width - 32));
-            int left = (this.width - dialogWidth) / 2;
+            int dialogLeft = (this.width - dialogWidth) / 2;
             int top = Math.max(34, (this.height - 154) / 2);
-            this.drawGlassPanel(context, left, top, left + dialogWidth, top + 112);
-            this.text(context, "OFFLINE ACCOUNT", left + 14, top + 12, 0xFF9EADBD);
+            this.drawGlassPanel(context, dialogLeft, top, dialogLeft + dialogWidth, top + 112);
+            this.text(context, this.manageView ? "ADD SERVER" : "OFFLINE ACCOUNT",
+                    dialogLeft + 14, top + 12, 0xFF9EADBD);
         }
         if (!this.addDialog) {
             if (this.floatingOverlay && !this.manageView) {
@@ -920,36 +876,24 @@ public final class SessionManagerScreen extends MsmScreen {
                         this.manageView ? Math.min(500, this.width - 24) : 100);
             }
         }
+
         super.render(context, mouseX, mouseY, delta);
-        if (!this.manageView && !this.addDialog) drawProviderIcons(context);
-    }
 
-    private void drawProviderIcons(DrawContext context) {
-        int iconX = this.formPanelLeft + 26;
-        if (this.microsoftCardHeight < 38) {
-            this.text(context, "Microsoft", iconX + 8, this.microsoftCardY + 7, 0xFFE8EDF3);
-            return;
+        if (!this.manageView && !this.addDialog) {
+            int rowLeft = this.accountsPanelLeft + 20 + 6 + 8;
+            rowY = this.rowStartY;
+            for (int index = start; index < end; index++) {
+                AccountListEntry entry = this.accountRows.get(index);
+                if (entry.server == null) {
+                    String type = entry.account.authMode == SessionAuthMode.OFFLINE_LOCAL
+                            ? "OFFLINE ACCOUNT" : "MICROSOFT ACCOUNT";
+                    this.text(context, type, rowLeft, rowY + 19, 0xFF8492A3);
+                }
+                rowY += rowStep;
+            }
         }
-        int iconTop = this.microsoftCardY + (this.microsoftCardHeight - 48) / 2;
-        context.fill(iconX, iconTop, iconX + 14, iconTop + 14, 0xFFF25022);
-        context.fill(iconX + 17, iconTop, iconX + 31, iconTop + 14, 0xFF7FBA00);
-        context.fill(iconX, iconTop + 17, iconX + 14, iconTop + 31, 0xFF00A4EF);
-        context.fill(iconX + 17, iconTop + 17, iconX + 31, iconTop + 31, 0xFFFFB900);
-        this.text(context, "Add Microsoft", iconX + 38, iconTop + 4, 0xFFE8EDF3);
-        this.text(context, "Account", iconX + 38, iconTop + 17, 0xFFE8EDF3);
     }
 
-    private void renderFloatingFooter(DrawContext context, String footerStatus, int rightReserved) {
-        int footerTop = this.overlayBottom - 36;
-        context.fill(this.overlayLeft + 1, footerTop, this.overlayRight - 1,
-                this.overlayBottom - 1, 0x68101822);
-        int availableWidth = Math.max(1,
-                this.overlayRight - this.overlayLeft - 28 - Math.max(0, rightReserved));
-        String visible = this.textRenderer.trimToWidth(
-                footerStatus == null ? "" : footerStatus, availableWidth);
-        context.drawTextWithShadow(this.textRenderer, Text.literal(visible),
-                this.overlayLeft + 14, footerTop + 14, 0xFF9EADBD);
-    }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
