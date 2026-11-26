@@ -162,7 +162,7 @@ public final class SessionControlScreen extends MsmScreen {
                 "SEND", button -> sendChat()));
 
         int actionWidth = Math.min(216, width);
-        int actionLeft = left + (width - actionWidth) / 2;
+        int actionLeft = left + width - actionWidth;
         int connectWidth = Math.min(136, actionWidth);
         int backWidth = Math.max(1, actionWidth - connectWidth - gap);
         this.connectionButton = this.addButton(new MsmButtonWidget(
@@ -259,7 +259,7 @@ public final class SessionControlScreen extends MsmScreen {
         this.ruleDeleteButton.active = this.selectedRuleIndex >= 0;
         this.ruleToggleButton.active = this.selectedRuleIndex >= 0;
         this.addButton(new MsmButtonWidget(
-                left + (width - Math.min(120, width)) / 2, this.height - 24,
+                left + width - Math.min(120, width), this.height - 24,
                 Math.min(120, width), 20,
                 "SAVE ALL", button -> saveSettings()));
         if (this.selectedRuleIndex >= 0 && this.selectedRuleIndex < rules.size()) {
@@ -323,9 +323,10 @@ public final class SessionControlScreen extends MsmScreen {
                 this.settingsSecondX, this.settingsChatY,
                 this.settingsFieldWidth, this.draft.getGlobalChatIntervalSeconds());
 
+        int saveWidth = Math.min(120, this.settingsPanelWidth);
         this.addButton(new MsmButtonWidget(
-                this.settingsPanelLeft + (this.settingsPanelWidth - 120) / 2,
-                this.height - 24, 120, 20, "SAVE SETTINGS", button -> saveSettings()));
+                this.settingsPanelLeft + this.settingsPanelWidth - saveWidth,
+                this.height - 24, saveWidth, 20, "SAVE SETTINGS", button -> saveSettings()));
     }
 
     private TextFieldWidget addNumberField(int x, int y, int width, int value) {
@@ -632,7 +633,7 @@ public final class SessionControlScreen extends MsmScreen {
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
         drawGlassPanel(8, 6, this.width - 8, 52);
-        drawGlassPanel(8, 54, this.width - 8, this.height - 8);
+        drawGlassPanel(8, 54, this.width - 8, this.height - 36);
         if (this.tab == Tab.CHAT) {
             drawGlassPanel(16, 52, this.width - 16, this.height - 104);
         } else if (this.tab == Tab.AUTO_CHAT) {
@@ -665,6 +666,8 @@ public final class SessionControlScreen extends MsmScreen {
                     this.settingsChatY - 12, 0xFF9EADBD);
         }
 
+        renderMsmFooter(this.status, 230,
+                this.tab == Tab.SETTINGS && hasPendingChanges() ? 0xFFFFD27A : 0xFF9EADBD);
         super.render(mouseX, mouseY, delta);
     }
 
@@ -681,8 +684,6 @@ public final class SessionControlScreen extends MsmScreen {
             y += lineHeight;
         }
 
-        drawString(MinecraftClient.getInstance().textRenderer,
-                fitText(this.status, this.width - 24), 12, this.height - 95, 0xA0A0A0);
     }
 
     private String fitText(String value, int pixelWidth) {
