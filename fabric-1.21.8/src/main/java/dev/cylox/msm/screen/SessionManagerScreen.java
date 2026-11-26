@@ -561,9 +561,7 @@ public final class SessionManagerScreen extends MsmScreen {
             if (removed == targets.size() && firstFailure == null) {
                 String message = "Deleted account " + username + " and all "
                         + targets.size() + " saved servers.";
-                this.status = message;
-                this.refreshSessions();
-                this.client.setScreen(this);
+                this.openScreen(message, this.pageIndex, -1L);
             } else {
                 String message = "Account deletion incomplete: removed " + removed
                         + " of " + targets.size() + " servers";

@@ -663,13 +663,14 @@ public final class SessionManagerScreen extends MsmScreen {
         this.selectedSessionId = -1L;
         this.lastObservedState = null;
         refreshSessions();
+        int targetPage = Math.min(this.pageIndex,
+                Math.max(0, (this.accountRows.size() - 1) / Math.max(1, this.pageSize)));
         String message = "Deleted account " + username + " and all "
                 + targets.size() + " saved servers.";
         if (cleanupFailure != null) {
             message += " Some session settings may need manual cleanup: " + safeMessage(cleanupFailure);
         }
-        this.status = message;
-        MinecraftClient.getInstance().openScreen(this);
+        openScreen(message, targetPage, -1L);
     }
 
     private void requestRemoveAccount() {
