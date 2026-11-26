@@ -100,7 +100,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
     public SessionManagerScreen(Screen parent) {
         this(parent, DEFAULT_STATUS, 0, -1L, null, false, false, "",
-                SessionAuthMode.OFFLINE_LOCAL, "", "", true);
+                SessionAuthMode.OFFLINE_LOCAL, "", "", false);
     }
 
     private SessionManagerScreen(Screen parent, String status, int page,
