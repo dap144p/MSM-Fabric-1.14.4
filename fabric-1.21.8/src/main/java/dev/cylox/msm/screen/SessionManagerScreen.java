@@ -390,12 +390,13 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             int cardLeft = this.formPanelLeft + 10;
             int cardWidth = Math.max(1, this.formPanelWidth - 20);
+            int cardAvailableHeight = this.accountsPanelBottom - panelTop - 50;
             int cardHeight = floatingAccountManager
-                    ? Math.max(34, Math.min(76, (this.accountsPanelBottom - panelTop - 30) / 2))
+                    ? Math.max(20, Math.min(76, (cardAvailableHeight - 8) / 2))
                     : 76;
-            int accountCardY = floatingAccountManager ? panelTop + 10 : 112;
+            int accountCardY = floatingAccountManager ? panelTop + 42 : 112;
             this.microsoftCardY = floatingAccountManager
-                    ? accountCardY + cardHeight + 10 : 202;
+                    ? accountCardY + cardHeight + 8 : 202;
             this.microsoftCardHeight = cardHeight;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     cardLeft, accountCardY, cardWidth, cardHeight,
@@ -925,7 +926,11 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private void drawProviderIcons(DrawContext context) {
         int iconX = this.formPanelLeft + 26;
-        int iconTop = this.microsoftCardY + Math.max(0, (this.microsoftCardHeight - 48) / 2);
+        if (this.microsoftCardHeight < 38) {
+            this.text(context, "Microsoft", iconX + 8, this.microsoftCardY + 7, 0xFFE8EDF3);
+            return;
+        }
+        int iconTop = this.microsoftCardY + (this.microsoftCardHeight - 48) / 2;
         context.fill(iconX, iconTop, iconX + 14, iconTop + 14, 0xFFF25022);
         context.fill(iconX + 17, iconTop, iconX + 31, iconTop + 14, 0xFF7FBA00);
         context.fill(iconX, iconTop + 17, iconX + 14, iconTop + 31, 0xFF00A4EF);
