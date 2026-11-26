@@ -364,7 +364,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     this.width < 420 ? "MS SOON" : "MICROSOFT SOON",
                     button -> this.status = "Microsoft sign-in is postponed."));
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
-                    addLeft, 37, addWidth, 20, "ADD ACCOUNT", button -> openAddDialog()));
+                    addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
 
             this.searchField = this.addField(
                     contentLeft, 72, Math.max(1, Math.min(280, contentWidth)), 20,
@@ -540,7 +540,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
     private String getAddAccountLabel() {
         return findAccountGroup(this.usernameValue, this.authMode) == null
-                ? "ADD ACCOUNT" : "ADD SERVER";
+                ? "CREATE ACCOUNT" : "ADD SERVER";
     }
 
     private void updateAddAccountLabel() {
