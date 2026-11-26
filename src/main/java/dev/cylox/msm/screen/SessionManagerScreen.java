@@ -489,8 +489,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int cardGap = 8;
         int cardWidth = Math.max(1,
                 (rowWidth - cardGap * (this.accountGridColumns - 1)) / this.accountGridColumns);
-        int actionWidth = 58;
-        int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
+        int labelWidth = rowWidth;
 
         for (int index = start; index < end; index++) {
             AccountListEntry entry = this.accountRows.get(index);
