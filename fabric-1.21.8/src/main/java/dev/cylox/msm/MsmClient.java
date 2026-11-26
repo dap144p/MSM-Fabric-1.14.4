@@ -3,6 +3,8 @@ package dev.cylox.msm;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.automation.SessionAutomationStore;
 import dev.cylox.msm.network.SecondarySessionController;
+import dev.cylox.msm.profile.AccountIdentity;
+import dev.cylox.msm.profile.AccountIdentityStore;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
 import dev.cylox.msm.session.SessionManager;
@@ -28,6 +30,8 @@ public final class MsmClient implements ClientModInitializer {
     private static final List<SessionProfile> PROFILES = new ArrayList<>();
 
     private static SessionProfileStore profileStore;
+    private static AccountIdentityStore accountIdentityStore;
+    private static final List<AccountIdentity> ACCOUNT_IDENTITIES = new ArrayList<>();
     private static SessionManager sessionManager;
     private static SecondarySessionController secondarySessions;
     private static SessionAutomationScheduler automationScheduler;
@@ -41,6 +45,7 @@ public final class MsmClient implements ClientModInitializer {
                         .map(container -> container.getMetadata().getVersion().getFriendlyString())
                         .orElse("unknown"));
         profileStore = new SessionProfileStore(configDir.resolve("msm-fabric.properties"));
+        accountIdentityStore = new AccountIdentityStore(configDir.resolve("msm-accounts.properties"));
         sessionManager = new SessionManager();
         secondarySessions = new SecondarySessionController(sessionManager);
         automationScheduler = new SessionAutomationScheduler(
@@ -50,6 +55,12 @@ public final class MsmClient implements ClientModInitializer {
 
         try {
             PROFILES.addAll(profileStore.load());
+            ACCOUNT_IDENTITIES.addAll(accountIdentityStore.load());
+            for (SessionProfile profile : PROFILES) {
+                AccountIdentity identity = new AccountIdentity(profile.getUsername(), profile.getAuthMode());
+                if (!ACCOUNT_IDENTITIES.contains(identity)) ACCOUNT_IDENTITIES.add(identity);
+            }
+            accountIdentityStore.save(ACCOUNT_IDENTITIES);
             for (SessionProfile profile : PROFILES) {
                 sessionManager.create(profile);
             }
@@ -83,6 +94,35 @@ public final class MsmClient implements ClientModInitializer {
 
     public static synchronized List<SessionProfile> getProfiles() {
         return Collections.unmodifiableList(new ArrayList<>(PROFILES));
+    }
+
+    public static synchronized List<AccountIdentity> getAccountIdentities() {
+        return Collections.unmodifiableList(new ArrayList<>(ACCOUNT_IDENTITIES));
+    }
+
+    public static synchronized void addAccountIdentity(AccountIdentity identity) throws IOException {
+        if (identity == null) throw new IllegalArgumentException("Account identity is required");
+        if (ACCOUNT_IDENTITIES.contains(identity)) {
+            throw new IllegalArgumentException("This account already exists.");
+        }
+        ACCOUNT_IDENTITIES.add(identity);
+        try {
+            accountIdentityStore.save(ACCOUNT_IDENTITIES);
+        } catch (IOException exception) {
+            ACCOUNT_IDENTITIES.remove(identity);
+            throw exception;
+        }
+    }
+
+    public static synchronized void removeAccountIdentity(String username, dev.cylox.msm.profile.SessionAuthMode authMode) throws IOException {
+        AccountIdentity target = new AccountIdentity(username, authMode);
+        if (!ACCOUNT_IDENTITIES.remove(target)) return;
+        try {
+            accountIdentityStore.save(ACCOUNT_IDENTITIES);
+        } catch (IOException exception) {
+            ACCOUNT_IDENTITIES.add(target);
+            throw exception;
+        }
     }
 
     public static synchronized SessionManager.Session addProfile(SessionProfile profile) throws IOException {
