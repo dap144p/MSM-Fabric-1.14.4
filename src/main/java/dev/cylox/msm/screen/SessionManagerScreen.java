@@ -67,6 +67,10 @@ public final class SessionManagerScreen extends MsmScreen {
     private long selectedSessionId;
     private int pageIndex;
     private int pageSize;
+    private int pageCount;
+    private int scrollButtonX;
+    private int scrollTrackTop;
+    private int scrollTrackBottom;
     private SessionAuthMode authMode;
     private String usernameValue;
     private String serverValue;
@@ -379,16 +383,20 @@ public final class SessionManagerScreen extends MsmScreen {
             this.searchField.setText(this.searchValue);
         }
 
-        int pageButtonY = this.height - 66;
-        int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 18) / 24 + 1);
+        int panelTop = this.manageView ? 42 : 66;
+        this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
+        this.scrollTrackTop = panelTop + 24;
+        this.scrollTrackBottom = this.accountsPanelBottom - 22;
+        int listBottom = this.accountsPanelBottom - 28;
+        int availableRows = Math.max(1, (listBottom - this.rowStartY) / 24 + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
-        int pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
-        this.pageIndex = Math.min(this.requestedPage, pageCount - 1);
+        this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
+        this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.min(this.manageView ? 520 : 480, Math.max(1, contentWidth - 24));
-        int rowLeft = (this.width - rowWidth) / 2;
+        int rowWidth = Math.max(1, Math.min(this.manageView ? 520 : 480, contentWidth - 44));
+        int rowLeft = this.accountsPanelLeft + 12;
         int actionWidth = 82;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
@@ -421,25 +429,25 @@ public final class SessionManagerScreen extends MsmScreen {
             rowY += 24;
         }
 
-        if (pageCount > 1) {
-            int pageWidth = Math.min(100, Math.max(1, (contentWidth - 30) / 2));
-            int pageLeft = (this.width - pageWidth * 2 - 8) / 2;
-            ButtonWidget previous = new MsmButtonWidget(pageLeft, pageButtonY, pageWidth, 18,
-                    "PREVIOUS", button -> openPage(this.pageIndex - 1));
-            ButtonWidget next = new MsmButtonWidget(pageLeft + pageWidth + 8, pageButtonY, pageWidth, 18,
-                    "NEXT", button -> openPage(this.pageIndex + 1));
+        if (this.pageCount > 1) {
+            MsmButtonWidget previous = new MsmButtonWidget(
+                    this.scrollButtonX, panelTop + 6, 14, 14, "^",
+                    button -> openPage(this.pageIndex - 1));
+            MsmButtonWidget next = new MsmButtonWidget(
+                    this.scrollButtonX, this.accountsPanelBottom - 19, 14, 14, "v",
+                    button -> openPage(this.pageIndex + 1));
             previous.active = this.pageIndex > 0;
-            next.active = this.pageIndex + 1 < pageCount;
+            next.active = this.pageIndex + 1 < this.pageCount;
             this.addButton(previous);
             this.addButton(next);
         }
 
-        int footerY = this.height - 30;
+        int footerY = this.height - 28;
+        int gap = 5;
         if (this.manageView) {
-            int gap = 8;
-            int groupWidth = Math.min(456, contentWidth);
-            int left = (this.width - groupWidth) / 2;
-            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            int groupWidth = Math.min(500, contentWidth);
+            int left = this.width - 12 - groupWidth;
+            int width = Math.max(1, (groupWidth - gap * 4) / 5);
             this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
                     button -> openAddDialog()));
             this.connectionButton = this.addButton(new MsmButtonWidget(
@@ -448,20 +456,21 @@ public final class SessionManagerScreen extends MsmScreen {
                     left + (width + gap) * 2, footerY, width, 20, "REMOVE",
                     button -> requestRemoveAccount()));
             ((MsmButtonWidget) this.removeButton).setDanger(true);
-            this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
+            MsmButtonWidget deleteAccount = this.addButton(new MsmButtonWidget(
+                    left + (width + gap) * 3, footerY, width, 20, "DELETE",
+                    button -> requestDeleteAccount()));
+            deleteAccount.setDanger(true);
+            this.addButton(new MsmButtonWidget(left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
-            this.addButton(new MsmButtonWidget(
-                    contentLeft + contentWidth - 78, 8, 70, 18, "BACK",
-                    button -> MinecraftClient.getInstance().openScreen(this.parent)));
         } else {
-            int gap = 8;
-            int groupWidth = Math.min(220, contentWidth);
-            int left = (this.width - groupWidth) / 2;
-            int addWidth = Math.min(132, groupWidth - 76);
+            int addWidth = 78;
+            int closeWidth = 72;
+            int groupWidth = addWidth + gap + closeWidth;
+            int left = this.width - 12 - groupWidth;
             this.addButton(new MsmButtonWidget(left, footerY, addWidth, 20, "ADD",
                     button -> openAddDialog()));
             this.addButton(new MsmButtonWidget(left + addWidth + gap, footerY,
-                    groupWidth - addWidth - gap, 20, "BACK", button -> onClose()));
+                    closeWidth, 20, "CLOSE", button -> onClose()));
         }
         refreshControls();
     }
@@ -562,6 +571,102 @@ public final class SessionManagerScreen extends MsmScreen {
         } catch (IOException exception) {
             this.status = "Could not save account: " + exception.getMessage();
         }
+    }
+
+    private void requestDeleteAccount() {
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(this.managedAccountKey)) {
+                final String accountKey = group.key;
+                final String username = group.username;
+                final List<SessionManager.Session> targets =
+                        new ArrayList<SessionManager.Session>(group.servers);
+                if (targets.isEmpty()) {
+                    this.status = "This account has no saved servers.";
+                    return;
+                }
+                MinecraftClient.getInstance().openScreen(new ConfirmRemoveAccountScreen(
+                        this, username, targets.size() + " saved servers",
+                        () -> beginDeleteAccount(accountKey, username, targets)));
+                return;
+            }
+        }
+        this.status = "The selected account is no longer available.";
+    }
+
+    private void beginDeleteAccount(String accountKey, String username,
+                                    List<SessionManager.Session> targets) {
+        this.status = "Disconnecting and deleting all servers for " + username + "...";
+        MinecraftClient.getInstance().openScreen(this);
+        if (this.automationScheduler == null) {
+            for (SessionManager.Session session : targets) {
+                this.secondarySessions.disconnect(session.getId());
+            }
+            finishDeleteAccount(accountKey, username, targets, null);
+            return;
+        }
+        for (SessionManager.Session session : targets) {
+            this.automationScheduler.disconnectManually(session.getId());
+        }
+        forgetAccountSession(accountKey, username, targets, 0, null);
+    }
+
+    private void forgetAccountSession(String accountKey, String username,
+                                      List<SessionManager.Session> targets,
+                                      int index, Throwable cleanupFailure) {
+        if (index >= targets.size()) {
+            finishDeleteAccount(accountKey, username, targets, cleanupFailure);
+            return;
+        }
+        long sessionId = targets.get(index).getId();
+        try {
+            this.automationScheduler.forgetSession(sessionId, failure ->
+                    MinecraftClient.getInstance().execute(() ->
+                            forgetAccountSession(accountKey, username, targets, index + 1,
+                                    failure == null ? cleanupFailure : failure)));
+        } catch (Throwable failure) {
+            forgetAccountSession(accountKey, username, targets, index + 1,
+                    cleanupFailure == null ? failure : cleanupFailure);
+        }
+    }
+
+    private void finishDeleteAccount(String accountKey, String username,
+                                     List<SessionManager.Session> targets,
+                                     Throwable cleanupFailure) {
+        List<SessionProfile> updatedProfiles = new ArrayList<SessionProfile>(this.profiles);
+        for (SessionManager.Session session : targets) {
+            updatedProfiles.remove(session.getProfile());
+        }
+        try {
+            this.store.save(updatedProfiles);
+        } catch (IOException exception) {
+            this.status = "Could not save account deletion: " + exception.getMessage();
+            MinecraftClient.getInstance().openScreen(this);
+            return;
+        }
+        for (SessionManager.Session session : targets) {
+            try {
+                this.secondarySessions.disconnect(session.getId());
+                this.secondarySessions.forgetSession(session.getId());
+                this.sessionManager.remove(session.getId());
+            } catch (RuntimeException exception) {
+                if (cleanupFailure == null) cleanupFailure = exception;
+            }
+        }
+        this.profiles.clear();
+        this.profiles.addAll(updatedProfiles);
+        this.managedAccountKey = null;
+        this.manageView = false;
+        this.selectedSessionId = -1L;
+        this.lastObservedState = null;
+        refreshSessions();
+        int targetPage = Math.min(this.pageIndex,
+                Math.max(0, (this.accountRows.size() - 1) / Math.max(1, this.pageSize)));
+        String message = "Deleted account " + username + " and all "
+                + targets.size() + " saved servers.";
+        if (cleanupFailure != null) {
+            message += " Some session settings may need manual cleanup: " + safeMessage(cleanupFailure);
+        }
+        openScreen(message, targetPage, -1L);
     }
 
     private void requestRemoveAccount() {
@@ -790,6 +895,18 @@ public final class SessionManagerScreen extends MsmScreen {
             int bottom = this.height - 58;
             drawGlassPanel(this.accountsPanelLeft, top,
                     this.accountsPanelLeft + this.accountsPanelWidth, bottom);
+            if (this.pageCount > 1) {
+                int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+                int thumbHeight = Math.max(9,
+                        trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
+                int thumbTravel = Math.max(0, trackHeight - thumbHeight);
+                int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
+                        / Math.max(1, this.pageCount - 1);
+                fill(this.scrollButtonX + 6, this.scrollTrackTop,
+                        this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
+                fill(this.scrollButtonX + 4, thumbTop,
+                        this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
+            }
             drawSectionTitle(this.manageView
                     ? "SERVERS  (" + this.accountRows.size() + ")"
                     : "ACCOUNTS  (" + this.accountRows.size() + ")",
