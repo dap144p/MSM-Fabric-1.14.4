@@ -361,21 +361,18 @@ public final class SessionManagerScreen extends MsmScreen {
         this.serverListButton = null;
         this.connectionButton = null;
         this.controlButton = null;
-        refreshSessions();
         this.removeButton = null;
+        refreshSessions();
 
-        int contentWidth = Math.max(1, this.manageView
-                ? Math.min(this.width - 24, 560) : this.width - 24);
-        int contentLeft = this.manageView ? Math.max(12, (this.width - contentWidth) / 2) : 12;
+        int contentLeft = 14;
+        int contentWidth = Math.max(1, this.width - 28);
+        int panelTop = this.manageView ? 74 : 94;
         this.formPanelLeft = contentLeft;
-        this.formPanelWidth = this.manageView ? 0
-                : Math.max(150, Math.min(220, (contentWidth - 12) / 3));
-        this.accountsPanelLeft = this.manageView ? contentLeft
-                : contentLeft + this.formPanelWidth + 12;
-        this.accountsPanelWidth = this.manageView ? contentWidth
-                : contentWidth - this.formPanelWidth - 12;
-        this.rowStartY = 96;
-        this.accountsPanelBottom = this.height - (this.manageView ? 58 : 40);
+        this.formPanelWidth = 0;
+        this.accountsPanelLeft = contentLeft;
+        this.accountsPanelWidth = contentWidth;
+        this.rowStartY = this.manageView ? 96 : 104;
+        this.accountsPanelBottom = this.height - (this.manageView ? 58 : 44);
 
         if (this.addDialog) {
             int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
@@ -417,40 +414,42 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (!this.manageView) {
-            int searchWidth = Math.max(1, contentWidth - 60);
+            int addWidth = this.width < 420 ? 94 : 112;
+            int microsoftWidth = this.width < 420 ? 72 : 124;
+            int actionGap = 5;
+            int actionsRight = contentLeft + contentWidth;
+            int addLeft = actionsRight - addWidth;
+            int microsoftLeft = addLeft - actionGap - microsoftWidth;
+            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
+                    microsoftLeft, 37, microsoftWidth, 20,
+                    this.width < 420 ? "MS SOON" : "MICROSOFT SOON",
+                    button -> this.status = "Microsoft sign-in is postponed."));
+            this.offlineAccountButton = this.addButton(new MsmButtonWidget(
+                    addLeft, 37, addWidth, 20, "ADD ACCOUNT", button -> openAddDialog()));
+
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    contentLeft + 42, 36,
-                    searchWidth, 20, "Search accounts..."));
+                    contentLeft, 72, Math.max(1, Math.min(280, contentWidth)),
+                    20, "Search accounts..."));
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
 
-        int panelTop = this.manageView ? 42 : 66;
         this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
-        this.scrollTrackTop = panelTop + 24;
-        this.scrollTrackBottom = this.accountsPanelBottom - 22;
-        int listBottom = this.accountsPanelBottom - 28;
-        int availableRows = Math.max(1, (listBottom - this.rowStartY) / 24 + 1);
+        this.scrollTrackTop = panelTop + 8;
+        this.scrollTrackBottom = this.accountsPanelBottom - 10;
+        int rowStep = this.manageView ? 32 : 36;
+        int listBottom = this.accountsPanelBottom - 10;
+        int availableRows = Math.max(1, (listBottom - this.rowStartY) / rowStep + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
         this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
         this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
-        if (!this.manageView) {
-            int cardLeft = this.formPanelLeft + 10;
-            int cardWidth = Math.max(1, this.formPanelWidth - 20);
-            this.offlineAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, 112, cardWidth, 76, "ADD ACCOUNT", button -> openAddDialog()));
-            this.microsoftAccountButton = this.addButton(new MsmButtonWidget(
-                    cardLeft, 202, cardWidth, 76, "",
-                    button -> this.status = "Microsoft sign-in is postponed."));
-        }
 
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.max(1, this.manageView
-                ? Math.min(520, contentWidth - 44) : this.accountsPanelWidth - 24);
-        int rowLeft = this.accountsPanelLeft + 12;
+        int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
+        int rowLeft = this.accountsPanelLeft;
         int actionWidth = 58;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
@@ -465,40 +464,40 @@ public final class SessionManagerScreen extends MsmScreen {
                 int accountLabelWidth = Math.max(1, rowWidth - deleteWidth
                         - manageWidth - accountGap * 2);
                 MsmButtonWidget delete = new MsmButtonWidget(
-                        rowLeft, rowY + 1, deleteWidth, 18, "",
+                        rowLeft, rowY + 4, deleteWidth, 20, "",
                         button -> requestDeleteAccount(group.key));
                 delete.setTrashIcon(true);
                 this.addButton(delete);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        accountLeft, rowY, accountLabelWidth, 20,
+                        accountLeft, rowY, accountLabelWidth, 28,
                         getAccountGroupLabel(group),
                         button -> openAccountManage(group.key));
                 account.setTrailingLabel(getAccountServerSummary(group));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
                 this.addButton(new MsmButtonWidget(
-                        accountLeft + accountLabelWidth + accountGap, rowY + 1, manageWidth, 18,
+                        accountLeft + accountLabelWidth + accountGap, rowY + 4, manageWidth, 20,
                         "MANAGE", button -> openAccountManage(group.key)));
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
                 MsmButtonWidget server = new MsmButtonWidget(
-                        rowLeft, rowY, labelWidth, 20, getServerLabel(session, session.getId()),
+                        rowLeft, rowY, labelWidth, 22, getServerLabel(session, session.getId()),
                         button -> selectAccount(session));
                 server.setSelected(session.getId() == this.selectedSessionId);
                 this.rowButtons.put(session.getId(), server);
-                this.addButton(server);
                 MsmButtonWidget manage = new MsmButtonWidget(
-                        rowLeft + labelWidth + 8, rowY + 1, actionWidth, 18,
+                        rowLeft + labelWidth + 8, rowY + 1, actionWidth, 20,
                         "MANAGE", button -> openControlManageFor(session));
                 this.serverManageButtons.put(session.getId(), manage);
+                this.addButton(server);
                 this.addButton(manage);
             }
-            rowY += 24;
+            rowY += rowStep;
         }
 
         if (this.pageCount > 1) {
             MsmButtonWidget previous = new MsmButtonWidget(
-                    this.scrollButtonX, panelTop + 6, 14, 14, "^",
+                    this.scrollButtonX, panelTop + 2, 14, 14, "^",
                     button -> openPage(this.pageIndex - 1));
             MsmButtonWidget next = new MsmButtonWidget(
                     this.scrollButtonX, this.accountsPanelBottom - 19, 14, 14, "v",
@@ -533,6 +532,7 @@ public final class SessionManagerScreen extends MsmScreen {
         }
         refreshControls();
     }
+
 
     private void openAccountManage(String key) {
         String username = accountUsername(key);
@@ -974,91 +974,87 @@ public final class SessionManagerScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        if (!this.manageView && !this.addDialog) {
-            int searchLeft = this.formPanelLeft + 12;
-            int searchRight = this.accountsPanelLeft + this.accountsPanelWidth - 12;
-            fill(searchLeft, 34, searchRight, 60, 0x50101822);
-            int iconX = searchLeft + 12;
-            int iconY = 41;
-            int iconColor = 0xFFD5E0EE;
-            fill(iconX + 2, iconY, iconX + 8, iconY + 2, iconColor);
-            fill(iconX, iconY + 2, iconX + 2, iconY + 8, iconColor);
-            fill(iconX + 2, iconY + 8, iconX + 8, iconY + 10, iconColor);
-            fill(iconX + 8, iconY + 2, iconX + 10, iconY + 8, iconColor);
-            fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, iconColor);
+
+        int left = this.accountsPanelLeft;
+        int right = left + this.accountsPanelWidth;
+        if (this.manageView) {
+            String username = accountUsername(this.managedAccountKey);
+            drawSectionTitle(username, left, 40);
+            String accountType = this.managedAccountKey != null
+                    && this.managedAccountKey.startsWith(SessionAuthMode.OFFLINE_LOCAL.name() + ":")
+                    ? "OFFLINE ACCOUNT" : "MICROSOFT ACCOUNT";
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    accountType, left, 53, 0xFF8492A3);
+            drawSectionTitle("SERVERS  (" + this.accountRows.size() + ")", left, 74);
+            drawGlassDivider(left, 88, right);
         } else {
+            drawSectionTitle("ACCOUNTS  (" + this.accountRows.size() + ")", left, 40);
+            drawString(MinecraftClient.getInstance().textRenderer,
+                    "Manage your Minecraft accounts", left, 59, 0xFF8492A3);
+            drawGlassDivider(left, 96, right);
         }
 
-        {
-            int top = this.manageView ? 42 : 66;
-            int bottom = this.height - 58;
-            if (this.manageView) {
-                drawGlassPanel(this.accountsPanelLeft, top,
-                        this.accountsPanelLeft + this.accountsPanelWidth, bottom);
-            } else {
-                drawGlassPanel(this.formPanelLeft, top,
-                        this.formPanelLeft + this.formPanelWidth, bottom);
-                fill(this.accountsPanelLeft, top,
-                        this.accountsPanelLeft + this.accountsPanelWidth, bottom, 0x52141D28);
-                drawCenteredString(MinecraftClient.getInstance().textRenderer, "ADD ACCOUNT",
-                        this.formPanelLeft + this.formPanelWidth / 2, top + 12, 0xFFE7EDF5);
-            }
-            if (this.pageCount > 1) {
-                int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
-                int thumbHeight = Math.max(9,
-                        trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
-                int thumbTravel = Math.max(0, trackHeight - thumbHeight);
-                int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
-                        / Math.max(1, this.pageCount - 1);
-                fill(this.scrollButtonX + 6, this.scrollTrackTop,
-                        this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
-                fill(this.scrollButtonX + 4, thumbTop,
-                        this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
-            }
-            String sectionTitle = this.manageView
-                    ? "SERVERS  (" + this.accountRows.size() + ")"
-                    : "ACCOUNTS  (" + this.accountRows.size() + ")";
-            if (this.manageView) {
-                drawSectionTitle(sectionTitle, this.accountsPanelLeft + 12, top + 8);
-            } else {
-                int sectionWidth = MinecraftClient.getInstance().textRenderer.getStringWidth(sectionTitle);
-                int center = this.accountsPanelLeft + this.accountsPanelWidth / 2;
-                drawGlassDivider(this.accountsPanelLeft + 14, top + 12,
-                        center - sectionWidth / 2 - 10);
-                drawGlassDivider(center + sectionWidth / 2 + 10, top + 12,
-                        this.accountsPanelLeft + this.accountsPanelWidth - 28);
-                drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                        sectionTitle, center, top + 8, 0xFF9EADBD);
-            }
-            if (this.manageView) {
-                drawString(MinecraftClient.getInstance().textRenderer,
-                        accountUsername(this.managedAccountKey),
-                        this.accountsPanelLeft + 12, top - 12, 0xFFE7EDF5);
-            }
-            if (this.accountRows.isEmpty()) {
-                String empty = this.manageView ? "No servers added to this account yet."
-                        : this.searchValue.isEmpty() ? "No accounts added yet."
-                        : "No accounts match your search.";
-                drawCenteredString(MinecraftClient.getInstance().textRenderer,
-                        empty, this.accountsPanelLeft + this.accountsPanelWidth / 2,
-                        top + 38, 0xFF9EADBD);
-            }
+        if (this.pageCount > 1) {
+            int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+            int thumbHeight = Math.max(9,
+                    trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
+            int thumbTravel = Math.max(0, trackHeight - thumbHeight);
+            int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
+                    / Math.max(1, this.pageCount - 1);
+            fill(this.scrollButtonX + 6, this.scrollTrackTop,
+                    this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
+            fill(this.scrollButtonX + 4, thumbTop,
+                    this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
+        }
+
+        if (this.accountRows.isEmpty()) {
+            String empty = this.manageView ? "No servers added to this account yet."
+                    : this.searchValue.isEmpty() ? "No accounts added yet."
+                    : "No accounts match your search.";
+            drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                    empty, this.width / 2, this.rowStartY + 10, 0xFF9EADBD);
+        }
+
+        int start = this.pageIndex * this.pageSize;
+        int end = Math.min(start + this.pageSize, this.accountRows.size());
+        int rowY = this.rowStartY;
+        int rowStep = this.manageView ? 32 : 36;
+        for (int index = start; index < end; index++) {
+            drawGlassDivider(left, rowY + rowStep - 2, right - 22);
+            rowY += rowStep;
         }
 
         if (this.addDialog) {
             int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
-            int left = (this.width - dialogWidth) / 2;
+            int dialogLeft = (this.width - dialogWidth) / 2;
             int top = Math.max(34, (this.height - 154) / 2);
-            drawGlassPanel(left, top, left + dialogWidth, top + 112);
-            drawSectionTitle("OFFLINE ACCOUNT", left + 14, top + 12);
+            drawGlassPanel(dialogLeft, top, dialogLeft + dialogWidth, top + 112);
+            drawSectionTitle(this.manageView ? "ADD SERVER" : "OFFLINE ACCOUNT",
+                    dialogLeft + 14, top + 12);
         }
         if (!this.addDialog) {
             renderMsmFooter(this.status,
                     this.manageView ? Math.min(500, this.width - 24) : 100);
         }
+
         super.render(mouseX, mouseY, delta);
-        if (!this.manageView && !this.addDialog) drawProviderIcons();
+
+        if (!this.manageView && !this.addDialog) {
+            int rowLeft = this.accountsPanelLeft + 20 + 6 + 8;
+            rowY = this.rowStartY;
+            for (int index = start; index < end; index++) {
+                AccountListEntry entry = this.accountRows.get(index);
+                if (entry.server == null) {
+                    String type = entry.account.authMode == SessionAuthMode.OFFLINE_LOCAL
+                            ? "OFFLINE ACCOUNT" : "MICROSOFT ACCOUNT";
+                    drawString(MinecraftClient.getInstance().textRenderer,
+                            type, rowLeft, rowY + 19, 0xFF8492A3);
+                }
+                rowY += rowStep;
+            }
+        }
     }
+
 
     private void drawProviderIcons() {
         int iconX = this.formPanelLeft + 26;
