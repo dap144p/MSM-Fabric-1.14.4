@@ -55,6 +55,10 @@ public final class SessionManagerScreen extends MsmScreen {
     private long selectedSessionId;
     private int pageIndex;
     private int pageSize = PAGE_SIZE;
+    private int pageCount;
+    private int scrollButtonX;
+    private int scrollTrackTop;
+    private int scrollTrackBottom;
     private SessionAuthMode authMode;
     private String usernameValue;
     private String serverValue;
@@ -295,16 +299,20 @@ public final class SessionManagerScreen extends MsmScreen {
             this.searchField.setText(this.searchValue);
         }
 
-        int pageButtonY = this.height - 66;
-        int availableRows = Math.max(1, (pageButtonY - this.rowStartY - 18) / 24 + 1);
+        int panelTop = this.manageView ? 42 : 66;
+        this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
+        this.scrollTrackTop = panelTop + 24;
+        this.scrollTrackBottom = this.accountsPanelBottom - 22;
+        int listBottom = this.accountsPanelBottom - 28;
+        int availableRows = Math.max(1, (listBottom - this.rowStartY) / 24 + 1);
         this.pageSize = Math.min(PAGE_SIZE, availableRows);
-        int pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
-        this.pageIndex = Math.min(this.requestedPage, pageCount - 1);
+        this.pageCount = Math.max(1, (this.accountRows.size() + this.pageSize - 1) / this.pageSize);
+        this.pageIndex = Math.min(this.requestedPage, this.pageCount - 1);
         int start = this.pageIndex * this.pageSize;
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
-        int rowWidth = Math.min(this.manageView ? 520 : 480, Math.max(1, contentWidth - 24));
-        int rowLeft = (this.width - rowWidth) / 2;
+        int rowWidth = Math.max(1, Math.min(this.manageView ? 520 : 480, contentWidth - 44));
+        int rowLeft = this.accountsPanelLeft + 12;
         int actionWidth = 82;
         int labelWidth = Math.max(1, rowWidth - actionWidth - 8);
 
@@ -337,25 +345,25 @@ public final class SessionManagerScreen extends MsmScreen {
             rowY += 24;
         }
 
-        if (pageCount > 1) {
-            int pageWidth = Math.min(100, Math.max(1, (contentWidth - 30) / 2));
-            int pageLeft = (this.width - pageWidth * 2 - 8) / 2;
-            MsmButtonWidget previous = new MsmButtonWidget(pageLeft, pageButtonY, pageWidth, 18,
-                    "PREVIOUS", button -> openPage(this.pageIndex - 1));
-            MsmButtonWidget next = new MsmButtonWidget(pageLeft + pageWidth + 8, pageButtonY, pageWidth, 18,
-                    "NEXT", button -> openPage(this.pageIndex + 1));
+        if (this.pageCount > 1) {
+            MsmButtonWidget previous = new MsmButtonWidget(
+                    this.scrollButtonX, panelTop + 6, 14, 14, "^",
+                    button -> openPage(this.pageIndex - 1));
+            MsmButtonWidget next = new MsmButtonWidget(
+                    this.scrollButtonX, this.accountsPanelBottom - 19, 14, 14, "v",
+                    button -> openPage(this.pageIndex + 1));
             previous.active = this.pageIndex > 0;
-            next.active = this.pageIndex + 1 < pageCount;
+            next.active = this.pageIndex + 1 < this.pageCount;
             this.addButton(previous);
             this.addButton(next);
         }
 
-        int footerY = this.height - 30;
+        int footerY = this.height - 28;
+        int gap = 5;
         if (this.manageView) {
-            int gap = 8;
-            int groupWidth = Math.min(456, contentWidth);
-            int left = (this.width - groupWidth) / 2;
-            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            int groupWidth = Math.min(500, contentWidth);
+            int left = this.width - 12 - groupWidth;
+            int width = Math.max(1, (groupWidth - gap * 4) / 5);
             this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
                     button -> openAddDialog()));
             this.connectionButton = this.addButton(new MsmButtonWidget(
@@ -364,25 +372,28 @@ public final class SessionManagerScreen extends MsmScreen {
                     left + (width + gap) * 2, footerY, width, 20, "REMOVE",
                     button -> requestRemoveServer()));
             this.removeButton.setDanger(true);
-            this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
+            MsmButtonWidget deleteAccount = this.addButton(new MsmButtonWidget(
+                    left + (width + gap) * 3, footerY, width, 20, "DELETE",
+                    button -> requestDeleteAccount()));
+            deleteAccount.setDanger(true);
+            this.addButton(new MsmButtonWidget(left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> this.client.setScreen(this.parent)));
-            this.addButton(new MsmButtonWidget(
-                    contentLeft + contentWidth - 78, 8, 70, 18, "BACK",
-                    button -> this.client.setScreen(this.parent)));
         } else {
-            int gap = 8;
-            int groupWidth = Math.min(220, contentWidth);
-            int left = (this.width - groupWidth) / 2;
-            int addWidth = Math.min(132, groupWidth - 76);
-            this.addButton(new MsmButtonWidget(left, footerY, addWidth, 20, "ADD",
-                    button -> openAddDialog()));
-            this.addButton(new MsmButtonWidget(left + addWidth + gap, footerY,
-                    groupWidth - addWidth - gap, 20, "BACK", button -> close()));
-            if (MsmClient.getUpdateManager() != null) {
-                this.addButton(new MsmButtonWidget(
-                        contentLeft + contentWidth - 78, 8, 70, 18,
+            boolean showUpdates = MsmClient.getUpdateManager() != null;
+            int updateWidth = showUpdates ? 82 : 0;
+            int addWidth = 78;
+            int closeWidth = 72;
+            int groupWidth = updateWidth + (showUpdates ? gap : 0) + addWidth + gap + closeWidth;
+            int left = this.width - 12 - groupWidth;
+            if (showUpdates) {
+                this.addButton(new MsmButtonWidget(left, footerY, updateWidth, 20,
                         "UPDATES", button -> openUpdateScreen()));
             }
+            int addLeft = left + updateWidth + (showUpdates ? gap : 0);
+            this.addButton(new MsmButtonWidget(addLeft, footerY, addWidth, 20, "ADD",
+                    button -> openAddDialog()));
+            this.addButton(new MsmButtonWidget(addLeft + addWidth + gap, footerY,
+                    closeWidth, 20, "CLOSE", button -> close()));
         }
         refreshControls();
     }
@@ -506,6 +517,66 @@ public final class SessionManagerScreen extends MsmScreen {
         } catch (IOException exception) {
             this.status = "Could not save server: " + exception.getMessage();
         }
+    }
+
+    private void requestDeleteAccount() {
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(this.expandedAccountKey)) {
+                final String username = group.username;
+                final List<SessionManager.Session> targets = new ArrayList<>(group.servers);
+                if (targets.isEmpty()) {
+                    this.status = "This account has no saved servers.";
+                    return;
+                }
+                this.client.setScreen(new ConfirmRemoveAccountScreen(
+                        this, username, targets.size(),
+                        () -> beginDeleteAccount(username, targets)));
+                return;
+            }
+        }
+        this.status = "The selected account is no longer available.";
+    }
+
+    private void beginDeleteAccount(String username, List<SessionManager.Session> targets) {
+        this.client.setScreen(this);
+        this.status = "Disconnecting and deleting all servers for " + username + "...";
+        SessionAutomationScheduler scheduler = MsmClient.getAutomationScheduler();
+        if (scheduler == null) {
+            this.status = "Account deletion is unavailable because automation is not initialized.";
+            return;
+        }
+        for (SessionManager.Session session : targets) {
+            scheduler.disconnectManually(session.getId());
+        }
+        removeNextAccountServer(username, targets, 0, 0, null);
+    }
+
+    private void removeNextAccountServer(String username, List<SessionManager.Session> targets,
+                                         int index, int removed, Throwable firstFailure) {
+        if (index >= targets.size()) {
+            if (removed == targets.size() && firstFailure == null) {
+                String message = "Deleted account " + username + " and all "
+                        + targets.size() + " saved servers.";
+                this.client.setScreen(this.parent);
+                if (this.parent instanceof SessionManagerScreen) {
+                    ((SessionManagerScreen) this.parent).setStatus(message);
+                }
+            } else {
+                String message = "Account deletion incomplete: removed " + removed
+                        + " of " + targets.size() + " servers";
+                if (firstFailure != null && firstFailure.getMessage() != null) {
+                    message += ". " + firstFailure.getMessage();
+                }
+                this.status = message + ".";
+                this.client.setScreen(this);
+            }
+            return;
+        }
+        long sessionId = targets.get(index).getId();
+        MsmClient.removeProfile(sessionId, failure ->
+                removeNextAccountServer(username, targets, index + 1,
+                        failure == null ? removed + 1 : removed,
+                        firstFailure == null ? failure : firstFailure));
     }
 
     private void requestRemoveServer() {
@@ -632,6 +703,18 @@ public final class SessionManagerScreen extends MsmScreen {
             int bottom = this.height - 58;
             this.drawGlassPanel(context, this.accountsPanelLeft, top,
                     this.accountsPanelLeft + this.accountsPanelWidth, bottom);
+            if (this.pageCount > 1) {
+                int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+                int thumbHeight = Math.max(9,
+                        trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
+                int thumbTravel = Math.max(0, trackHeight - thumbHeight);
+                int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
+                        / Math.max(1, this.pageCount - 1);
+                context.fill(this.scrollButtonX + 6, this.scrollTrackTop,
+                        this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
+                context.fill(this.scrollButtonX + 4, thumbTop,
+                        this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
+            }
             this.text(context, this.manageView
                     ? "SERVERS  (" + this.accountRows.size() + ")"
                     : "ACCOUNTS  (" + this.accountRows.size() + ")",

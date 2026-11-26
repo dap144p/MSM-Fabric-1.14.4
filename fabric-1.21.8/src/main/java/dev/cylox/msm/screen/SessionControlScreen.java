@@ -176,7 +176,7 @@ public final class SessionControlScreen extends MsmScreen {
 
         this.closeButton = this.addButton(new MsmButtonWidget(
                 right - buttonWidth, y, buttonWidth, 20,
-                "CLOSE", button -> close()));
+                "BACK", button -> close()));
         right -= buttonWidth + gap;
 
         this.applyButton = this.addButton(new MsmButtonWidget(
