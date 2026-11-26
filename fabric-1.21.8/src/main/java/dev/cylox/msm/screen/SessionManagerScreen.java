@@ -406,8 +406,7 @@ public final class SessionManagerScreen extends MsmScreen {
             boolean showUpdates = MsmClient.getUpdateManager() != null;
             int updateWidth = showUpdates ? 82 : 0;
             int addWidth = 78;
-            int closeWidth = 72;
-            int groupWidth = updateWidth + (showUpdates ? gap : 0) + addWidth + gap + closeWidth;
+            int groupWidth = updateWidth + (showUpdates ? gap : 0) + addWidth;
             int left = this.accountsPanelLeft + this.accountsPanelWidth - 12 - groupWidth;
             if (showUpdates) {
                 this.addButton(new MsmButtonWidget(left, footerY, updateWidth, 20,

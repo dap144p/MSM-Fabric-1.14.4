@@ -56,20 +56,20 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         if (this.accountRemoval) {
             int panelWidth = Math.max(1, Math.min(380, this.width - 24));
             int left = (this.width - panelWidth) / 2;
-            int top = this.height / 2 - 86;
+            int top = this.height / 2 - 125;
             int buttonGap = 8;
             int buttonWidth = Math.max(1, (panelWidth - 24 - buttonGap) / 2);
             this.confirmationField = this.addField(
-                    left + 12, top + 119, panelWidth - 24, 18,
+                    left + 12, top + 177, panelWidth - 24, 20,
                     "Enter confirmation code...");
             this.confirmationField.setMaxLength(9);
             this.confirmationField.setFocused(true);
             this.confirmButton = this.addAction(
-                    left + 12, top + 145, buttonWidth, 20,
+                    left + 12, top + 211, buttonWidth, 20,
                     "CONFIRM", button -> remove());
             this.confirmButton.setDanger(true);
             this.confirmButton.active = false;
-            this.addAction(left + 12 + buttonWidth + buttonGap, top + 145,
+            this.addAction(left + 12 + buttonWidth + buttonGap, top + 211,
                     buttonWidth, 20, "CANCEL", button -> close());
             return;
         }
@@ -134,6 +134,21 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         });
     }
 
+    private void drawTrashCan(DrawContext context, int center, int top) {
+        int color = 0xFFFF6675;
+        context.fill(center - 3, top, center + 3, top + 2, color);
+        context.fill(center - 8, top + 3, center + 8, top + 5, color);
+        context.fill(center - 6, top + 6, center - 4, top + 19, color);
+        context.fill(center + 4, top + 6, center + 6, top + 19, color);
+        context.fill(center - 4, top + 19, center + 4, top + 21, color);
+        for (int offset = 0; offset < 10; offset++) {
+            context.fill(center - 4 + offset, top + 7 + offset,
+                    center - 2 + offset, top + 9 + offset, color);
+            context.fill(center + 2 - offset, top + 7 + offset,
+                    center + 4 - offset, top + 9 + offset, color);
+        }
+    }
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         int panelWidth;
@@ -148,20 +163,20 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
             context.fill(0, 0, this.width, this.height, 0x99070B12);
             panelWidth = Math.max(1, Math.min(380, this.width - 24));
             left = (this.width - panelWidth) / 2;
-            top = this.height / 2 - 86;
-            drawGlassPanel(context, left, top, left + panelWidth, top + 174);
-            centered(context, "DELETE ACCOUNT", this.width / 2, top + 10, 0xFFFF8792);
-            this.text(context, "USERNAME", left + 12, top + 28, 0xFF9EADBD);
-            centered(context, this.username, this.width / 2, top + 41, 0xFF6FC4DE);
-            centered(context, "Delete account and all its",
-                    this.width / 2, top + 58, 0xFFE1E7EF);
+            top = this.height / 2 - 125;
+            drawGlassPanel(context, left, top, left + panelWidth, top + 250);
+            drawTrashCan(context, this.width / 2, top + 10);
+            centered(context, "DELETE ACCOUNT", this.width / 2, top + 40, 0xFFFF8792);
+            centered(context, this.username, this.width / 2, top + 66, 0xFFEAF0F8);
+            centered(context, "Delete this account and all its",
+                    this.width / 2, top + 90, 0xFFE1E7EF);
             centered(context, "configurations permanently.",
-                    this.width / 2, top + 70, 0xFFE1E7EF);
+                    this.width / 2, top + 105, 0xFFE1E7EF);
             centered(context, "To confirm, enter this code:",
-                    this.width / 2, top + 86, 0xFF9EADBD);
-            drawGlassPanel(context, left + 12, top + 99, left + panelWidth - 12, top + 116);
-            centered(context, this.confirmationCode, this.width / 2, top + 103, 0xFFFF8792);
-            drawGlassPanel(context, left + 12, top + 119, left + panelWidth - 12, top + 137);
+                    this.width / 2, top + 132, 0xFF9EADBD);
+            drawGlassPanel(context, left + 12, top + 145, left + panelWidth - 12, top + 170);
+            centered(context, this.confirmationCode, this.width / 2, top + 151, 0xFFFF8792);
+            drawGlassPanel(context, left + 12, top + 177, left + panelWidth - 12, top + 197);
         } else {
             this.renderMsmBackground(context, mouseX, mouseY, delta);
             panelWidth = Math.min(340, this.width - 24);

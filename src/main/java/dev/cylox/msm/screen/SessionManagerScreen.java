@@ -488,8 +488,6 @@ public final class SessionManagerScreen extends MsmScreen {
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
         } else {
             int addWidth = 78;
-            int closeWidth = 72;
-            int groupWidth = addWidth + gap + closeWidth;
             int left = this.accountsPanelLeft + this.accountsPanelWidth - 12 - addWidth;
             this.addButton(new MsmButtonWidget(left, footerY, addWidth, 20, "ADD",
                     button -> openAddDialog()));
