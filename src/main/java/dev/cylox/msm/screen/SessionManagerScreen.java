@@ -432,7 +432,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.accountsPanelBottom = this.height - (this.manageView ? 58 : 44);
 
         if (this.addDialog) {
-            int dialogWidth = Math.min(360, Math.max(250, this.width - 32));
+            int dialogWidth = Math.min(330, Math.max(220, this.width - 32));
             int left = (this.width - dialogWidth) / 2;
             int innerLeft = left + 14;
             int innerWidth = dialogWidth - 28;
@@ -642,7 +642,7 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             this.addDialog = true;
             this.usernameValue = "";
-            int dialogWidth = Math.min(360, Math.max(250, this.width - 32));
+            int dialogWidth = Math.min(330, Math.max(220, this.width - 32));
             int left = (this.width - dialogWidth) / 2;
             int innerLeft = left + 14;
             int innerWidth = dialogWidth - 28;
@@ -1225,7 +1225,7 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (this.addDialog) {
-            int dialogWidth = Math.min(360, Math.max(250, this.width - 32));
+            int dialogWidth = Math.min(330, Math.max(220, this.width - 32));
             int dialogLeft = (this.width - dialogWidth) / 2;
             int top = Math.max(34, (this.height - 154) / 2);
             drawGlassPanel(dialogLeft, top, dialogLeft + dialogWidth,
