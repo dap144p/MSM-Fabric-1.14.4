@@ -415,9 +415,9 @@ public final class SessionManagerScreen extends MsmScreen {
         int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
         this.accountGridColumns = this.manageView ? 1
                 : rowWidth >= 360 ? 3 : rowWidth >= 220 ? 2 : 1;
-        int accountRowStep = 64;
+        int accountRowStep = 32;
         int rowStep = this.manageView ? 32 : accountRowStep;
-        int accountCardHeight = 56;
+        int accountCardHeight = 20;
         int listBottom = this.accountsPanelBottom - 10;
         int availableRows = this.manageView
                 ? Math.max(1, (listBottom - this.rowStartY) / 32 + 1)
@@ -446,12 +446,12 @@ public final class SessionManagerScreen extends MsmScreen {
                 int cardColumn = accountIndex % this.accountGridColumns;
                 int cardRow = accountIndex / this.accountGridColumns;
                 int cardLeft = rowLeft + cardColumn * (cardWidth + cardGap);
-                int cardTop = this.rowStartY + cardRow * 64;
-                int innerWidth = Math.max(1, cardWidth - 12);
+                int cardTop = this.rowStartY + cardRow * accountRowStep;
                 MsmButtonWidget account = new MsmButtonWidget(
-                        cardLeft + 6, cardTop + 5, innerWidth, 18,
+                        cardLeft, cardTop, cardWidth, 20,
                         getAccountGroupLabel(group),
                         button -> selectAccountGroup(group.key));
+                account.setFlat(true);
                 account.setTrailingLabel(getAccountServerCount(group));
                 account.setSelected(group.key.equals(this.expandedAccountKey));
                 this.accountButtons.put(group.key, account);
@@ -929,18 +929,6 @@ public final class SessionManagerScreen extends MsmScreen {
             if (this.manageView) {
                 this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
             } else {
-                int accountIndex = index - start;
-                int cardColumn = accountIndex % this.accountGridColumns;
-                int cardRow = accountIndex / this.accountGridColumns;
-                int cardGap = 8;
-                int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
-                int cardWidth = Math.max(1,
-                        (rowWidth - cardGap * (this.accountGridColumns - 1))
-                                / this.accountGridColumns);
-                int cardLeft = left + cardColumn * (cardWidth + cardGap);
-                int cardTop = this.rowStartY + cardRow * 64;
-                this.drawGlassPanel(context, cardLeft, cardTop,
-                        cardLeft + cardWidth, cardTop + 56);
             }
             rowY += rowStep;
         }
