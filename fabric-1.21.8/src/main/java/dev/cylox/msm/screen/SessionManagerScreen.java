@@ -928,7 +928,6 @@ public final class SessionManagerScreen extends MsmScreen {
         for (int index = start; index < end; index++) {
             if (this.manageView) {
                 this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
-            } else {
             }
             rowY += rowStep;
         }
