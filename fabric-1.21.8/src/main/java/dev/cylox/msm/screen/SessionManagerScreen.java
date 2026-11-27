@@ -76,6 +76,8 @@ public final class SessionManagerScreen extends MsmScreen {
     private int microsoftCardHeight = 76;
 
     private TextFieldWidget searchField;
+    private int searchIconX;
+    private int searchIconY;
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private MsmButtonWidget authModeButton;
@@ -421,8 +423,13 @@ public final class SessionManagerScreen extends MsmScreen {
             int addLeft = actionsRight - addWidth;
             int manageLeft = actionsRight - manageWidth;
             int deleteLeft = manageLeft - actionGap - deleteWidth;
-            int searchWidth = Math.max(1, Math.min(280,
-                    deleteLeft - actionGap - contentLeft));
+            int searchIconSpace = 18;
+            int searchTextWidth = this.textRenderer
+                    .getWidth("WWWWWWWWWWWWWWWW") + 8;
+            int searchWidth = Math.max(1, Math.min(searchTextWidth,
+                    deleteLeft - actionGap - contentLeft - searchIconSpace));
+            this.searchIconX = contentLeft + 3;
+            this.searchIconY = 77;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
             this.deleteAccountButton = this.addButton(new MsmButtonWidget(
@@ -434,7 +441,7 @@ public final class SessionManagerScreen extends MsmScreen {
                     button -> openAccountManage(this.expandedAccountKey)));
 
             this.searchField = this.addField(
-                    contentLeft, 72, searchWidth, 20, "Search accounts...");
+                    contentLeft + 18, 72, searchWidth, 20, "Search...");
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
@@ -1051,6 +1058,10 @@ public final class SessionManagerScreen extends MsmScreen {
             this.drawGlassDivider(context, left, 96, right);
         }
 
+        if (this.searchField != null && !this.manageView) {
+            drawPixelSearchIcon(context, this.searchIconX, this.searchIconY);
+        }
+
         if (this.pageCount > 1) {
             int thumbHeight = getScrollThumbHeight();
             int thumbTop = getScrollThumbTop();
@@ -1092,6 +1103,21 @@ public final class SessionManagerScreen extends MsmScreen {
         
     }
 
+
+    private void drawPixelSearchIcon(DrawContext context, int x, int y) {
+        int outline = 0xFF9BAFC3;
+        int glass = 0xFF42566B;
+        context.fill(x + 2, y, x + 6, y + 1, outline);
+        context.fill(x + 1, y + 1, x + 2, y + 2, outline);
+        context.fill(x + 6, y + 1, x + 7, y + 2, outline);
+        context.fill(x, y + 2, x + 1, y + 6, outline);
+        context.fill(x + 7, y + 2, x + 8, y + 6, outline);
+        context.fill(x + 1, y + 6, x + 7, y + 7, outline);
+        context.fill(x + 2, y + 2, x + 6, y + 6, glass);
+        context.fill(x + 3, y + 2, x + 5, y + 3, 0xFFCAD9E8);
+        context.fill(x + 6, y + 6, x + 8, y + 8, outline);
+        context.fill(x + 8, y + 8, x + 10, y + 10, outline);
+    }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
