@@ -69,10 +69,10 @@ abstract class MsmScreen extends Screen {
     protected void drawGlassPanel(int left, int top, int right, int bottom) {
         if (right - left < 2 || bottom - top < 2) return;
 
-        fill(left, top, right, bottom, 0xB02B3543);
-        fill(left + 1, top + 1, right - 1, bottom - 1, 0xC817202B);
-        fill(left + 1, top + 1, Math.min(left + 3, right - 1), bottom - 1, 0xD13F9CB8);
-        fill(left + 1, top + 1, right - 1, top + 2, 0x904F6478);
+        fill(left, top, right, bottom, 0x702B3543);
+        fill(left + 1, top + 1, right - 1, bottom - 1, 0x9817202B);
+        fill(left + 1, top + 1, Math.min(left + 2, right - 1), bottom - 1, 0x704F91A5);
+        fill(left + 1, top + 1, right - 1, top + 2, 0x604F6478);
     }
 
     protected void drawGlassDivider(int left, int top, int right) {
