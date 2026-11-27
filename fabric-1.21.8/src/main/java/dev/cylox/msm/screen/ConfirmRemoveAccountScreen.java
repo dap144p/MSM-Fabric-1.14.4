@@ -3,15 +3,10 @@ package dev.cylox.msm.screen;
 import dev.cylox.msm.MsmClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
-import java.security.SecureRandom;
 
 public final class ConfirmRemoveAccountScreen extends MsmScreen {
-    private static final SecureRandom RANDOM = new SecureRandom();
-    private static final char[] CODE_CHARACTERS =
-            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
     private final long sessionId;
     private final String username;
     private final String serverAddress;
@@ -20,8 +15,8 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     private final Runnable accountRemovalAction;
     private boolean removing;
     private MsmButtonWidget confirmButton;
-    private TextFieldWidget confirmationField;
-    private final String confirmationCode;
+    private MsmButtonWidget acknowledgmentButton;
+    private boolean acknowledged;
     private String status = "Only this server and its automation settings will be removed.";
 
     public ConfirmRemoveAccountScreen(Screen parent, long sessionId,
@@ -33,7 +28,6 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         this.accountRemoval = false;
         this.accountServerCount = 1;
         this.accountRemovalAction = null;
-        this.confirmationCode = "";
     }
 
     public ConfirmRemoveAccountScreen(Screen parent, String username,
@@ -48,7 +42,6 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         this.accountRemoval = true;
         this.accountServerCount = Math.max(0, serverCount);
         this.accountRemovalAction = accountRemovalAction;
-        this.confirmationCode = createConfirmationCode();
     }
 
     @Override
@@ -59,11 +52,9 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
             int top = this.height / 2 - 125;
             int buttonGap = 8;
             int buttonWidth = Math.max(1, (panelWidth - 24 - buttonGap) / 2);
-            this.confirmationField = this.addField(
+            this.acknowledgmentButton = this.addAction(
                     left + 12, top + 177, panelWidth - 24, 20,
-                    "Enter confirmation code...");
-            this.confirmationField.setMaxLength(9);
-            this.confirmationField.setFocused(true);
+                    getAcknowledgementLabel(), button -> toggleAcknowledgement());
             this.confirmButton = this.addAction(
                     left + 12, top + 211, buttonWidth, 20,
                     "CONFIRM", button -> remove());
@@ -89,26 +80,27 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     public void tick() {
         super.tick();
         if (this.accountRemoval && this.confirmButton != null) {
-            this.confirmButton.active = !this.removing && isConfirmationCodeValid();
+            this.confirmButton.active = !this.removing && this.acknowledged;
         }
     }
 
-    private boolean isConfirmationCodeValid() {
-        return this.confirmationField != null
-                && this.confirmationCode.equalsIgnoreCase(this.confirmationField.getText().trim());
+    private String getAcknowledgementLabel() {
+        return (this.acknowledged ? "[✓] " : "[ ] ")
+                + "I UNDERSTAND - DELETE ALL ACCOUNT DATA";
     }
 
-    private static String createConfirmationCode() {
-        StringBuilder code = new StringBuilder(9);
-        for (int index = 0; index < 8; index++) {
-            if (index == 4) code.append('-');
-            code.append(CODE_CHARACTERS[RANDOM.nextInt(CODE_CHARACTERS.length)]);
+    private void toggleAcknowledgement() {
+        this.acknowledged = !this.acknowledged;
+        if (this.acknowledgmentButton != null) {
+            this.acknowledgmentButton.setMessage(getAcknowledgementLabel());
         }
-        return code.toString();
+        if (this.confirmButton != null) {
+            this.confirmButton.active = !this.removing && this.acknowledged;
+        }
     }
 
     private void remove() {
-        if (this.removing || (this.accountRemoval && !isConfirmationCodeValid())) return;
+        if (this.removing || (this.accountRemoval && !this.acknowledged)) return;
         this.removing = true;
         if (this.accountRemoval) {
             this.status = "Deleting the account and all " + this.accountServerCount + " servers...";
@@ -168,15 +160,12 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
             drawTrashCan(context, this.width / 2, top + 10);
             centered(context, "DELETE ACCOUNT", this.width / 2, top + 40, 0xFFFF8792);
             centered(context, this.username, this.width / 2, top + 66, 0xFFEAF0F8);
-            centered(context, "Delete this account and all its",
+            centered(context, "Permanently delete this account and its",
                     this.width / 2, top + 90, 0xFFE1E7EF);
-            centered(context, "configurations permanently.",
+            centered(context, this.accountServerCount + " saved servers and their data.",
                     this.width / 2, top + 105, 0xFFE1E7EF);
-            centered(context, "To confirm, enter this code:",
+            centered(context, "Includes AutoChat / AutoReconnect settings.",
                     this.width / 2, top + 132, 0xFF9EADBD);
-            drawGlassPanel(context, left + 12, top + 145, left + panelWidth - 12, top + 170);
-            centered(context, this.confirmationCode, this.width / 2, top + 151, 0xFFFF8792);
-            drawGlassPanel(context, left + 12, top + 177, left + panelWidth - 12, top + 197);
         } else {
             this.renderMsmBackground(context, mouseX, mouseY, delta);
             panelWidth = Math.min(340, this.width - 24);
