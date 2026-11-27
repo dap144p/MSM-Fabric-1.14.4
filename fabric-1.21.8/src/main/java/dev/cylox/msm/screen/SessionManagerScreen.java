@@ -709,22 +709,24 @@ public final class SessionManagerScreen extends MsmScreen {
         for (AccountGroup group : this.accountGroups) {
             if (group.key.equals(targetAccountKey)) {
                 final String username = group.username;
+                final SessionAuthMode authMode = group.authMode;
                 final List<SessionManager.Session> targets = new ArrayList<>(group.servers);
                 this.client.setScreen(new ConfirmRemoveAccountScreen(
                         this, username, targets.size(),
-                        () -> beginDeleteAccount(username, targets)));
+                        () -> beginDeleteAccount(username, authMode, targets)));
                 return;
             }
         }
         this.status = "The selected account is no longer available.";
     }
 
-    private void beginDeleteAccount(String username, List<SessionManager.Session> targets) {
+    private void beginDeleteAccount(String username, SessionAuthMode authMode,
+                                    List<SessionManager.Session> targets) {
         this.client.setScreen(this);
         this.status = "Disconnecting and deleting all servers for " + username + "...";
         SessionAutomationScheduler scheduler = MsmClient.getAutomationScheduler();
         if (targets.isEmpty()) {
-            removeNextAccountServer(username, targets, 0, 0, null);
+            removeNextAccountServer(username, authMode, targets, 0, 0, null);
             return;
         }
         if (scheduler == null) {
@@ -734,12 +736,13 @@ public final class SessionManagerScreen extends MsmScreen {
         removeNextAccountServer(username, targets, 0, 0, null);
     }
 
-    private void removeNextAccountServer(String username, List<SessionManager.Session> targets,
+    private void removeNextAccountServer(String username, SessionAuthMode authMode,
+                                         List<SessionManager.Session> targets,
                                          int index, int removed, Throwable firstFailure) {
         if (index >= targets.size()) {
             if (removed == targets.size() && firstFailure == null) {
                 try {
-                    MsmClient.removeAccountIdentity(username, SessionAuthMode.OFFLINE_LOCAL);
+                    MsmClient.removeAccountIdentity(username, authMode);
                 } catch (IOException exception) {
                     this.status = "Servers removed, but account identity could not be deleted: "
                             + exception.getMessage();
@@ -763,7 +766,7 @@ public final class SessionManagerScreen extends MsmScreen {
         }
         long sessionId = targets.get(index).getId();
         MsmClient.removeProfile(sessionId, failure ->
-                removeNextAccountServer(username, targets, index + 1,
+                removeNextAccountServer(username, authMode, targets, index + 1,
                         failure == null ? removed + 1 : removed,
                         firstFailure == null ? failure : firstFailure));
     }
