@@ -161,7 +161,7 @@ public final class MsmButtonWidget extends ButtonWidget {
             if (!this.statusLabel.isEmpty()) {
                 int badgeLeft = statusLeft - 8;
                 int badgeBackground = (this.statusColor & 0x00FFFFFF) | 0x26000000;
-                context.fill(badgeLeft, top + 5, right - 8, top + 20, badgeBackground);
+                context.fill(badgeLeft, top + 5, badgeLeft + statusWidth + 16, top + 20, badgeBackground);
                 context.fill(badgeLeft + 4, top + 10, badgeLeft + 8,
                         top + 14, this.statusColor);
                 context.drawTextWithShadow(client.textRenderer,
