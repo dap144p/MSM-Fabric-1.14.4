@@ -244,7 +244,6 @@ public final class SessionChatScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        drawGlassPanel(8, 6, this.width - 8, this.height - 8);
         drawGlassPanel(16, 28, this.width - 16, this.height - 101);
         drawGlassPanel(8, this.height - 100, this.width - 8, this.height - 36);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
