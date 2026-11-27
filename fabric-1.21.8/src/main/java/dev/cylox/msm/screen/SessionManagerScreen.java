@@ -418,7 +418,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int cardGap = 8;
         int minimumAccountWidth = 120;
         if (!this.manageView) {
-            int countGapWidth = this.textRenderer.getWidth("      ");
+            int countGapWidth = this.textRenderer.getWidth("    ");
             for (AccountListEntry entry : this.accountRows) {
                 if (entry.server != null) continue;
                 int usernameWidth = this.textRenderer
@@ -468,6 +468,7 @@ public final class SessionManagerScreen extends MsmScreen {
                         getAccountGroupLabel(group),
                         button -> selectAccountGroup(group.key));
                 account.setFlat(true);
+                account.setCardBackground(true);
                 account.setTrailingLabel(getAccountServerCount(group));
                 account.setSelected(group.key.equals(this.expandedAccountKey));
                 this.accountButtons.put(group.key, account);
