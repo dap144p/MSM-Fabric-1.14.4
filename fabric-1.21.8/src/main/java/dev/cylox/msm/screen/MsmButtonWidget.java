@@ -129,15 +129,20 @@ public final class MsmButtonWidget extends ButtonWidget {
         MinecraftClient client = MinecraftClient.getInstance();
         if (!this.trailingLabel.isEmpty()) {
             int trailingWidth = client.textRenderer.getWidth(this.trailingLabel);
-            int primaryWidth = Math.max(1, this.getWidth() - trailingWidth - 24);
+            int gapWidth = this.flat
+                    ? client.textRenderer.getWidth("      ") : 8;
+            int primaryWidth = Math.max(1, this.getWidth() - trailingWidth - gapWidth - 16);
             String primary = this.label;
             if (client.textRenderer.getWidth(primary) > primaryWidth) {
                 primary = client.textRenderer.trimToWidth(primary, Math.max(1, primaryWidth - 3)) + "...";
             }
             int textY = top + (this.getHeight() - 8) / 2;
             context.drawTextWithShadow(client.textRenderer, Text.literal(primary), left + 8, textY, textColor);
+            int trailingX = this.flat
+                    ? left + 8 + client.textRenderer.getWidth(primary) + gapWidth
+                    : right - trailingWidth - 8;
             context.drawTextWithShadow(client.textRenderer, Text.literal(this.trailingLabel),
-                    right - trailingWidth - 8, textY, 0xFF7FA9F0);
+                    trailingX, textY, 0xFF7FA9F0);
             return;
         }
 
