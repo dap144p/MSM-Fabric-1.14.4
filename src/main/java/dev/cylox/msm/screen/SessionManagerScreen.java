@@ -446,23 +446,24 @@ public final class SessionManagerScreen extends MsmScreen {
             int manageWidth = 84;
             int actionGap = 5;
             int actionsRight = contentLeft + contentWidth;
+            int addLeft = actionsRight - addWidth;
             int manageLeft = actionsRight - manageWidth;
             int deleteLeft = manageLeft - actionGap - deleteWidth;
-            int addLeft = deleteLeft - actionGap - addWidth;
+            int searchWidth = Math.max(1, Math.min(280,
+                    deleteLeft - actionGap - contentLeft));
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
             this.deleteAccountButton = this.addButton(new MsmButtonWidget(
-                    deleteLeft, 37, deleteWidth, 20, "",
+                    deleteLeft, 62, deleteWidth, 20, "",
                     button -> requestDeleteAccount(this.managedAccountKey)));
             this.deleteAccountButton.setTrashIcon(true);
             this.manageButton = this.addButton(new MsmButtonWidget(
-                    manageLeft, 37, manageWidth, 20, "MANAGE",
+                    manageLeft, 62, manageWidth, 20, "MANAGE",
                     button -> openAccountManage(this.managedAccountKey)));
 
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    contentLeft, 72, Math.max(1, Math.min(280, contentWidth)),
-                    20, "Search accounts..."));
+                    contentLeft, 72, searchWidth, 20, "Search accounts..."));
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
