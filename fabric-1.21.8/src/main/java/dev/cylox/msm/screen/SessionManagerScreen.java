@@ -452,7 +452,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int cardGap = 8;
         int minimumAccountWidth = 120;
         if (!this.manageView) {
-            int countGapWidth = this.textRenderer.getWidth("    ");
+            int countGapWidth = this.textRenderer.getWidth("  ");
             for (AccountListEntry entry : this.accountRows) {
                 if (entry.server != null) continue;
                 int usernameWidth = this.textRenderer
@@ -485,7 +485,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
         int rowLeft = this.accountsPanelLeft;
-        int cardWidth = Math.max(1,
+        int cardCellWidth = Math.max(1,
                 (rowWidth - cardGap * (this.accountGridColumns - 1)) / this.accountGridColumns);
         int labelWidth = rowWidth;
 
@@ -496,10 +496,17 @@ public final class SessionManagerScreen extends MsmScreen {
                 int accountIndex = index - start;
                 int cardColumn = accountIndex % this.accountGridColumns;
                 int cardRow = accountIndex / this.accountGridColumns;
-                int cardLeft = rowLeft + cardColumn * (cardWidth + cardGap);
+                int cardLeft = rowLeft + cardColumn * (cardCellWidth + cardGap);
                 int cardTop = this.rowStartY + cardRow * accountRowStep;
+                int accountTextWidth = this.textRenderer
+                        .getWidth(getAccountGroupLabel(group));
+                int countTextWidth = this.textRenderer
+                        .getWidth(getAccountServerCount(group));
+                int countGapWidth = this.textRenderer.getWidth("  ");
+                int accountCardWidth = Math.min(cardCellWidth,
+                        accountTextWidth + countGapWidth + countTextWidth + 16);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        cardLeft, cardTop, cardWidth, 20,
+                        cardLeft, cardTop, Math.max(1, accountCardWidth), 20,
                         getAccountGroupLabel(group),
                         button -> selectAccountGroup(group.key));
                 account.setFlat(true);
