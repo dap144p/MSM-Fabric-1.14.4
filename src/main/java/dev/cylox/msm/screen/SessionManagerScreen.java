@@ -71,6 +71,8 @@ public final class SessionManagerScreen extends MsmScreen {
     private boolean compactLayout;
 
     private TextFieldWidget searchField;
+    private int searchIconX;
+    private int searchIconY;
     private TextFieldWidget usernameField;
     private TextFieldWidget serverField;
     private ButtonWidget authModeButton;
@@ -479,8 +481,13 @@ public final class SessionManagerScreen extends MsmScreen {
             int addLeft = actionsRight - addWidth;
             int manageLeft = actionsRight - manageWidth;
             int deleteLeft = manageLeft - actionGap - deleteWidth;
-            int searchWidth = Math.max(1, Math.min(280,
-                    deleteLeft - actionGap - contentLeft));
+            int searchIconSpace = 18;
+            int searchTextWidth = MinecraftClient.getInstance().textRenderer
+                    .getStringWidth("WWWWWWWWWWWWWWWW") + 8;
+            int searchWidth = Math.max(1, Math.min(searchTextWidth,
+                    deleteLeft - actionGap - contentLeft - searchIconSpace));
+            this.searchIconX = contentLeft + 3;
+            this.searchIconY = 77;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
             this.deleteAccountButton = this.addButton(new MsmButtonWidget(
@@ -493,7 +500,7 @@ public final class SessionManagerScreen extends MsmScreen {
 
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
-                    contentLeft, 72, searchWidth, 20, "Search accounts..."));
+                    contentLeft + 18, 72, searchWidth, 20, "Search..."));
             this.searchField.setMaxLength(64);
             this.searchField.setText(this.searchValue);
         }
@@ -1210,6 +1217,10 @@ public final class SessionManagerScreen extends MsmScreen {
             drawGlassDivider(left, 96, right);
         }
 
+        if (this.searchField != null && !this.manageView) {
+            drawPixelSearchIcon(this.searchIconX, this.searchIconY);
+        }
+
         if (this.pageCount > 1) {
             int thumbHeight = getScrollThumbHeight();
             int thumbTop = getScrollThumbTop();
@@ -1251,6 +1262,21 @@ public final class SessionManagerScreen extends MsmScreen {
         
     }
 
+
+    private void drawPixelSearchIcon(int x, int y) {
+        int outline = 0xFF9BAFC3;
+        int glass = 0xFF42566B;
+        fill(x + 2, y, x + 6, y + 1, outline);
+        fill(x + 1, y + 1, x + 2, y + 2, outline);
+        fill(x + 6, y + 1, x + 7, y + 2, outline);
+        fill(x, y + 2, x + 1, y + 6, outline);
+        fill(x + 7, y + 2, x + 8, y + 6, outline);
+        fill(x + 1, y + 6, x + 7, y + 7, outline);
+        fill(x + 2, y + 2, x + 6, y + 6, glass);
+        fill(x + 3, y + 2, x + 5, y + 3, 0xFFCAD9E8);
+        fill(x + 6, y + 6, x + 8, y + 8, outline);
+        fill(x + 8, y + 8, x + 10, y + 10, outline);
+    }
 
     private void drawProviderIcons() {
         int iconX = this.formPanelLeft + 26;
