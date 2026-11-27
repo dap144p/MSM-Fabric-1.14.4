@@ -477,7 +477,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int cardGap = 8;
         int minimumAccountWidth = 120;
         if (!this.manageView) {
-            int countGapWidth = MinecraftClient.getInstance().textRenderer.getStringWidth("      ");
+            int countGapWidth = MinecraftClient.getInstance().textRenderer.getStringWidth("    ");
             for (AccountListEntry entry : this.accountRows) {
                 if (entry.server != null) continue;
                 int usernameWidth = MinecraftClient.getInstance().textRenderer
@@ -527,6 +527,7 @@ public final class SessionManagerScreen extends MsmScreen {
                         getAccountGroupLabel(group),
                         button -> selectAccountGroup(group.key));
                 account.setFlat(true);
+                account.setCardBackground(true);
                 account.setTrailingLabel(getAccountServerCount(group));
                 account.setSelected(group.key.equals(this.managedAccountKey));
                 this.accountButtons.put(group.key, account);
