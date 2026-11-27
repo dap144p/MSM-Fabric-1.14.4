@@ -733,7 +733,7 @@ public final class SessionManagerScreen extends MsmScreen {
             this.status = "Account deletion is unavailable because automation is not initialized.";
             return;
         }
-        removeNextAccountServer(username, targets, 0, 0, null);
+        removeNextAccountServer(username, authMode, targets, 0, 0, null);
     }
 
     private void removeNextAccountServer(String username, SessionAuthMode authMode,
