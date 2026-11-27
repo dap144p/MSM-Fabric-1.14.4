@@ -487,7 +487,7 @@ public final class SessionManagerScreen extends MsmScreen {
             }
         }
         this.accountGridColumns = this.manageView ? 1
-                : Math.min(3, Math.max(1,
+                : Math.min(5, Math.max(1,
                     (rowWidth + cardGap) / (minimumAccountWidth + cardGap)));
         int accountRowStep = 32;
         int rowStep = this.manageView ? 32 : accountRowStep;
