@@ -1,0 +1,150 @@
+plugins {
+    id "fabric-loom" version "${loom_version}"
+}
+
+version = project.findProperty("build_version") ?: project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+tasks.named("remapJar") {
+    archiveFileName.set("MSM-Fabric-${project.version}-1.14.4.jar")
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://jitpack.io" }
+}
+
+loom {
+    mixin {
+        defaultRefmapName = "msm_fabric.refmap.json"
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    implementation project(":msm-core")
+
+    // Protocol 498 (Minecraft Java 1.14.4), used only by independent secondary sessions.
+    // Loom's include configuration is not transitive, so package every runtime dependency explicitly.
+    include(implementation("com.github.GeyserMC:MCProtocolLib:1.14.4-2"))
+    include(implementation("com.github.steveice10:opennbt:1.3"))
+    include(implementation("com.github.steveice10:packetlib:1.4"))
+    include(implementation("com.github.steveice10:mcauthlib:1.1"))
+    include(implementation("com.google.code.gson:gson:2.8.2"))
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 8
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
+}
+
+tasks.named("jar") {
+    dependsOn(":msm-core:jar")
+    from({
+        zipTree(project(":msm-core").tasks.named("jar").get().archiveFile.get().asFile)
+    }) {
+        exclude "META-INF/**"
+    }
+}
+
+tasks.register("verifyBundledCore") {
+    dependsOn tasks.named("remapJar")
+
+    doLast {
+        def remappedJar = tasks.named("remapJar").get().archiveFile.get().asFile
+        def requiredClasses = [
+                "dev/cylox/msm/profile/SessionProfile.class",
+                "dev/cylox/msm/profile/SessionProfileStore.class",
+                "dev/cylox/msm/profile/SessionAuthMode.class",
+                "dev/cylox/msm/session/SessionManager.class",
+                "dev/cylox/msm/session/SessionState.class",
+                "dev/cylox/msm/update/MsmUpdateManager.class",
+                "dev/cylox/msm/screen/MsmUpdateScreen.class"
+        ]
+        def requiredLibraries = [
+                "mcprotocollib",
+                "opennbt",
+                "packetlib",
+                "mcauthlib",
+                "gson"
+        ]
+        def missingClasses = []
+        def missingLibraries = []
+        def archive = new java.util.zip.ZipFile(remappedJar)
+
+        try {
+            requiredClasses.each { classPath ->
+                if (archive.getEntry(classPath) == null) {
+                    missingClasses.add(classPath)
+                }
+            }
+
+            def entries = archive.entries()
+            def nestedJarNames = []
+            while (entries.hasMoreElements()) {
+                def entry = entries.nextElement()
+                if (entry.name.startsWith("META-INF/jars/") && entry.name.endsWith(".jar")) {
+                    nestedJarNames.add(entry.name.toLowerCase(java.util.Locale.ROOT))
+                }
+            }
+
+            requiredLibraries.each { library ->
+                if (!nestedJarNames.any { it.contains(library) }) {
+                    missingLibraries.add(library)
+                }
+            }
+            if (nestedJarNames.any { it.contains("netty-all") }) {
+                throw new GradleException(
+                        "Do not bundle Netty: Minecraft 1.14.4 already provides its own Netty runtime.")
+            }
+        } finally {
+            archive.close()
+        }
+
+        if (!missingClasses.isEmpty()) {
+            throw new GradleException(
+                    "MSM-Core classes are missing from ${remappedJar.name}: ${missingClasses.join(', ')}")
+        }
+        if (!missingLibraries.isEmpty()) {
+            throw new GradleException(
+                    "Secondary-session runtime libraries are missing from ${remappedJar.name}: ${missingLibraries.join(', ')}")
+        }
+    }
+}
+
+tasks.register("verifyAutomationStore", JavaExec) {
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.cylox.msm.automation.SessionAutomationStoreTest"
+}
+
+tasks.register("verifyAutomationScheduler", JavaExec) {
+    dependsOn tasks.named("testClasses")
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = "dev.cylox.msm.automation.SessionAutomationSchedulerTest"
+}
+
+check.dependsOn ":msm-core:check"
+check.dependsOn "verifyBundledCore"
+check.dependsOn "verifyAutomationStore"
+check.dependsOn "verifyAutomationScheduler"
