@@ -472,8 +472,23 @@ public final class SessionManagerScreen extends MsmScreen {
         this.scrollTrackTop = panelTop + 8;
         this.scrollTrackBottom = this.accountsPanelBottom - 10;
         int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
+        int cardGap = 8;
+        int minimumAccountWidth = 120;
+        if (!this.manageView) {
+            int countGapWidth = MinecraftClient.getInstance().textRenderer.getStringWidth("      ");
+            for (AccountListEntry entry : this.accountRows) {
+                if (entry.server != null) continue;
+                int usernameWidth = MinecraftClient.getInstance().textRenderer
+                        .getStringWidth(getAccountGroupLabel(entry.account));
+                int countWidth = MinecraftClient.getInstance().textRenderer
+                        .getStringWidth(getAccountServerCount(entry.account));
+                minimumAccountWidth = Math.max(minimumAccountWidth,
+                        usernameWidth + countGapWidth + countWidth + 16);
+            }
+        }
         this.accountGridColumns = this.manageView ? 1
-                : rowWidth >= 360 ? 3 : rowWidth >= 220 ? 2 : 1;
+                : Math.min(3, Math.max(1,
+                    (rowWidth + cardGap) / (minimumAccountWidth + cardGap)));
         int accountRowStep = 32;
         int rowStep = this.manageView ? 32 : accountRowStep;
         int accountCardHeight = 20;
@@ -492,7 +507,6 @@ public final class SessionManagerScreen extends MsmScreen {
         int end = Math.min(start + this.pageSize, this.accountRows.size());
         int rowY = this.rowStartY;
         int rowLeft = this.accountsPanelLeft;
-        int cardGap = 8;
         int cardWidth = Math.max(1,
                 (rowWidth - cardGap * (this.accountGridColumns - 1)) / this.accountGridColumns);
         int labelWidth = rowWidth;
