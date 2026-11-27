@@ -18,9 +18,46 @@ abstract class MsmScreen extends Screen {
         return (separator >= 0 ? value.substring(0, separator) : value).toUpperCase();
     }
 
+    protected boolean useLineAccountManagerHeader() {
+        return false;
+    }
+
+    protected void onLineAccountManagerBack() {
+    }
+
+    private void drawLineHeaderButton(int left, int top, int right, int bottom, boolean hovered) {
+        int background = hovered ? 0x665F6874 : 0x1A000000;
+        int border = hovered ? 0xCC9AA5B3 : 0x805B6572;
+        fill(left, top, right, bottom, background);
+        fill(left, top, right, top + 1, border);
+        fill(left, bottom - 1, right, bottom, border);
+        fill(left, top, left + 1, bottom, border);
+        fill(right - 1, top, right, bottom, border);
+    }
+
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         super.render(mouseX, mouseY, delta);
+        if (useLineAccountManagerHeader()) {
+            fill(0, 0, this.width, 27, 0xB0101822);
+            fill(0, 26, this.width, 27, 0x803A4655);
+            boolean backHovered = mouseX >= 6 && mouseX < 28 && mouseY >= 4 && mouseY < 22;
+            boolean closeHovered = mouseX >= this.width - 28 && mouseX < this.width - 6
+                    && mouseY >= 4 && mouseY < 22;
+            drawLineHeaderButton(6, 4, 28, 22, backHovered);
+            drawLineHeaderButton(this.width - 28, 4, this.width - 6, 22, closeHovered);
+            drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                    "<", 17, 9, backHovered ? 0xFFFFFFFF : 0xFFD0D9E8);
+            int x = this.width - 17;
+            int icon = closeHovered ? 0xFFFFFFFF : 0xFFD0D9E8;
+            for (int offset = 0; offset < 7; offset++) {
+                fill(x - 3 + offset, 8 + offset, x - 1 + offset, 10 + offset, icon);
+                fill(x + 1 - offset, 8 + offset, x + 3 - offset, 10 + offset, icon);
+            }
+            drawCenteredString(MinecraftClient.getInstance().textRenderer,
+                    getMsmPageTitle(), this.width / 2, 9, 0xFFE0E8F0);
+            return;
+        }
         int color = 0xFFE0E8F0;
         fill(0, 0, this.width, 27, 0xB0101822);
         fill(0, 26, this.width, 27, 0x803A4655);
@@ -42,6 +79,11 @@ abstract class MsmScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && useLineAccountManagerHeader()
+                && mouseX >= 6 && mouseX < 30 && mouseY >= 0 && mouseY <= 27) {
+            onLineAccountManagerBack();
+            return true;
+        }
         if (button == 0 && mouseX >= this.width - 28 && mouseY <= 27) {
             MinecraftClient.getInstance().openScreen(null);
             return true;

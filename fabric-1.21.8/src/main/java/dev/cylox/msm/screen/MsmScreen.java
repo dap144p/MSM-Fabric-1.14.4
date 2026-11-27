@@ -23,6 +23,24 @@ public abstract class MsmScreen extends Screen {
         return (separator >= 0 ? value.substring(0, separator) : value).toUpperCase();
     }
 
+    protected boolean useLineAccountManagerHeader() {
+        return false;
+    }
+
+    protected void onLineAccountManagerBack() {
+    }
+
+    private void drawLineHeaderButton(DrawContext context, int left, int top,
+                                      int right, int bottom, boolean hovered) {
+        int background = hovered ? 0x665F6874 : 0x1A000000;
+        int border = hovered ? 0xCC9AA5B3 : 0x805B6572;
+        context.fill(left, top, right, bottom, background);
+        context.fill(left, top, right, top + 1, border);
+        context.fill(left, bottom - 1, right, bottom, border);
+        context.fill(left, top, left + 1, bottom, border);
+        context.fill(right - 1, top, right, bottom, border);
+    }
+
     protected int getMsmHeaderLeft() {
         return 0;
     }
@@ -38,6 +56,34 @@ public abstract class MsmScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
+        if (useLineAccountManagerHeader()) {
+            int headerLeft = getMsmHeaderLeft();
+            int headerRight = getMsmHeaderRight();
+            int headerTop = getMsmHeaderTop();
+            context.fill(headerLeft, headerTop, headerRight, headerTop + 27, 0xB0101822);
+            context.fill(headerLeft, headerTop + 26, headerRight, headerTop + 27, 0x803A4655);
+            boolean backHovered = mouseX >= headerLeft + 6 && mouseX < headerLeft + 28
+                    && mouseY >= headerTop + 4 && mouseY < headerTop + 22;
+            boolean closeHovered = mouseX >= headerRight - 28 && mouseX < headerRight - 6
+                    && mouseY >= headerTop + 4 && mouseY < headerTop + 22;
+            drawLineHeaderButton(context, headerLeft + 6, headerTop + 4,
+                    headerLeft + 28, headerTop + 22, backHovered);
+            drawLineHeaderButton(context, headerRight - 28, headerTop + 4,
+                    headerRight - 6, headerTop + 22, closeHovered);
+            context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("<"),
+                    headerLeft + 17, headerTop + 9, backHovered ? 0xFFFFFFFF : 0xFFD0D9E8);
+            int x = headerRight - 17;
+            int icon = closeHovered ? 0xFFFFFFFF : 0xFFD0D9E8;
+            for (int offset = 0; offset < 7; offset++) {
+                context.fill(x - 3 + offset, headerTop + 8 + offset,
+                        x - 1 + offset, headerTop + 10 + offset, icon);
+                context.fill(x + 1 - offset, headerTop + 8 + offset,
+                        x + 3 - offset, headerTop + 10 + offset, icon);
+            }
+            context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(getMsmPageTitle()),
+                    (headerLeft + headerRight) / 2, headerTop + 9, 0xFFE0E8F0);
+            return;
+        }
         int left = getMsmHeaderLeft();
         int right = getMsmHeaderRight();
         int top = getMsmHeaderTop();
@@ -64,6 +110,12 @@ public abstract class MsmScreen extends Screen {
         int left = getMsmHeaderLeft();
         int right = getMsmHeaderRight();
         int top = getMsmHeaderTop();
+        if (button == 0 && useLineAccountManagerHeader()
+                && mouseX >= left + 6 && mouseX < left + 30
+                && mouseY >= top && mouseY <= top + 27) {
+            onLineAccountManagerBack();
+            return true;
+        }
         if (button == 0 && mouseX >= right - 28 && mouseX <= right
                 && mouseX >= left && mouseY >= top && mouseY <= top + 27) {
             this.client.setScreen(null);

@@ -11,6 +11,8 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean danger;
     private boolean trashIcon;
     private boolean closeIcon;
+    private boolean lineStyle;
+    private boolean addUserIcon;
     private String trailingLabel = "";
     private boolean leftAligned;
     private boolean flat;
@@ -53,6 +55,14 @@ public final class MsmButtonWidget extends ButtonWidget {
 
     public void setCloseIcon(boolean closeIcon) {
         this.closeIcon = closeIcon;
+    }
+
+    public void setLineStyle(boolean lineStyle) {
+        this.lineStyle = lineStyle;
+    }
+
+    public void setAddUserIcon(boolean addUserIcon) {
+        this.addUserIcon = addUserIcon;
     }
 
     public void setTrailingLabel(String trailingLabel) {
@@ -156,6 +166,23 @@ public final class MsmButtonWidget extends ButtonWidget {
             if (this.selected && !this.cardBackground) {
                 context.fill(left, top + 3, left + 2, bottom - 3, 0xFF55B8D5);
             }
+        } else if (this.lineStyle) {
+            int lineBackground = !this.active ? 0x12000000
+                    : this.danger ? (hovered ? 0x4D7A2833 : 0x18000000)
+                    : this.selected ? 0x800066CC
+                    : hovered ? 0x665F6874 : 0x33000000;
+            int lineBorder = !this.active ? 0x55303A47
+                    : this.danger ? (hovered ? 0xFFE76A77 : 0xB9C95361)
+                    : this.selected ? 0xFF55B8D5
+                    : hovered ? 0xCC9AA5B3 : 0x805B6572;
+            textColor = !this.active ? 0xFF7F8B98
+                    : this.danger ? 0xFFFF8792
+                    : this.selected || hovered ? 0xFFFFFFFF : 0xFFE8EDF3;
+            context.fill(left, top, right, bottom, lineBackground);
+            context.fill(left, top, right, top + 1, lineBorder);
+            context.fill(left, bottom - 1, right, bottom, lineBorder);
+            context.fill(left, top, left + 1, bottom, lineBorder);
+            context.fill(right - 1, top, right, bottom, lineBorder);
         } else {
             context.fill(left, top, right, bottom, background);
             context.fill(left, top, right, top + 1, accent);
@@ -168,6 +195,10 @@ public final class MsmButtonWidget extends ButtonWidget {
         }
         if (this.trashIcon) {
             drawTrashCan(context, hovered);
+            return;
+        }
+        if (this.addUserIcon) {
+            drawAddUserIcon(context, hovered);
             return;
         }
 
@@ -262,6 +293,16 @@ public final class MsmButtonWidget extends ButtonWidget {
             context.fill(center + 1 - offset, top + offset,
                     center + 3 - offset, top + offset + 2, color);
         }
+    }
+
+    private void drawAddUserIcon(DrawContext context, boolean hovered) {
+        int color = hovered ? 0xFFF3F6FB : 0xFFD0D9E8;
+        int center = this.getX() + this.getWidth() / 2;
+        int top = this.getY() + 3;
+        context.fill(center - 2, top, center + 2, top + 4, color);
+        context.fill(center - 5, top + 6, center + 3, top + 12, color);
+        context.fill(center + 5, top + 3, center + 7, top + 9, color);
+        context.fill(center + 3, top + 5, center + 9, top + 7, color);
     }
 
     private void drawTrashCan(DrawContext context, boolean hovered) {

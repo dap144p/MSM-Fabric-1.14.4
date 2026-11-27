@@ -47,15 +47,18 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
             this.acknowledgmentButton = this.addButton(new MsmButtonWidget(
                     left + 12, top + 148, panelWidth - 24, 20,
                     getAcknowledgementLabel(), button -> toggleAcknowledgement()));
+            ((MsmButtonWidget) this.acknowledgmentButton).setLineStyle(true);
             MsmButtonWidget confirm = new MsmButtonWidget(
                     left + 12, top + 180, buttonWidth, 20,
                     "CONFIRM", button -> confirmRemoval());
             confirm.setDanger(true);
+            confirm.setLineStyle(true);
             confirm.active = false;
             this.confirmButton = this.addButton(confirm);
-            this.addButton(new MsmButtonWidget(
+            MsmButtonWidget cancel = this.addButton(new MsmButtonWidget(
                     left + 12 + buttonWidth + buttonGap, top + 180,
                     buttonWidth, 20, "CANCEL", button -> onClose()));
+            cancel.setLineStyle(true);
             return;
         }
         int panelWidth = Math.min(360, Math.max(220, this.width - 32));
