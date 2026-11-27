@@ -117,7 +117,6 @@ public final class ServerTemplatePickerScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        drawGlassPanel(8, 6, this.width - 8, this.height - 8);
         drawGlassPanel(16, 27, this.width - 16, this.height - 58);
         drawCenteredString(MinecraftClient.getInstance().textRenderer,
                 this.title.asFormattedString(), this.width / 2, 14, 0xFFFFFF);
