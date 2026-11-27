@@ -443,9 +443,11 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             int addWidth = this.width < 420 ? 94 : 112;
             int deleteWidth = 20;
+            int manageWidth = 84;
             int actionGap = 5;
             int actionsRight = contentLeft + contentWidth;
-            int deleteLeft = actionsRight - deleteWidth;
+            int manageLeft = actionsRight - manageWidth;
+            int deleteLeft = manageLeft - actionGap - deleteWidth;
             int addLeft = deleteLeft - actionGap - addWidth;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
@@ -453,6 +455,9 @@ public final class SessionManagerScreen extends MsmScreen {
                     deleteLeft, 37, deleteWidth, 20, "",
                     button -> requestDeleteAccount(this.managedAccountKey)));
             this.deleteAccountButton.setTrashIcon(true);
+            this.manageButton = this.addButton(new MsmButtonWidget(
+                    manageLeft, 37, manageWidth, 20, "MANAGE",
+                    button -> openAccountManage(this.managedAccountKey)));
 
             this.searchField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
@@ -555,14 +560,9 @@ public final class SessionManagerScreen extends MsmScreen {
                     "MANAGE", button -> openControlManage()));
         } else {
             int backWidth = 78;
-            int manageWidth = 84;
-            int groupWidth = backWidth + gap + manageWidth;
-            int left = this.width - 12 - groupWidth;
+            int left = this.width - 12 - backWidth;
             this.addButton(new MsmButtonWidget(left, footerY, backWidth, 20, "BACK",
                     button -> MinecraftClient.getInstance().openScreen(this.parent)));
-            this.manageButton = this.addButton(new MsmButtonWidget(
-                    left + backWidth + gap, footerY, manageWidth, 20,
-                    "MANAGE", button -> openAccountManage(this.managedAccountKey)));
         }
         refreshControls();
     }
