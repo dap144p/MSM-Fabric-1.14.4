@@ -186,7 +186,8 @@ public final class SessionManagerScreen extends MsmScreen {
             AccountGroup group = grouped.get(entry.getKey());
             if (group != null) {
                 entry.getValue().setMessage(getAccountGroupLabel(group));
-                entry.getValue().setTrailingLabel(getAccountServerCount(group));
+                entry.getValue().setCardDetails("SERVER " + getAccountServerCount(group), "",
+                        0xFF9EADBD);
                 entry.getValue().setSelected(group.key.equals(this.expandedAccountKey));
             }
         }
