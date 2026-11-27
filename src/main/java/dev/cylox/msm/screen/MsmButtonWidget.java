@@ -11,6 +11,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean closeIcon;
     private String trailingLabel = "";
     private boolean leftAligned;
+    private boolean flat;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -49,6 +50,10 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.leftAligned = leftAligned;
     }
 
+    public void setFlat(boolean flat) {
+        this.flat = flat;
+    }
+
     @Override
     public void renderButton(int mouseX, int mouseY, float delta) {
         boolean hovered = mouseX >= this.x && mouseY >= this.y
@@ -83,10 +88,24 @@ public final class MsmButtonWidget extends ButtonWidget {
             textColor = 0xFFE8EDF3;
         }
 
-        fill(this.x, this.y, this.x + this.width, this.y + this.height, background);
-        fill(this.x, this.y, this.x + this.width, this.y + 1, accent);
-        fill(this.x, this.y + this.height - 1,
-                this.x + this.width, this.y + this.height, 0x553B4655);
+        if (this.flat) {
+            if (!this.active) {
+                textColor = 0xFF7F8B98;
+            } else if (this.selected) {
+                textColor = 0xFF7AD0E8;
+            } else if (hovered) {
+                textColor = 0xFFFFFFFF;
+            }
+            if (this.selected) {
+                fill(this.x, this.y + 3, this.x + 2,
+                        this.y + this.height - 3, 0xFF55B8D5);
+            }
+        } else {
+            fill(this.x, this.y, this.x + this.width, this.y + this.height, background);
+            fill(this.x, this.y, this.x + this.width, this.y + 1, accent);
+            fill(this.x, this.y + this.height - 1,
+                    this.x + this.width, this.y + this.height, 0x553B4655);
+        }
 
         if (this.closeIcon) {
             drawCloseX(hovered);
