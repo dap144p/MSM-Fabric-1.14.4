@@ -385,9 +385,11 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             int addWidth = this.width < 420 ? 94 : 112;
             int deleteWidth = 20;
+            int manageWidth = 84;
             int actionGap = 5;
             int actionsRight = contentLeft + contentWidth;
-            int deleteLeft = actionsRight - deleteWidth;
+            int manageLeft = actionsRight - manageWidth;
+            int deleteLeft = manageLeft - actionGap - deleteWidth;
             int addLeft = deleteLeft - actionGap - addWidth;
             this.offlineAccountButton = this.addButton(new MsmButtonWidget(
                     addLeft, 37, addWidth, 20, "CREATE ACCOUNT", button -> openAddDialog()));
@@ -395,6 +397,9 @@ public final class SessionManagerScreen extends MsmScreen {
                     deleteLeft, 37, deleteWidth, 20, "",
                     button -> requestDeleteAccount(this.expandedAccountKey)));
             this.deleteAccountButton.setTrashIcon(true);
+            this.manageButton = this.addButton(new MsmButtonWidget(
+                    manageLeft, 37, manageWidth, 20, "MANAGE",
+                    button -> openAccountManage(this.expandedAccountKey)));
 
             this.searchField = this.addField(
                     contentLeft, 72, Math.max(1, Math.min(280, contentWidth)), 20,
@@ -498,9 +503,7 @@ public final class SessionManagerScreen extends MsmScreen {
             boolean showUpdates = MsmClient.getUpdateManager() != null;
             int updateWidth = showUpdates ? 82 : 0;
             int backWidth = 78;
-            int manageWidth = 84;
-            int groupWidth = updateWidth + (showUpdates ? gap : 0)
-                    + backWidth + gap + manageWidth;
+            int groupWidth = updateWidth + (showUpdates ? gap : 0) + backWidth;
             int left = this.width - 12 - groupWidth;
             if (showUpdates) {
                 this.addButton(new MsmButtonWidget(left, footerY, updateWidth, 20,
@@ -509,9 +512,6 @@ public final class SessionManagerScreen extends MsmScreen {
             int backLeft = left + updateWidth + (showUpdates ? gap : 0);
             this.addButton(new MsmButtonWidget(backLeft, footerY, backWidth, 20,
                     "BACK", button -> this.client.setScreen(this.parent)));
-            this.manageButton = this.addButton(new MsmButtonWidget(
-                    backLeft + backWidth + gap, footerY, manageWidth, 20,
-                    "MANAGE", button -> openAccountManage(this.expandedAccountKey)));
         }
         refreshControls();
     }
