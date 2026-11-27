@@ -15,6 +15,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean leftAligned;
     private boolean flat;
     private boolean cardBackground;
+    private boolean accountCardStyle;
     private String subtitle = "";
     private String statusLabel = "";
     private int statusColor = 0xFF9EADBD;
@@ -70,6 +71,10 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.cardBackground = cardBackground;
     }
 
+    public void setAccountCardStyle(boolean accountCardStyle) {
+        this.accountCardStyle = accountCardStyle;
+    }
+
     public void setCardDetails(String subtitle, String statusLabel, int statusColor) {
         this.subtitle = subtitle == null ? "" : subtitle;
         this.statusLabel = statusLabel == null ? "" : statusLabel;
@@ -116,12 +121,23 @@ public final class MsmButtonWidget extends ButtonWidget {
 
         if (this.flat) {
             if (this.cardBackground) {
-                int cardFill = !this.active ? 0x4A202833
-                        : this.selected ? (hovered ? 0xB52B566B : 0x8A1D4053)
-                        : hovered ? 0xA0303D4D : 0x55212B38;
-                int cardBorder = !this.active ? 0x6A303A47
-                        : this.selected ? 0xFF55B8D5
-                        : hovered ? 0xCC6BBBD2 : 0x80435369;
+                int cardFill;
+                int cardBorder;
+                if (this.accountCardStyle) {
+                    cardFill = !this.active ? 0x1A000000
+                            : this.selected ? 0x800066CC
+                            : hovered ? 0x665F6874 : 0x33000000;
+                    cardBorder = !this.active ? 0x55303A47
+                            : this.selected ? 0x8055AAEE
+                            : hovered ? 0x887D8795 : 0x554B5563;
+                } else {
+                    cardFill = !this.active ? 0x4A202833
+                            : this.selected ? (hovered ? 0xB52B566B : 0x8A1D4053)
+                            : hovered ? 0xA0303D4D : 0x55212B38;
+                    cardBorder = !this.active ? 0x6A303A47
+                            : this.selected ? 0xFF55B8D5
+                            : hovered ? 0xCC6BBBD2 : 0x80435369;
+                }
                 context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardFill);
                 context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(), this.getY() + 1, cardBorder);
                 context.fill(this.getX(), this.getY() + this.getHeight() - 1, this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
@@ -130,6 +146,8 @@ public final class MsmButtonWidget extends ButtonWidget {
             }
             if (!this.active) {
                 textColor = 0xFF7F8B98;
+            } else if (this.accountCardStyle) {
+                textColor = this.selected || hovered ? 0xFFFFFFFF : 0xFFE8EDF3;
             } else if (this.selected) {
                 textColor = 0xFF7AD0E8;
             } else if (hovered) {
@@ -181,8 +199,11 @@ public final class MsmButtonWidget extends ButtonWidget {
             }
             context.drawTextWithShadow(client.textRenderer, Text.literal(primary),
                     left + 10, top + 6, textColor);
+            int subtitleColor = this.accountCardStyle
+                    ? (this.selected || hovered ? 0xFFE4ECF7 : 0xFF9BA6B3)
+                    : (this.active ? 0xFF8997A8 : 0xFF687585);
             context.drawTextWithShadow(client.textRenderer, Text.literal(this.subtitle),
-                    left + 10, top + 18, this.active ? 0xFF8997A8 : 0xFF687585);
+                    left + 10, top + 18, subtitleColor);
             return;
         }
 

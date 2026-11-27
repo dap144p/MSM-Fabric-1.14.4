@@ -518,23 +518,22 @@ public final class SessionManagerScreen extends MsmScreen {
         int cardGap = 8;
         int minimumAccountWidth = 120;
         if (!this.manageView) {
-            int countGapWidth = MinecraftClient.getInstance().textRenderer.getStringWidth("  ");
             for (AccountListEntry entry : this.accountRows) {
                 if (entry.server != null) continue;
                 int usernameWidth = MinecraftClient.getInstance().textRenderer
                         .getStringWidth(getAccountGroupLabel(entry.account));
-                int countWidth = MinecraftClient.getInstance().textRenderer
-                        .getStringWidth(getAccountServerCount(entry.account));
+                int accountDetailsWidth = MinecraftClient.getInstance().textRenderer
+                        .getStringWidth("SERVER " + getAccountServerCount(entry.account));
                 minimumAccountWidth = Math.max(minimumAccountWidth,
-                        usernameWidth + countGapWidth + countWidth + 16);
+                        Math.max(usernameWidth, accountDetailsWidth) + 16);
             }
         }
         this.accountGridColumns = this.manageView ? 1
                 : Math.min(5, Math.max(1,
                     (rowWidth + cardGap) / (minimumAccountWidth + cardGap)));
-        int accountRowStep = 28;
+        int accountRowStep = 36;
         int rowStep = this.manageView ? SERVER_CARD_STEP : accountRowStep;
-        int accountCardHeight = 20;
+        int accountCardHeight = 32;
         int listBottom = this.accountsPanelBottom - 10;
         int availableRows = this.manageView
                 ? Math.max(1, (listBottom - this.rowStartY - SERVER_CARD_HEIGHT)
@@ -566,19 +565,19 @@ public final class SessionManagerScreen extends MsmScreen {
                 int cardTop = this.rowStartY + cardRow * accountRowStep;
                 int accountTextWidth = MinecraftClient.getInstance().textRenderer
                         .getStringWidth(getAccountGroupLabel(group));
-                int countTextWidth = MinecraftClient.getInstance().textRenderer
-                        .getStringWidth(getAccountServerCount(group));
-                int countGapWidth = MinecraftClient.getInstance().textRenderer
-                        .getStringWidth("  ");
+                int accountDetailsWidth = MinecraftClient.getInstance().textRenderer
+                        .getStringWidth("SERVER " + getAccountServerCount(group));
                 int accountCardWidth = Math.min(cardCellWidth,
-                        accountTextWidth + countGapWidth + countTextWidth + 16);
+                        Math.max(accountTextWidth, accountDetailsWidth) + 16);
                 MsmButtonWidget account = new MsmButtonWidget(
-                        cardLeft, cardTop, Math.max(1, accountCardWidth), 20,
+                        cardLeft, cardTop, Math.max(1, accountCardWidth), 32,
                         getAccountGroupLabel(group),
                         button -> selectAccountGroup(group.key));
                 account.setFlat(true);
                 account.setCardBackground(true);
-                account.setTrailingLabel(getAccountServerCount(group));
+                account.setAccountCardStyle(true);
+                account.setCardDetails("SERVER " + getAccountServerCount(group), "",
+                        0xFF9EADBD);
                 account.setSelected(group.key.equals(this.managedAccountKey));
                 this.accountButtons.put(group.key, account);
                 this.addButton(account);
