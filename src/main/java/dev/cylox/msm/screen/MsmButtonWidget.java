@@ -12,6 +12,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private String trailingLabel = "";
     private boolean leftAligned;
     private boolean flat;
+    private boolean cardBackground;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -54,6 +55,10 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.flat = flat;
     }
 
+    public void setCardBackground(boolean cardBackground) {
+        this.cardBackground = cardBackground;
+    }
+
     @Override
     public void renderButton(int mouseX, int mouseY, float delta) {
         boolean hovered = mouseX >= this.x && mouseY >= this.y
@@ -89,6 +94,19 @@ public final class MsmButtonWidget extends ButtonWidget {
         }
 
         if (this.flat) {
+            if (this.cardBackground) {
+                int cardFill = !this.active ? 0x4A202833
+                        : this.selected ? (hovered ? 0xB52B566B : 0x8A1D4053)
+                        : hovered ? 0xA0303D4D : 0x55212B38;
+                int cardBorder = !this.active ? 0x6A303A47
+                        : this.selected ? 0xFF55B8D5
+                        : hovered ? 0xCC6BBBD2 : 0x80435369;
+                fill(this.x, this.y, this.x + this.width, this.y + this.height, cardFill);
+                fill(this.x, this.y, this.x + this.width, this.y + 1, cardBorder);
+                fill(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, cardBorder);
+                fill(this.x, this.y, this.x + 1, this.y + this.height, cardBorder);
+                fill(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, cardBorder);
+            }
             if (!this.active) {
                 textColor = 0xFF7F8B98;
             } else if (this.selected) {
@@ -96,7 +114,7 @@ public final class MsmButtonWidget extends ButtonWidget {
             } else if (hovered) {
                 textColor = 0xFFFFFFFF;
             }
-            if (this.selected) {
+            if (this.selected && !this.cardBackground) {
                 fill(this.x, this.y + 3, this.x + 2,
                         this.y + this.height - 3, 0xFF55B8D5);
             }
@@ -120,7 +138,7 @@ public final class MsmButtonWidget extends ButtonWidget {
         if (!this.trailingLabel.isEmpty()) {
             int trailingWidth = client.textRenderer.getStringWidth(this.trailingLabel);
             int gapWidth = this.flat
-                    ? client.textRenderer.getStringWidth("      ") : 8;
+                    ? client.textRenderer.getStringWidth("    ") : 8;
             int primaryWidth = Math.max(1, this.width - trailingWidth - gapWidth - 16);
             String primary = this.label;
             if (client.textRenderer.getStringWidth(primary) > primaryWidth) {
