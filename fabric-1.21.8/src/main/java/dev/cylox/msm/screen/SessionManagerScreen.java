@@ -416,19 +416,19 @@ public final class SessionManagerScreen extends MsmScreen {
         int cardGap = 8;
         int minimumAccountWidth = 120;
         if (!this.manageView) {
-            int countGapWidth = MinecraftClient.getInstance().textRenderer.getWidth("      ");
+            int countGapWidth = this.textRenderer.getWidth("      ");
             for (AccountListEntry entry : this.accountRows) {
                 if (entry.server != null) continue;
-                int usernameWidth = MinecraftClient.getInstance().textRenderer
+                int usernameWidth = this.textRenderer
                         .getWidth(getAccountGroupLabel(entry.account));
-                int countWidth = MinecraftClient.getInstance().textRenderer
+                int countWidth = this.textRenderer
                         .getWidth(getAccountServerCount(entry.account));
                 minimumAccountWidth = Math.max(minimumAccountWidth,
                         usernameWidth + countGapWidth + countWidth + 16);
             }
         }
         this.accountGridColumns = this.manageView ? 1
-                : Math.min(3, Math.max(1,
+                : Math.min(5, Math.max(1,
                     (rowWidth + cardGap) / (minimumAccountWidth + cardGap)));
         int accountRowStep = 32;
         int rowStep = this.manageView ? 32 : accountRowStep;
