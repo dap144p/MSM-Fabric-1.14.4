@@ -189,7 +189,7 @@ public final class MsmButtonWidget extends ButtonWidget {
         if (!this.trailingLabel.isEmpty()) {
             int trailingWidth = client.textRenderer.getWidth(this.trailingLabel);
             int gapWidth = this.flat
-                    ? client.textRenderer.getWidth("    ") : 8;
+                    ? client.textRenderer.getWidth("  ") : 8;
             int primaryWidth = Math.max(1, this.getWidth() - trailingWidth - gapWidth - 16);
             String primary = this.label;
             if (client.textRenderer.getWidth(primary) > primaryWidth) {
