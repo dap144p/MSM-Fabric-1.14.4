@@ -43,6 +43,8 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private static final int PAGE_SIZE = 6;
+    private static final int SERVER_CARD_HEIGHT = 32;
+    private static final int SERVER_CARD_STEP = 40;
     private static final long DOUBLE_CLICK_WINDOW_MS = 350L;
     private static final String DEFAULT_STATUS =
             "Add an account once, then add servers to it. Select a server to connect or manage.";
@@ -190,8 +192,7 @@ public final class SessionManagerScreen extends MsmScreen {
             Optional<SessionManager.Session> session =
                     MsmClient.getSessionManager().find(entry.getKey());
             if (session.isPresent() && profiles.contains(session.get().getProfile())) {
-                entry.getValue().setMessage(getServerLabel(session.get(), entry.getKey()));
-                entry.getValue().setSelected(entry.getKey() == this.selectedSessionId);
+                updateServerCard(entry.getValue(), session.get());
             }
         }
         for (Map.Entry<Long, MsmButtonWidget> entry : this.serverManageButtons.entrySet()) {
@@ -238,9 +239,36 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private String getServerLabel(SessionManager.Session session, long id) {
-        return fitText(session.getProfile().getServerAddress()
-                + "   [" + session.getState().name() + "]",
-                this.accountsPanelWidth > 0 ? this.accountsPanelWidth - 118 : this.width - 150);
+        return session.getProfile().getServerAddress();
+    }
+
+    private String getManagedAccountSummary() {
+        int online = 0;
+        for (AccountListEntry entry : this.accountRows) {
+            if (entry.server != null && entry.server.getState() == SessionState.ONLINE) online++;
+        }
+        return this.accountRows.size() + " SERVERS  |  " + online + " ONLINE";
+    }
+
+    private String getServerStatusLabel(SessionState state) {
+        if (state == SessionState.ONLINE) return "ONLINE";
+        if (state == SessionState.CONNECTING) return "CONNECTING";
+        if (state == SessionState.FAILED) return "FAILED";
+        return "OFFLINE";
+    }
+
+    private int getServerStatusColor(SessionState state) {
+        if (state == SessionState.ONLINE) return 0xFF63C98A;
+        if (state == SessionState.CONNECTING) return 0xFFE6B65C;
+        if (state == SessionState.FAILED) return 0xFFE76A77;
+        return 0xFF9EADBD;
+    }
+
+    private void updateServerCard(MsmButtonWidget button, SessionManager.Session session) {
+        button.setMessage(getServerLabel(session, session.getId()));
+        button.setCardDetails("Minecraft Server", getServerStatusLabel(session.getState()),
+                getServerStatusColor(session.getState()));
+        button.setSelected(session.getId() == this.selectedSessionId);
     }
 
         private Optional<SessionManager.Session> getSelectedSession() {
@@ -288,13 +316,13 @@ public final class SessionManagerScreen extends MsmScreen {
         updateAddAccountLabel();
         if (this.connectionButton != null) {
             if (!selected.isPresent()) {
-                this.connectionButton.setMessage("JOIN / CONNECT");
+                this.connectionButton.setMessage("JOIN");
                 this.connectionButton.active = false;
             } else {
                 SessionState state = selected.get().getState();
                 this.connectionButton.setMessage(
                         state == SessionState.CONNECTING ? "CANCEL"
-                                : state == SessionState.ONLINE ? "DISCONNECT" : "JOIN / CONNECT");
+                                : state == SessionState.ONLINE ? "DISCONNECT" : "JOIN");
                 this.connectionButton.active = true;
             }
         }
@@ -356,7 +384,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.formPanelWidth = 0;
         this.accountsPanelLeft = contentLeft;
         this.accountsPanelWidth = contentWidth;
-        this.rowStartY = this.manageView ? 96 : 104;
+        this.rowStartY = this.manageView ? 100 : 104;
         this.accountsPanelBottom = this.height - (this.manageView ? 58 : 44);
 
         if (this.addDialog) {
@@ -411,8 +439,14 @@ public final class SessionManagerScreen extends MsmScreen {
             this.searchField.setText(this.searchValue);
         }
 
+        if (this.manageView) {
+            this.addButton(new MsmButtonWidget(
+                    this.accountsPanelLeft + this.accountsPanelWidth - 104,
+                    66, 104, 20, "+ ADD SERVER", button -> openAddDialog()));
+        }
+
         this.scrollButtonX = this.accountsPanelLeft + this.accountsPanelWidth - 18;
-        this.scrollTrackTop = panelTop + 8;
+        this.scrollTrackTop = this.manageView ? this.rowStartY - 4 : panelTop + 8;
         this.scrollTrackBottom = this.accountsPanelBottom - 10;
         int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
         int cardGap = 8;
@@ -433,11 +467,12 @@ public final class SessionManagerScreen extends MsmScreen {
                 : Math.min(5, Math.max(1,
                     (rowWidth + cardGap) / (minimumAccountWidth + cardGap)));
         int accountRowStep = 32;
-        int rowStep = this.manageView ? 32 : accountRowStep;
+        int rowStep = this.manageView ? SERVER_CARD_STEP : accountRowStep;
         int accountCardHeight = 20;
         int listBottom = this.accountsPanelBottom - 10;
         int availableRows = this.manageView
-                ? Math.max(1, (listBottom - this.rowStartY) / 32 + 1)
+                ? Math.max(1, (listBottom - this.rowStartY - SERVER_CARD_HEIGHT)
+                    / SERVER_CARD_STEP + 1)
                 : Math.max(1, (listBottom - this.rowStartY - accountCardHeight)
                     / accountRowStep + 1);
         int rowCapacity = this.manageView ? availableRows
@@ -476,9 +511,12 @@ public final class SessionManagerScreen extends MsmScreen {
             } else if (entry.server != null) {
                 SessionManager.Session session = entry.server;
                 MsmButtonWidget server = new MsmButtonWidget(
-                        rowLeft, rowY, labelWidth, 22, getServerLabel(session, session.getId()),
+                        rowLeft, rowY, labelWidth, SERVER_CARD_HEIGHT,
+                        getServerLabel(session, session.getId()),
                         button -> selectServer(session, entry.account.key));
-                server.setSelected(session.getId() == this.selectedSessionId);
+                server.setFlat(true);
+                server.setCardBackground(true);
+                updateServerCard(server, session);
                 this.rowButtons.put(session.getId(), server);
                 this.addButton(server);
             }
@@ -490,20 +528,19 @@ public final class SessionManagerScreen extends MsmScreen {
         if (this.manageView) {
             int groupWidth = Math.min(540, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 4) / 5);
-            this.addButton(new MsmButtonWidget(left, footerY, width, 20, "ADD SERVER",
-                    button -> openAddDialog()));
+            int width = Math.max(1, (groupWidth - gap * 3) / 4);
             this.connectionButton = this.addButton(new MsmButtonWidget(
-                    left + width + gap, footerY, width, 20, "JOIN", button -> toggleConnection()));
+                    left, footerY, width, 20, "JOIN", button -> toggleConnection()));
+            this.manageButton = this.addButton(new MsmButtonWidget(
+                    left + width + gap, footerY, width, 20,
+                    "MANAGE", button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
-                    left + (width + gap) * 2, footerY, width, 20, "REMOVE SERVER",
+                    left + (width + gap) * 2, footerY, width, 20, "REMOVE",
                     button -> requestRemoveServer()));
             this.removeButton.setDanger(true);
-            this.addButton(new MsmButtonWidget(left + (width + gap) * 3, footerY, width, 20,
+            this.addButton(new MsmButtonWidget(
+                    left + (width + gap) * 3, footerY, width, 20,
                     "BACK", button -> this.client.setScreen(this.parent)));
-            this.manageButton = this.addButton(new MsmButtonWidget(
-                    left + (width + gap) * 4, footerY, width, 20,
-                    "MANAGE", button -> openControlManage()));
         } else {
             boolean showUpdates = MsmClient.getUpdateManager() != null;
             int updateWidth = showUpdates ? 82 : 0;
@@ -994,9 +1031,13 @@ public final class SessionManagerScreen extends MsmScreen {
                     && this.expandedAccountKey.startsWith(SessionAuthMode.OFFLINE_LOCAL.name() + ":")
                     ? "OFFLINE ACCOUNT" : "MICROSOFT ACCOUNT";
             this.text(context, accountType, left, 53, 0xFF8492A3);
+            String summary = getManagedAccountSummary();
+            int summaryWidth = this.textRenderer.getWidth(summary);
+            this.text(context, summary, Math.max(left, right - summaryWidth),
+                    53, 0xFF8492A3);
             this.drawSectionTitle(context,
                     "SERVERS  (" + this.accountRows.size() + ")", left, 74);
-            this.drawGlassDivider(context, left, 88, right);
+            this.drawGlassDivider(context, left, 92, right);
         } else {
             this.drawSectionTitle(context,
                     "ACCOUNTS  (" + this.accountGroups.size() + ")", left, 40);
@@ -1023,17 +1064,6 @@ public final class SessionManagerScreen extends MsmScreen {
                     : "No accounts match your search.";
             context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(empty),
                     this.width / 2, this.rowStartY + 10, 0xFF9EADBD);
-        }
-
-        int start = this.pageIndex * this.pageSize;
-        int end = Math.min(start + this.pageSize, this.accountRows.size());
-        int rowY = this.rowStartY;
-        int rowStep = this.manageView ? 32 : 64;
-        for (int index = start; index < end; index++) {
-            if (this.manageView) {
-                this.drawGlassDivider(context, left, rowY + rowStep - 2, right - 22);
-            }
-            rowY += rowStep;
         }
 
         if (this.addDialog) {

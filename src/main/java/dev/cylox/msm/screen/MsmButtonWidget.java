@@ -13,6 +13,9 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean leftAligned;
     private boolean flat;
     private boolean cardBackground;
+    private String subtitle = "";
+    private String statusLabel = "";
+    private int statusColor = 0xFF9EADBD;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -57,6 +60,12 @@ public final class MsmButtonWidget extends ButtonWidget {
 
     public void setCardBackground(boolean cardBackground) {
         this.cardBackground = cardBackground;
+    }
+
+    public void setCardDetails(String subtitle, String statusLabel, int statusColor) {
+        this.subtitle = subtitle == null ? "" : subtitle;
+        this.statusLabel = statusLabel == null ? "" : statusLabel;
+        this.statusColor = statusColor;
     }
 
     @Override
@@ -135,6 +144,38 @@ public final class MsmButtonWidget extends ButtonWidget {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
+        if (!this.subtitle.isEmpty()) {
+            int statusWidth = this.statusLabel.isEmpty() ? 0
+                    : client.textRenderer.getStringWidth(this.statusLabel);
+            int statusLeft = this.x + this.width - statusWidth - 20;
+            if (!this.statusLabel.isEmpty()) {
+                int badgeLeft = statusLeft - 8;
+                int badgeBackground = (this.statusColor & 0x00FFFFFF) | 0x26000000;
+                fill(badgeLeft, this.y + 5, this.x + this.width - 8,
+                        this.y + 20, badgeBackground);
+                fill(badgeLeft + 4, this.y + 10, badgeLeft + 8,
+                        this.y + 14, this.statusColor);
+                drawString(client.textRenderer, this.statusLabel,
+                        badgeLeft + 11, this.y + 8, this.statusColor);
+            }
+            int availableWidth = Math.max(1,
+                    (this.statusLabel.isEmpty() ? this.x + this.width - 8 : statusLeft - 8)
+                            - this.x - 18);
+            String primary = this.label;
+            if (client.textRenderer.getStringWidth(primary) > availableWidth) {
+                String suffix = "...";
+                int suffixWidth = client.textRenderer.getStringWidth(suffix);
+                primary = suffixWidth >= availableWidth
+                        ? client.textRenderer.trimToWidth(primary, availableWidth)
+                        : client.textRenderer.trimToWidth(primary, availableWidth - suffixWidth) + suffix;
+            }
+            drawString(client.textRenderer, primary, this.x + 10,
+                    this.y + 6, textColor);
+            drawString(client.textRenderer, this.subtitle, this.x + 10,
+                    this.y + 18, this.active ? 0xFF8997A8 : 0xFF687585);
+            return;
+        }
+
         if (!this.trailingLabel.isEmpty()) {
             int trailingWidth = client.textRenderer.getStringWidth(this.trailingLabel);
             int gapWidth = this.flat
