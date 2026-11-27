@@ -49,18 +49,18 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         if (this.accountRemoval) {
             int panelWidth = Math.max(1, Math.min(340, this.width - 24));
             int left = (this.width - panelWidth) / 2;
-            int top = this.height / 2 - 112;
+            int top = this.height / 2 - 104;
             int buttonGap = 8;
             int buttonWidth = Math.max(1, (panelWidth - 24 - buttonGap) / 2);
             this.acknowledgmentButton = this.addAction(
-                    left + 12, top + 158, panelWidth - 24, 20,
+                    left + 12, top + 148, panelWidth - 24, 20,
                     getAcknowledgementLabel(), button -> toggleAcknowledgement());
             this.confirmButton = this.addAction(
-                    left + 12, top + 190, buttonWidth, 20,
+                    left + 12, top + 180, buttonWidth, 20,
                     "CONFIRM", button -> remove());
             this.confirmButton.setDanger(true);
             this.confirmButton.active = false;
-            this.addAction(left + 12 + buttonWidth + buttonGap, top + 190,
+            this.addAction(left + 12 + buttonWidth + buttonGap, top + 180,
                     buttonWidth, 20, "CANCEL", button -> close());
             return;
         }
@@ -155,8 +155,8 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
             context.fill(0, 0, this.width, this.height, 0x99070B12);
             panelWidth = Math.max(1, Math.min(340, this.width - 24));
             left = (this.width - panelWidth) / 2;
-            top = this.height / 2 - 112;
-            drawGlassPanel(context, left, top, left + panelWidth, top + 224);
+            top = this.height / 2 - 104;
+            drawGlassPanel(context, left, top, left + panelWidth, top + 208);
             drawTrashCan(context, this.width / 2, top + 10);
             centered(context, "DELETE ACCOUNT", this.width / 2, top + 40, 0xFFFF8792);
             centered(context, this.username, this.width / 2, top + 66, 0xFFEAF0F8);
