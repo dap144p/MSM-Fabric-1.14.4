@@ -49,14 +49,12 @@ public abstract class MsmScreen extends Screen {
                 left + 14, top + 9, 0xFFE0E8F0);
         int x = right - 19;
         int icon = 0xFFE0E8F0;
-        context.fill(x - 4, top + 8, x - 2, top + 10, icon);
-        context.fill(x + 2, top + 8, x + 4, top + 10, icon);
-        context.fill(x - 2, top + 10, x, top + 12, icon);
-        context.fill(x, top + 12, x + 2, top + 14, icon);
-        context.fill(x - 2, top + 14, x, top + 16, icon);
-        context.fill(x, top + 16, x + 2, top + 18, icon);
-        context.fill(x - 4, top + 18, x - 2, top + 20, icon);
-        context.fill(x + 2, top + 18, x + 4, top + 20, icon);
+        for (int offset = 0; offset < 10; offset++) {
+            context.fill(x - 5 + offset, top + 8 + offset,
+                    x - 3 + offset, top + 10 + offset, icon);
+            context.fill(x + 3 - offset, top + 8 + offset,
+                    x + 5 - offset, top + 10 + offset, icon);
+        }
     }
 
     @Override
