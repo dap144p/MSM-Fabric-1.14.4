@@ -19,11 +19,6 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
       - name: Determine build channel and version
         id: meta
         shell: bash
@@ -59,11 +54,6 @@ jobs:
           echo "build_version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
           echo "Building channel=$CHANNEL version=$BUILD_VERSION"
 
-      - name: Verify and build Minecraft 1.14.4
-        run: |
-          chmod +x gradlew
-          ./gradlew "-Pbuild_version=${{ steps.meta.outputs.build_version }}" clean check build
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -71,6 +61,16 @@ jobs:
 
       - name: Verify and build Minecraft 1.21.8
         working-directory: fabric-1.21.8
+        run: |
+          chmod +x gradlew
+          ./gradlew "-Pbuild_version=${{ steps.meta.outputs.build_version }}" clean check build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Verify and build Minecraft 1.14.4
         run: |
           chmod +x gradlew
           ./gradlew "-Pbuild_version=${{ steps.meta.outputs.build_version }}" clean check build
