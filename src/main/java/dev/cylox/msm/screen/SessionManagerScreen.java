@@ -34,8 +34,8 @@ public final class SessionManagerScreen extends MsmScreen {
     }
 
     private static final int PAGE_SIZE = 6;
-    private static final int SERVER_CARD_HEIGHT = 32;
-    private static final int SERVER_CARD_STEP = 40;
+    private static final int SERVER_CARD_HEIGHT = 30;
+    private static final int SERVER_CARD_STEP = 36;
     private static final long DOUBLE_CLICK_WINDOW_MS = 350L;
     private static final String DEFAULT_STATUS = "Select an account and open MANAGE to view its servers.";
 
@@ -432,11 +432,11 @@ public final class SessionManagerScreen extends MsmScreen {
         this.accountsPanelBottom = this.height - (this.manageView ? 58 : 44);
 
         if (this.addDialog) {
-            int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
+            int dialogWidth = Math.min(360, Math.max(250, this.width - 32));
             int left = (this.width - dialogWidth) / 2;
             int innerLeft = left + 14;
             int innerWidth = dialogWidth - 28;
-            int top = Math.max(34, (this.height - 164) / 2);
+            int top = Math.max(34, (this.height - 154) / 2);
             this.usernameField = this.addButton(new TextFieldWidget(
                     MinecraftClient.getInstance().textRenderer,
                     innerLeft, top + 34, innerWidth, 20, "Account username"));
@@ -525,7 +525,7 @@ public final class SessionManagerScreen extends MsmScreen {
         this.accountGridColumns = this.manageView ? 1
                 : Math.min(5, Math.max(1,
                     (rowWidth + cardGap) / (minimumAccountWidth + cardGap)));
-        int accountRowStep = 32;
+        int accountRowStep = 28;
         int rowStep = this.manageView ? SERVER_CARD_STEP : accountRowStep;
         int accountCardHeight = 20;
         int listBottom = this.accountsPanelBottom - 10;
@@ -585,7 +585,7 @@ public final class SessionManagerScreen extends MsmScreen {
         int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
-            int groupWidth = Math.min(540, contentWidth);
+            int groupWidth = Math.min(420, contentWidth);
             int left = this.width - 12 - groupWidth;
             int width = Math.max(1, (groupWidth - gap * 3) / 4);
             this.connectionButton = this.addButton(new MsmButtonWidget(
@@ -642,7 +642,7 @@ public final class SessionManagerScreen extends MsmScreen {
         if (!this.manageView) {
             this.addDialog = true;
             this.usernameValue = "";
-            int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
+            int dialogWidth = Math.min(360, Math.max(250, this.width - 32));
             int left = (this.width - dialogWidth) / 2;
             int innerLeft = left + 14;
             int innerWidth = dialogWidth - 28;
@@ -1224,32 +1224,12 @@ public final class SessionManagerScreen extends MsmScreen {
                     empty, this.width / 2, this.rowStartY + 10, 0xFF9EADBD);
         }
 
-        int start = this.pageIndex * this.pageSize;
-        int end = Math.min(start + this.pageSize, this.accountRows.size());
-        int rowY = this.rowStartY;
-        int rowStep = this.manageView ? 32 : 64;
-        for (int index = start; index < end; index++) {
-            if (!this.manageView) {
-                int accountIndex = index - start;
-                int cardColumn = accountIndex % this.accountGridColumns;
-                int cardRow = accountIndex / this.accountGridColumns;
-                int cardGap = 8;
-                int rowWidth = Math.max(1, this.accountsPanelWidth - 28);
-                int cardWidth = Math.max(1,
-                        (rowWidth - cardGap * (this.accountGridColumns - 1))
-                                / this.accountGridColumns);
-                int cardLeft = left + cardColumn * (cardWidth + cardGap);
-                int cardTop = this.rowStartY + cardRow * 64;
-                drawGlassPanel(cardLeft, cardTop, cardLeft + cardWidth, cardTop + 56);
-            }
-            rowY += rowStep;
-        }
-
         if (this.addDialog) {
-            int dialogWidth = Math.min(390, Math.max(260, this.width - 32));
+            int dialogWidth = Math.min(360, Math.max(250, this.width - 32));
             int dialogLeft = (this.width - dialogWidth) / 2;
             int top = Math.max(34, (this.height - 154) / 2);
-            drawGlassPanel(dialogLeft, top, dialogLeft + dialogWidth, top + 112);
+            drawGlassPanel(dialogLeft, top, dialogLeft + dialogWidth,
+                    top + (this.manageView ? 126 : 108));
             drawSectionTitle(this.manageView ? "ADD SERVER" : "OFFLINE ACCOUNT",
                     dialogLeft + 14, top + 12);
         }

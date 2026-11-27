@@ -47,32 +47,32 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     @Override
     protected void init() {
         if (this.accountRemoval) {
-            int panelWidth = Math.max(1, Math.min(380, this.width - 24));
+            int panelWidth = Math.max(1, Math.min(340, this.width - 24));
             int left = (this.width - panelWidth) / 2;
-            int top = this.height / 2 - 125;
+            int top = this.height / 2 - 112;
             int buttonGap = 8;
             int buttonWidth = Math.max(1, (panelWidth - 24 - buttonGap) / 2);
             this.acknowledgmentButton = this.addAction(
-                    left + 12, top + 177, panelWidth - 24, 20,
+                    left + 12, top + 158, panelWidth - 24, 20,
                     getAcknowledgementLabel(), button -> toggleAcknowledgement());
             this.confirmButton = this.addAction(
-                    left + 12, top + 211, buttonWidth, 20,
+                    left + 12, top + 190, buttonWidth, 20,
                     "CONFIRM", button -> remove());
             this.confirmButton.setDanger(true);
             this.confirmButton.active = false;
-            this.addAction(left + 12 + buttonWidth + buttonGap, top + 211,
+            this.addAction(left + 12 + buttonWidth + buttonGap, top + 190,
                     buttonWidth, 20, "CANCEL", button -> close());
             return;
         }
         int panelWidth = Math.min(340, this.width - 24);
         int left = (this.width - panelWidth) / 2;
         int buttonWidth = Math.max(1, (panelWidth - 34) / 2);
-        MsmButtonWidget removeButton = this.addAction(left + 10, this.height / 2 + 34, buttonWidth, 20,
+        MsmButtonWidget removeButton = this.addAction(left + 10, this.height / 2 + 38, buttonWidth, 20,
                 this.removing ? "REMOVING..." : this.accountRemoval ? "DELETE ACCOUNT" : "REMOVE",
                 button -> remove());
         removeButton.setDanger(true);
         removeButton.active = !this.removing;
-        this.addAction(left + 24 + buttonWidth, this.height / 2 + 34,
+        this.addAction(left + 24 + buttonWidth, this.height / 2 + 38,
                 buttonWidth, 20, "CANCEL", button -> close());
     }
 
@@ -153,10 +153,10 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
                 this.renderMsmBackground(context, mouseX, mouseY, delta);
             }
             context.fill(0, 0, this.width, this.height, 0x99070B12);
-            panelWidth = Math.max(1, Math.min(380, this.width - 24));
+            panelWidth = Math.max(1, Math.min(340, this.width - 24));
             left = (this.width - panelWidth) / 2;
-            top = this.height / 2 - 125;
-            drawGlassPanel(context, left, top, left + panelWidth, top + 250);
+            top = this.height / 2 - 112;
+            drawGlassPanel(context, left, top, left + panelWidth, top + 224);
             drawTrashCan(context, this.width / 2, top + 10);
             centered(context, "DELETE ACCOUNT", this.width / 2, top + 40, 0xFFFF8792);
             centered(context, this.username, this.width / 2, top + 66, 0xFFEAF0F8);
@@ -180,8 +180,7 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
                     this.width / 2, top + 75, 0xFF9EADBD);
             centered(context, "will be deleted. Other servers stay saved.",
                     this.width / 2, top + 87, 0xFF9EADBD);
-            centered(context, fit(this.status, panelWidth - 24),
-                    this.width / 2, top + 103, 0xFF9EADBD);
+            renderMsmFooter(context, this.status, 0);
         }
         super.render(context, mouseX, mouseY, delta);
     }

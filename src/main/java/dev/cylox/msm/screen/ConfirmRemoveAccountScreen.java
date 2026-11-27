@@ -39,22 +39,22 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
     @Override
     protected void init() {
         if (this.accountRemoval) {
-            int panelWidth = Math.max(1, Math.min(380, this.width - 24));
+            int panelWidth = Math.max(1, Math.min(340, this.width - 24));
             int left = (this.width - panelWidth) / 2;
-            int top = this.height / 2 - 125;
+            int top = this.height / 2 - 112;
             int buttonGap = 8;
             int buttonWidth = Math.max(1, (panelWidth - 24 - buttonGap) / 2);
             this.acknowledgmentButton = this.addButton(new MsmButtonWidget(
-                    left + 12, top + 177, panelWidth - 24, 20,
+                    left + 12, top + 158, panelWidth - 24, 20,
                     getAcknowledgementLabel(), button -> toggleAcknowledgement()));
             MsmButtonWidget confirm = new MsmButtonWidget(
-                    left + 12, top + 211, buttonWidth, 20,
+                    left + 12, top + 190, buttonWidth, 20,
                     "CONFIRM", button -> confirmRemoval());
             confirm.setDanger(true);
             confirm.active = false;
             this.confirmButton = this.addButton(confirm);
             this.addButton(new MsmButtonWidget(
-                    left + 12 + buttonWidth + buttonGap, top + 211,
+                    left + 12 + buttonWidth + buttonGap, top + 190,
                     buttonWidth, 20, "CANCEL", button -> onClose()));
             return;
         }
@@ -65,13 +65,13 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
         int buttonLeft = left + 12;
 
         this.confirmButton = this.addButton(new MsmButtonWidget(
-                buttonLeft, this.height / 2 + 28, buttonWidth, 20,
+                buttonLeft, this.height / 2 + 35, buttonWidth, 20,
                 this.accountRemoval ? "DELETE ACCOUNT" : "REMOVE SERVER",
                 button -> confirmRemoval()));
         ((MsmButtonWidget) this.confirmButton).setDanger(true);
 
         this.addButton(new MsmButtonWidget(
-                buttonLeft + buttonWidth + buttonGap, this.height / 2 + 28,
+                buttonLeft + buttonWidth + buttonGap, this.height / 2 + 35,
                 buttonWidth, 20, "CANCEL", button -> onClose()));
     }
 
@@ -145,10 +145,10 @@ public final class ConfirmRemoveAccountScreen extends MsmScreen {
                 this.renderMsmBackground();
             }
             fill(0, 0, this.width, this.height, 0x99070B12);
-            panelWidth = Math.max(1, Math.min(380, this.width - 24));
+            panelWidth = Math.max(1, Math.min(340, this.width - 24));
             left = (this.width - panelWidth) / 2;
-            top = this.height / 2 - 125;
-            drawGlassPanel(left, top, left + panelWidth, top + 250);
+            top = this.height / 2 - 112;
+            drawGlassPanel(left, top, left + panelWidth, top + 224);
             drawTrashCan(this.width / 2, top + 10);
             drawCenteredString(MinecraftClient.getInstance().textRenderer,
                     "DELETE ACCOUNT", this.width / 2, top + 40, 0xFFFF8792);

@@ -23,7 +23,7 @@ public final class MsmUpdateScreen extends MsmScreen {
 
     @Override
     protected void init() {
-        int buttonWidth = Math.min(300, Math.max(1, this.width - 24));
+        int buttonWidth = Math.min(280, Math.max(1, this.width - 24));
         int left = (this.width - buttonWidth) / 2;
         int centerY = this.height / 2;
 
@@ -103,10 +103,10 @@ public final class MsmUpdateScreen extends MsmScreen {
         this.centered(context, "MSM UPDATER", this.width / 2, 11, 0xFFF1F5FA);
 
         int centerY = this.height / 2;
-        int panelWidth = Math.min(340, Math.max(1, this.width - 16));
+        int panelWidth = Math.min(300, Math.max(1, this.width - 16));
         int panelLeft = (this.width - panelWidth) / 2;
         this.drawGlassPanel(context, panelLeft, centerY - 76,
-                panelLeft + panelWidth, centerY + 91);
+                panelLeft + panelWidth, centerY + 54);
 
         this.centered(context,
                 "INSTALLED  " + this.updateManager.getInstalledVersion(),
