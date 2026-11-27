@@ -93,6 +93,8 @@ public final class SessionManagerScreen extends MsmScreen {
     private int scrollButtonX;
     private int scrollTrackTop;
     private int scrollTrackBottom;
+    private boolean draggingScrollbar;
+    private int scrollbarDragOffset;
     private SessionAuthMode authMode;
     private String usernameValue;
     private String serverValue;
@@ -539,19 +541,6 @@ public final class SessionManagerScreen extends MsmScreen {
                 this.addButton(server);
             }
             rowY += rowStep;
-        }
-
-        if (this.pageCount > 1) {
-            MsmButtonWidget previous = new MsmButtonWidget(
-                    this.scrollButtonX, panelTop + 2, 14, 14, "^",
-                    button -> openPage(this.pageIndex - 1));
-            MsmButtonWidget next = new MsmButtonWidget(
-                    this.scrollButtonX, this.accountsPanelBottom - 19, 14, 14, "v",
-                    button -> openPage(this.pageIndex + 1));
-            previous.active = this.pageIndex > 0;
-            next.active = this.pageIndex + 1 < this.pageCount;
-            this.addButton(previous);
-            this.addButton(next);
         }
 
         int footerY = this.height - 28;
@@ -1017,9 +1006,107 @@ public final class SessionManagerScreen extends MsmScreen {
         return this.authMode == SessionAuthMode.OFFLINE_LOCAL ? "OFFLINE" : "MICROSOFT";
     }
 
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && this.pageCount > 1
+                && isMouseOverScrollBar(mouseX, mouseY)) {
+            int thumbTop = getScrollThumbTop();
+            int thumbHeight = getScrollThumbHeight();
+            this.draggingScrollbar = true;
+            this.scrollbarDragOffset = mouseY >= thumbTop && mouseY <= thumbTop + thumbHeight
+                    ? (int) mouseY - thumbTop : thumbHeight / 2;
+            int targetPage = getPageAtScrollPosition(mouseY);
+            if (targetPage != this.pageIndex) {
+                openPageWhileDragging(targetPage);
+            }
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button,
+                                double deltaX, double deltaY) {
+        if (this.draggingScrollbar && button == 0) {
+            int targetPage = getPageAtScrollPosition(mouseY);
+            if (targetPage != this.pageIndex) {
+                openPageWhileDragging(targetPage);
+            }
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0) this.draggingScrollbar = false;
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (this.pageCount > 1 && isMouseOverAccountList(mouseX, mouseY) && amount != 0) {
+            int targetPage = Math.max(0, Math.min(this.pageCount - 1,
+                    this.pageIndex + (amount < 0 ? 1 : -1)));
+            if (targetPage != this.pageIndex) openPage(targetPage);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, amount);
+    }
+
+    private boolean isMouseOverAccountList(double mouseX, double mouseY) {
+        return mouseX >= this.accountsPanelLeft
+                && mouseX <= this.accountsPanelLeft + this.accountsPanelWidth
+                && mouseY >= this.scrollTrackTop && mouseY <= this.scrollTrackBottom;
+    }
+
+    private boolean isMouseOverScrollBar(double mouseX, double mouseY) {
+        return mouseX >= this.scrollButtonX && mouseX <= this.scrollButtonX + 14
+                && mouseY >= this.scrollTrackTop && mouseY <= this.scrollTrackBottom;
+    }
+
+    private int getScrollThumbHeight() {
+        int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+        return Math.min(trackHeight, Math.max(9,
+                trackHeight * this.pageSize / Math.max(1, this.accountRows.size())));
+    }
+
+    private int getScrollThumbTop() {
+        int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+        int thumbTravel = Math.max(0, trackHeight - getScrollThumbHeight());
+        return this.scrollTrackTop + thumbTravel * this.pageIndex
+                / Math.max(1, this.pageCount - 1);
+    }
+
+    private int getPageAtScrollPosition(double mouseY) {
+        int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
+        int thumbTravel = Math.max(0, trackHeight - getScrollThumbHeight());
+        int thumbTop = (int) Math.round(mouseY - this.scrollbarDragOffset);
+        thumbTop = Math.max(this.scrollTrackTop,
+                Math.min(this.scrollTrackTop + thumbTravel, thumbTop));
+        return Math.max(0, Math.min(this.pageCount - 1,
+                (int) Math.round((thumbTop - this.scrollTrackTop)
+                        * (this.pageCount - 1) / (double) Math.max(1, thumbTravel))));
+    }
+
     private void openPage(int page) {
         snapshotFormValues();
-        openScreen(this.status, page, this.selectedSessionId);
+        openScreen(this.status, Math.max(0, Math.min(this.pageCount - 1, page)),
+                this.selectedSessionId);
+    }
+
+    private void openPageWhileDragging(int page) {
+        snapshotFormValues();
+        SessionManagerScreen next = new SessionManagerScreen(
+                this.parent, this.store, this.sessionManager, this.secondarySessions,
+                this.automationScheduler, this.serverTemplateRepository,
+                this.status, Math.max(0, Math.min(this.pageCount - 1, page)),
+                this.selectedSessionId, this.authMode, this.usernameValue,
+                this.serverValue, this.selectedServerName, this.searchValue,
+                this.managedAccountKey, this.manageView, false);
+        next.draggingScrollbar = true;
+        next.scrollbarDragOffset = this.scrollbarDragOffset;
+        MinecraftClient.getInstance().openScreen(next);
     }
 
     private void openScreen(String newStatus, int page, long selectedId) {
@@ -1074,16 +1161,17 @@ public final class SessionManagerScreen extends MsmScreen {
         }
 
         if (this.pageCount > 1) {
-            int trackHeight = Math.max(1, this.scrollTrackBottom - this.scrollTrackTop);
-            int thumbHeight = Math.max(9,
-                    trackHeight * this.pageSize / Math.max(1, this.accountRows.size()));
-            int thumbTravel = Math.max(0, trackHeight - thumbHeight);
-            int thumbTop = this.scrollTrackTop + thumbTravel * this.pageIndex
-                    / Math.max(1, this.pageCount - 1);
-            fill(this.scrollButtonX + 6, this.scrollTrackTop,
-                    this.scrollButtonX + 8, this.scrollTrackBottom, 0xFF435061);
+            int thumbHeight = getScrollThumbHeight();
+            int thumbTop = getScrollThumbTop();
+            boolean hovered = isMouseOverScrollBar(mouseX, mouseY) || this.draggingScrollbar;
+            fill(this.scrollButtonX + 5, this.scrollTrackTop,
+                    this.scrollButtonX + 11, this.scrollTrackBottom, 0xFF303B49);
             fill(this.scrollButtonX + 4, thumbTop,
-                    this.scrollButtonX + 10, thumbTop + thumbHeight, 0xFF6FC4DE);
+                    this.scrollButtonX + 12, thumbTop + thumbHeight,
+                    hovered ? 0xFFD1D7DF : 0xFF8995A4);
+            fill(this.scrollButtonX + 5, thumbTop + 1,
+                    this.scrollButtonX + 11, thumbTop + thumbHeight - 1,
+                    hovered ? 0xFFB3C0CF : 0xFF748191);
         }
 
         if (this.accountRows.isEmpty()) {
