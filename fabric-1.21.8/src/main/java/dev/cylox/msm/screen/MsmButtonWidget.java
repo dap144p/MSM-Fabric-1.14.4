@@ -14,6 +14,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private String trailingLabel = "";
     private boolean leftAligned;
     private boolean flat;
+    private boolean cardBackground;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -62,6 +63,10 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.flat = flat;
     }
 
+    public void setCardBackground(boolean cardBackground) {
+        this.cardBackground = cardBackground;
+    }
+
     @Override
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         boolean hovered = this.isHovered();
@@ -101,6 +106,19 @@ public final class MsmButtonWidget extends ButtonWidget {
         int bottom = top + this.getHeight();
 
         if (this.flat) {
+            if (this.cardBackground) {
+                int cardFill = !this.active ? 0x4A202833
+                        : this.selected ? (hovered ? 0xB52B566B : 0x8A1D4053)
+                        : hovered ? 0xA0303D4D : 0x55212B38;
+                int cardBorder = !this.active ? 0x6A303A47
+                        : this.selected ? 0xFF55B8D5
+                        : hovered ? 0xCC6BBBD2 : 0x80435369;
+                context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardFill);
+                context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(), this.getY() + 1, cardBorder);
+                context.fill(this.getX(), this.getY() + this.getHeight() - 1, this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
+                context.fill(this.getX(), this.getY(), this.getX() + 1, this.getY() + this.getHeight(), cardBorder);
+                context.fill(this.getX() + this.getWidth() - 1, this.getY(), this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
+            }
             if (!this.active) {
                 textColor = 0xFF7F8B98;
             } else if (this.selected) {
@@ -108,7 +126,7 @@ public final class MsmButtonWidget extends ButtonWidget {
             } else if (hovered) {
                 textColor = 0xFFFFFFFF;
             }
-            if (this.selected) {
+            if (this.selected && !this.cardBackground) {
                 context.fill(left, top + 3, left + 2, bottom - 3, 0xFF55B8D5);
             }
         } else {
@@ -130,7 +148,7 @@ public final class MsmButtonWidget extends ButtonWidget {
         if (!this.trailingLabel.isEmpty()) {
             int trailingWidth = client.textRenderer.getWidth(this.trailingLabel);
             int gapWidth = this.flat
-                    ? client.textRenderer.getWidth("      ") : 8;
+                    ? client.textRenderer.getWidth("    ") : 8;
             int primaryWidth = Math.max(1, this.getWidth() - trailingWidth - gapWidth - 16);
             String primary = this.label;
             if (client.textRenderer.getWidth(primary) > primaryWidth) {
