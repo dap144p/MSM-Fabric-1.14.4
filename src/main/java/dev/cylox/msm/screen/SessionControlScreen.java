@@ -632,7 +632,6 @@ public final class SessionControlScreen extends MsmScreen {
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         this.renderMsmBackground();
-        drawGlassPanel(8, 54, this.width - 8, this.height - 36);
         if (this.tab == Tab.CHAT) {
             drawGlassPanel(16, 52, this.width - 16, this.height - 104);
         } else if (this.tab == Tab.AUTO_CHAT) {
