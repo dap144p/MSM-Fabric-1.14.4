@@ -13,6 +13,7 @@ public final class MsmButtonWidget extends ButtonWidget {
     private boolean closeIcon;
     private String trailingLabel = "";
     private boolean leftAligned;
+    private boolean flat;
 
     public MsmButtonWidget(int x, int y, int width, int height,
                            String message, PressAction onPress) {
@@ -57,6 +58,10 @@ public final class MsmButtonWidget extends ButtonWidget {
         this.leftAligned = leftAligned;
     }
 
+    public void setFlat(boolean flat) {
+        this.flat = flat;
+    }
+
     @Override
     public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         boolean hovered = this.isHovered();
@@ -95,9 +100,22 @@ public final class MsmButtonWidget extends ButtonWidget {
         int right = left + this.getWidth();
         int bottom = top + this.getHeight();
 
-        context.fill(left, top, right, bottom, background);
-        context.fill(left, top, right, top + 1, accent);
-        context.fill(left, bottom - 1, right, bottom, 0x553B4655);
+        if (this.flat) {
+            if (!this.active) {
+                textColor = 0xFF7F8B98;
+            } else if (this.selected) {
+                textColor = 0xFF7AD0E8;
+            } else if (hovered) {
+                textColor = 0xFFFFFFFF;
+            }
+            if (this.selected) {
+                context.fill(left, top + 3, left + 2, bottom - 3, 0xFF55B8D5);
+            }
+        } else {
+            context.fill(left, top, right, bottom, background);
+            context.fill(left, top, right, top + 1, accent);
+            context.fill(left, bottom - 1, right, bottom, 0x553B4655);
+        }
 
         if (this.closeIcon) {
             drawCloseX(context, hovered);
