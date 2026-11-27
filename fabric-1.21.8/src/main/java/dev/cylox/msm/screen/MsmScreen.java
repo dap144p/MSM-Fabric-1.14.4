@@ -48,12 +48,14 @@ public abstract class MsmScreen extends Screen {
         context.drawTextWithShadow(this.textRenderer, Text.literal(fitted),
                 left + 14, top + 9, 0xFFE0E8F0);
         int x = right - 19;
-        int icon = 0xFFE0E8F0;
-        for (int offset = 0; offset < 10; offset++) {
-            context.fill(x - 5 + offset, top + 8 + offset,
-                    x - 3 + offset, top + 10 + offset, icon);
-            context.fill(x + 3 - offset, top + 8 + offset,
-                    x + 5 - offset, top + 10 + offset, icon);
+        boolean closeHovered = mouseX >= right - 28 && mouseX <= right
+                && mouseX >= left && mouseY >= top && mouseY <= top + 27;
+        int icon = closeHovered ? 0xFFFF5555 : 0xFFAAAAAA;
+        for (int offset = 0; offset < 8; offset++) {
+            context.fill(x - 4 + offset, top + 9 + offset,
+                    x - 2 + offset, top + 11 + offset, icon);
+            context.fill(x + 2 - offset, top + 9 + offset,
+                    x + 4 - offset, top + 11 + offset, icon);
         }
     }
 
