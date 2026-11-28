@@ -19,6 +19,10 @@ repositories {
         name = "opencollab"
         url = "https://repo.opencollab.dev/maven-releases/"
     }
+    maven {
+        name = "terraformers"
+        url = "https://maven.terraformersmc.com/"
+    }
 }
 
 loom {
@@ -32,6 +36,7 @@ dependencies {
     mappings "net.fabricmc:yarn:" + project.yarn_mappings + ":v2"
     modImplementation "net.fabricmc:fabric-loader:" + project.loader_version
     modImplementation "net.fabricmc.fabric-api:fabric-api:" + project.fabric_api_version
+    modCompileOnly "com.terraformersmc:modmenu:15.0.2"
 
     implementation project(":msm-core")
 
