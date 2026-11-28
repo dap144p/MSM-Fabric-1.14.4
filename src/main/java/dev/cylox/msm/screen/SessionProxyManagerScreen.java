@@ -4,7 +4,7 @@ import dev.cylox.msm.config.ProxyEndpointTester;
 import dev.cylox.msm.config.ProxyProfile;
 import dev.cylox.msm.network.SecondarySessionController;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Screen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.LiteralText;
 
