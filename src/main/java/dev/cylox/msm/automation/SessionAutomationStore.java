@@ -13,14 +13,9 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
-/**
- * Atomic per-profile storage for AutoChat and AutoReconnect preferences.
- */
 public final class SessionAutomationStore {
-    private static final int MAX_RULES = 100;
     private final Path file;
 
     public SessionAutomationStore(Path file) {
@@ -31,42 +26,18 @@ public final class SessionAutomationStore {
     public synchronized SessionAutomationSettings load(SessionProfile profile) throws IOException {
         if (profile == null) throw new IllegalArgumentException("Session profile is required");
         Properties properties = readProperties();
+        if (removeLegacyAutoChatEntries(properties)) {
+            writeAtomically(properties);
+        }
+
         String prefix = "account." + profileKey(profile) + ".";
         SessionAutomationSettings settings = new SessionAutomationSettings();
-
         settings.setAutoReconnect(readBoolean(properties, prefix + "autoReconnect", false));
         settings.setDesiredOnline(readBoolean(properties, prefix + "desiredOnline", false));
-        settings.setReconnectDelaySeconds(readInt(properties, prefix + "reconnectDelaySeconds", 10));
-        settings.setMaxReconnectAttempts(readInt(properties, prefix + "maxReconnectAttempts", 10));
+        settings.setReconnectDelaySeconds(readInt(properties, prefix + "reconnectDelaySeconds", 15));
+        settings.setMaxReconnectAttempts(readInt(properties, prefix + "maxReconnectAttempts", 5));
         settings.setRetryBackoff(readBoolean(properties, prefix + "retryBackoff", true));
-        settings.setMaxReconnectDelaySeconds(readInt(properties, prefix + "maxReconnectDelaySeconds", 60));
-        settings.setAutoChatEnabled(readBoolean(properties, prefix + "autoChatEnabled", false));
-        settings.setInitialChatDelaySeconds(readInt(properties, prefix + "initialChatDelaySeconds", 5));
-        settings.setGlobalChatIntervalSeconds(readInt(properties, prefix + "globalChatIntervalSeconds", 3));
-
-        int count = readInt(properties, prefix + "rule.count", 0);
-        if (count < 0 || count > MAX_RULES) {
-            throw new IOException("Invalid AutoChat rule count for profile " + profile.getUsername());
-        }
-
-        List<SessionAutomationSettings.AutoChatRule> rules =
-                new ArrayList<SessionAutomationSettings.AutoChatRule>();
-        for (int index = 0; index < count; index++) {
-            String rulePrefix = prefix + "rule." + index + ".";
-            String message = properties.getProperty(rulePrefix + "message", "").trim();
-            String modeValue = properties.getProperty(rulePrefix + "mode", "ONCE");
-            boolean enabled = readBoolean(properties, rulePrefix + "enabled", true);
-            int delay = readInt(properties, rulePrefix + "delaySeconds", 0);
-            try {
-                SessionAutomationSettings.AutoChatRule.Mode mode =
-                        SessionAutomationSettings.AutoChatRule.Mode.valueOf(modeValue);
-                rules.add(new SessionAutomationSettings.AutoChatRule(message, mode, delay, enabled));
-            } catch (IllegalArgumentException exception) {
-                throw new IOException("Invalid AutoChat rule " + index
-                        + " for profile " + profile.getUsername(), exception);
-            }
-        }
-        settings.replaceRules(rules);
+        settings.setMaxReconnectDelaySeconds(readInt(properties, prefix + "maxReconnectDelaySeconds", 300));
         return settings;
     }
 
@@ -76,6 +47,7 @@ public final class SessionAutomationStore {
         }
 
         Properties properties = readProperties();
+        removeLegacyAutoChatEntries(properties);
         String prefix = "account." + profileKey(profile) + ".";
         SessionAutomationSettings snapshot = settings.copy();
 
@@ -88,37 +60,36 @@ public final class SessionAutomationStore {
         properties.setProperty(prefix + "retryBackoff", Boolean.toString(snapshot.isRetryBackoff()));
         properties.setProperty(prefix + "maxReconnectDelaySeconds",
                 Integer.toString(snapshot.getMaxReconnectDelaySeconds()));
-        properties.setProperty(prefix + "autoChatEnabled", Boolean.toString(snapshot.isAutoChatEnabled()));
-        properties.setProperty(prefix + "initialChatDelaySeconds",
-                Integer.toString(snapshot.getInitialChatDelaySeconds()));
-        properties.setProperty(prefix + "globalChatIntervalSeconds",
-                Integer.toString(snapshot.getGlobalChatIntervalSeconds()));
-
-        List<SessionAutomationSettings.AutoChatRule> rules = snapshot.getRules();
-        properties.setProperty(prefix + "rule.count", Integer.toString(rules.size()));
-        for (int index = 0; index < rules.size(); index++) {
-            SessionAutomationSettings.AutoChatRule rule = rules.get(index);
-            String rulePrefix = prefix + "rule." + index + ".";
-            properties.setProperty(rulePrefix + "message", rule.getMessage());
-            properties.setProperty(rulePrefix + "mode", rule.getMode().name());
-            properties.setProperty(rulePrefix + "delaySeconds", Integer.toString(rule.getDelaySeconds()));
-            properties.setProperty(rulePrefix + "enabled", Boolean.toString(rule.isEnabled()));
-        }
 
         writeAtomically(properties);
     }
 
     public synchronized void delete(SessionProfile profile) throws IOException {
         if (profile == null) throw new IllegalArgumentException("Session profile is required");
-
         Properties properties = readProperties();
         String prefix = "account." + profileKey(profile) + ".";
         for (String key : new ArrayList<String>(properties.stringPropertyNames())) {
-            if (key.startsWith(prefix)) {
-                properties.remove(key);
-            }
+            if (key.startsWith(prefix)) properties.remove(key);
         }
         writeAtomically(properties);
+    }
+
+    private static boolean removeLegacyAutoChatEntries(Properties properties) {
+        boolean changed = false;
+        for (String key : new ArrayList<String>(properties.stringPropertyNames())) {
+            if (!key.startsWith("account.")) continue;
+            int separator = key.indexOf('.', "account.".length());
+            if (separator < 0) continue;
+            String setting = key.substring(separator + 1);
+            if (setting.equals("autoChatEnabled")
+                    || setting.equals("initialChatDelaySeconds")
+                    || setting.equals("globalChatIntervalSeconds")
+                    || setting.startsWith("rule.")) {
+                properties.remove(key);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private Properties readProperties() throws IOException {
@@ -137,7 +108,7 @@ public final class SessionAutomationStore {
         Path temporary = Files.createTempFile(parent, "msm-automation-", ".tmp");
         try {
             try (OutputStream output = Files.newOutputStream(temporary)) {
-                properties.store(output, "MSM per-account automation settings");
+                properties.store(output, "MSM per-account reconnect settings");
             }
             try {
                 Files.move(temporary, absolute,

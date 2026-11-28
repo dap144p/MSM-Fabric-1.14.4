@@ -3,13 +3,15 @@ package dev.cylox.msm.automation;
 import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.Properties;
 
 public final class SessionAutomationStoreTest {
     public static void main(String[] args) throws Exception {
-        Path directory = Files.createTempDirectory("msm-automation-test");
+        Path directory = Files.createTempDirectory("msm-reconnect-test");
         Path file = directory.resolve("automation.properties");
         SessionAutomationStore store = new SessionAutomationStore(file);
 
@@ -21,69 +23,77 @@ public final class SessionAutomationStoreTest {
         SessionAutomationSettings firstSettings = new SessionAutomationSettings();
         firstSettings.setAutoReconnect(true);
         firstSettings.setDesiredOnline(true);
-        firstSettings.setReconnectDelaySeconds(12);
-        firstSettings.setMaxReconnectAttempts(7);
+        firstSettings.setReconnectDelaySeconds(25);
+        firstSettings.setMaxReconnectAttempts(4);
         firstSettings.setRetryBackoff(true);
-        firstSettings.setMaxReconnectDelaySeconds(90);
-        firstSettings.setAutoChatEnabled(true);
-        firstSettings.setInitialChatDelaySeconds(6);
-        firstSettings.setGlobalChatIntervalSeconds(4);
-        firstSettings.addRule(new SessionAutomationSettings.AutoChatRule(
-                "/move tycoon",
-                SessionAutomationSettings.AutoChatRule.Mode.ONCE,
-                5,
-                true));
-        firstSettings.addRule(new SessionAutomationSettings.AutoChatRule(
-                "/is",
-                SessionAutomationSettings.AutoChatRule.Mode.REPEAT,
-                60,
-                false));
-
+        firstSettings.setMaxReconnectDelaySeconds(240);
         store.save(first, firstSettings);
         store.save(second, new SessionAutomationSettings());
 
         SessionAutomationSettings loaded = store.load(first);
         check(loaded.isAutoReconnect(), "AutoReconnect must round-trip");
         check(loaded.isDesiredOnline(), "Desired-online flag must round-trip");
-        check(loaded.getReconnectDelaySeconds() == 12, "Reconnect delay must round-trip");
-        check(loaded.getMaxReconnectAttempts() == 7, "Reconnect attempts must round-trip");
-        check(loaded.getMaxReconnectDelaySeconds() == 90, "Maximum reconnect delay must round-trip");
-        check(loaded.isAutoChatEnabled(), "AutoChat enabled flag must round-trip");
-        check(loaded.getInitialChatDelaySeconds() == 6, "Initial AutoChat delay must round-trip");
-        check(loaded.getGlobalChatIntervalSeconds() == 4, "Global chat interval must round-trip");
-
-        List<SessionAutomationSettings.AutoChatRule> rules = loaded.getRules();
-        check(rules.size() == 2, "Both AutoChat rules must round-trip");
-        check("/move tycoon".equals(rules.get(0).getMessage()), "First rule order must be preserved");
-        check(rules.get(0).getMode() == SessionAutomationSettings.AutoChatRule.Mode.ONCE,
-                "Once mode must round-trip");
-        check(rules.get(0).getDelaySeconds() == 5, "Once delay must round-trip");
-        check("/is".equals(rules.get(1).getMessage()), "Second rule order must be preserved");
-        check(rules.get(1).getMode() == SessionAutomationSettings.AutoChatRule.Mode.REPEAT,
-                "Repeat mode must round-trip");
-        check(!rules.get(1).isEnabled(), "Disabled rule state must round-trip");
+        check(loaded.getReconnectDelaySeconds() == 25, "Reconnect delay must round-trip");
+        check(loaded.getMaxReconnectAttempts() == 4, "Reconnect attempts must round-trip");
+        check(loaded.isRetryBackoff(), "Retry backoff must round-trip");
+        check(loaded.getMaxReconnectDelaySeconds() == 240, "Maximum reconnect delay must round-trip");
 
         SessionAutomationSettings secondLoaded = store.load(second);
         check(!secondLoaded.isAutoReconnect(), "Account settings must not leak to another profile");
-        check(secondLoaded.getRules().isEmpty(), "AutoChat rules must remain isolated per profile");
+        check(!secondLoaded.isDesiredOnline(), "Desired-online state must remain per-account");
+
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(file)) {
+            properties.load(input);
+        }
+        String firstPrefix = null;
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith("account.") && key.endsWith(".autoReconnect")) {
+                firstPrefix = key.substring(0, key.length() - "autoReconnect".length());
+                break;
+            }
+        }
+        check(firstPrefix != null, "First account storage key must exist");
+        properties.setProperty(firstPrefix + "autoChatEnabled", "true");
+        properties.setProperty(firstPrefix + "initialChatDelaySeconds", "4");
+        properties.setProperty(firstPrefix + "globalChatIntervalSeconds", "2");
+        properties.setProperty(firstPrefix + "rule.count", "1");
+        properties.setProperty(firstPrefix + "rule.0.message", "/legacy");
+        try (OutputStream output = Files.newOutputStream(file)) {
+            properties.store(output, "legacy AutoChat migration fixture");
+        }
+
+        loaded = store.load(first);
+        check(loaded.isAutoReconnect(), "Removing legacy AutoChat keys must preserve reconnect settings");
+        try (InputStream input = Files.newInputStream(file)) {
+            properties.clear();
+            properties.load(input);
+        }
+        for (String key : properties.stringPropertyNames()) {
+            check(!key.startsWith(firstPrefix + "rule.")
+                            && !key.equals(firstPrefix + "autoChatEnabled")
+                            && !key.equals(firstPrefix + "initialChatDelaySeconds")
+                            && !key.equals(firstPrefix + "globalChatIntervalSeconds"),
+                    "Legacy AutoChat data must be removed during migration");
+        }
 
         store.delete(first);
         SessionAutomationSettings removedSettings = store.load(first);
         check(!removedSettings.isAutoReconnect(), "Removed account must not retain AutoReconnect");
         check(!removedSettings.isDesiredOnline(), "Removed account must not retain desired-online state");
-        check(!removedSettings.isAutoChatEnabled(), "Removed account must not retain AutoChat");
-        check(removedSettings.getRules().isEmpty(), "Removed account must not retain AutoChat rules");
-        check(store.load(second).getRules().isEmpty(),
-                "Removing one account must preserve other accounts' settings");
+        check(store.load(second).getMaxReconnectAttempts() == 5,
+                "Removing one account must preserve another account's settings");
 
-        store.save(first, firstSettings);
-
-        loaded.removeRule(0);
-        check(store.load(first).getRules().size() == 2,
-                "A loaded settings copy must not mutate persisted data without save");
-
-        store.save(first, loaded);
-        check(store.load(first).getRules().size() == 1, "Explicit save must persist rule changes");
+        SessionAutomationSettings clamped = new SessionAutomationSettings();
+        clamped.setReconnectDelaySeconds(1);
+        check(clamped.getReconnectDelaySeconds() == 10,
+                "Reconnect delay must enforce the safe minimum");
+        clamped.setMaxReconnectAttempts(100);
+        check(clamped.getMaxReconnectAttempts() == 10,
+                "Reconnect attempts must enforce the safe maximum");
+        clamped.setMaxReconnectDelaySeconds(5);
+        check(clamped.getMaxReconnectDelaySeconds() >= clamped.getReconnectDelaySeconds(),
+                "Maximum retry delay must not be lower than the base delay");
 
         System.out.println("SessionAutomationStoreTest: PASS");
     }

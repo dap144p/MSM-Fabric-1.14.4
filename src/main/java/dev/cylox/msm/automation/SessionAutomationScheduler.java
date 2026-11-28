@@ -7,10 +7,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,8 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * Serializes reconnect attempts and automated chat across all managed accounts.
- * All queue mutation happens on one daemon worker to avoid overlapping actions.
+ * Serializes automatic and manual reconnect attempts across all managed accounts.
  */
 public final class SessionAutomationScheduler
         implements SecondarySessionController.SessionLifecycleListener {
@@ -45,14 +42,10 @@ public final class SessionAutomationScheduler
     private final Set<Long> reconnectQueue = new HashSet<Long>();
     private final Set<Long> manualConnectQueue = new HashSet<Long>();
     private final Map<Long, Integer> reconnectAttempts = new HashMap<Long, Integer>();
-    private final List<PendingChat> pendingChats = new ArrayList<PendingChat>();
 
     private volatile boolean accountsRestored;
     private long activeReconnectSession = -1L;
-    private long lastGlobalChatAt;
-    private int lastGlobalChatIntervalSeconds = 3;
     private ScheduledFuture<?> reconnectTask;
-    private ScheduledFuture<?> chatTask;
 
     public SessionAutomationScheduler(SessionManager sessionManager,
                                       SecondarySessionController controller,
@@ -100,12 +93,6 @@ public final class SessionAutomationScheduler
         this.settingsBySession.put(sessionId, snapshot);
 
         this.worker.execute(() -> {
-            if (!snapshot.isAutoChatEnabled()) {
-                cancelChatTasks(sessionId);
-            } else if (this.controller.isOnline(sessionId)) {
-                scheduleRepeatRules(sessionId, snapshot);
-            }
-
             if (!snapshot.isAutoReconnect() || !snapshot.isDesiredOnline()) {
                 this.reconnectQueue.remove(sessionId);
             } else if (isOffline(sessionId)) {
@@ -163,7 +150,6 @@ public final class SessionAutomationScheduler
             this.reconnectQueue.remove(sessionId);
             this.manualConnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
-            cancelChatTasks(sessionId);
             if (this.activeReconnectSession == sessionId) {
                 this.activeReconnectSession = -1L;
                 cancelReconnectTask();
@@ -266,8 +252,6 @@ public final class SessionAutomationScheduler
                 cancelReconnectTask();
             }
 
-            scheduleOnceRules(sessionId, settings);
-            scheduleRepeatRules(sessionId, settings);
             pumpReconnectQueue();
         });
     }
@@ -323,204 +307,6 @@ public final class SessionAutomationScheduler
             this.reconnectQueue.add(sessionId);
             pumpReconnectQueue();
         });
-    }
-
-    private void scheduleOnceRules(long sessionId, SessionAutomationSettings settings) {
-        cancelChatTasks(sessionId);
-        if (!settings.isAutoChatEnabled()) return;
-
-        long dueAt = System.currentTimeMillis()
-                + TimeUnit.SECONDS.toMillis(settings.getInitialChatDelaySeconds());
-        List<SessionAutomationSettings.AutoChatRule> rules = settings.getRules();
-        for (int index = 0; index < rules.size(); index++) {
-            SessionAutomationSettings.AutoChatRule rule = rules.get(index);
-            if (!rule.isEnabled() || rule.getMode() != SessionAutomationSettings.AutoChatRule.Mode.ONCE) {
-                continue;
-            }
-            dueAt += TimeUnit.SECONDS.toMillis(rule.getDelaySeconds());
-            this.pendingChats.add(new PendingChat(sessionId, index, false, dueAt));
-        }
-        scheduleChatPump();
-    }
-
-    private void scheduleRepeatRules(long sessionId, SessionAutomationSettings settings) {
-        cancelRepeatTasks(sessionId);
-        if (!settings.isAutoChatEnabled() || !this.controller.isOnline(sessionId)) return;
-
-        long startAt = System.currentTimeMillis()
-                + TimeUnit.SECONDS.toMillis(settings.getInitialChatDelaySeconds());
-        List<SessionAutomationSettings.AutoChatRule> rules = settings.getRules();
-        for (int index = 0; index < rules.size(); index++) {
-            SessionAutomationSettings.AutoChatRule rule = rules.get(index);
-            if (!rule.isEnabled() || rule.getMode() != SessionAutomationSettings.AutoChatRule.Mode.REPEAT) {
-                continue;
-            }
-            long dueAt = startAt + TimeUnit.SECONDS.toMillis(rule.getDelaySeconds());
-            this.pendingChats.add(new PendingChat(sessionId, index, true, dueAt));
-        }
-        scheduleChatPump();
-    }
-
-    private void cancelRepeatTasks(long sessionId) {
-        Iterator<PendingChat> iterator = this.pendingChats.iterator();
-        while (iterator.hasNext()) {
-            PendingChat pending = iterator.next();
-            if (pending.sessionId == sessionId && pending.repeat) iterator.remove();
-        }
-        scheduleChatPump();
-    }
-
-    private void cancelChatTasks(long sessionId) {
-        Iterator<PendingChat> iterator = this.pendingChats.iterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().sessionId == sessionId) iterator.remove();
-        }
-        scheduleChatPump();
-    }
-
-    private void scheduleChatPump() {
-        if (this.chatTask != null) {
-            this.chatTask.cancel(false);
-            this.chatTask = null;
-        }
-        if (this.pendingChats.isEmpty()) return;
-
-        long nextDue = Long.MAX_VALUE;
-        for (PendingChat pending : this.pendingChats) {
-            nextDue = Math.min(nextDue, pending.dueAt);
-        }
-        long wait = Math.max(0L, nextDue - System.currentTimeMillis());
-        this.chatTask = this.worker.schedule(this::pumpChatQueue, wait, TimeUnit.MILLISECONDS);
-    }
-
-    private void pumpChatQueue() {
-        this.chatTask = null;
-        long now = System.currentTimeMillis();
-        PendingChat next = selectNextPendingChat(
-                this.pendingChats, this.sessionManager.getSessions(), now);
-        if (next == null) return;
-
-        if (next.dueAt > now) {
-            this.chatTask = this.worker.schedule(
-                    this::pumpChatQueue, next.dueAt - now, TimeUnit.MILLISECONDS);
-            return;
-        }
-
-        SessionAutomationSettings settings;
-        SessionAutomationSettings.AutoChatRule rule;
-        try {
-            settings = getSettings(next.sessionId);
-            List<SessionAutomationSettings.AutoChatRule> rules = settings.getRules();
-            if (!settings.isAutoChatEnabled() || next.ruleIndex >= rules.size()) {
-                this.pendingChats.remove(next);
-                scheduleChatPump();
-                return;
-            }
-            rule = rules.get(next.ruleIndex);
-        } catch (RuntimeException exception) {
-            this.pendingChats.remove(next);
-            scheduleChatPump();
-            return;
-        }
-
-        boolean validMode = next.repeat
-                ? rule.getMode() == SessionAutomationSettings.AutoChatRule.Mode.REPEAT
-                : rule.getMode() == SessionAutomationSettings.AutoChatRule.Mode.ONCE;
-        if (!rule.isEnabled() || !validMode || !this.controller.isOnline(next.sessionId)) {
-            this.pendingChats.remove(next);
-            scheduleChatPump();
-            return;
-        }
-
-        long globalInterval = Math.max(settings.getGlobalChatIntervalSeconds(),
-                this.lastGlobalChatIntervalSeconds);
-        long earliestSend = this.lastGlobalChatAt
-                + TimeUnit.SECONDS.toMillis(globalInterval);
-        if (now < earliestSend) {
-            this.chatTask = this.worker.schedule(this::pumpChatQueue,
-                    earliestSend - now, TimeUnit.MILLISECONDS);
-            return;
-        }
-
-        try {
-            this.controller.sendChat(next.sessionId, rule.getMessage());
-            this.lastGlobalChatAt = System.currentTimeMillis();
-            this.lastGlobalChatIntervalSeconds = settings.getGlobalChatIntervalSeconds();
-            this.controller.addSystemMessage(next.sessionId,
-                    "[MSM] AutoChat sent rule " + (next.ruleIndex + 1) + ".");
-        } catch (RuntimeException exception) {
-            LOGGER.warn("AutoChat rule {} failed for session {}: {}",
-                    next.ruleIndex + 1, next.sessionId, exception.getMessage());
-        }
-
-        if (next.repeat && this.controller.isOnline(next.sessionId)) {
-            next.dueAt = System.currentTimeMillis()
-                    + TimeUnit.SECONDS.toMillis(rule.getDelaySeconds());
-        } else {
-            this.pendingChats.remove(next);
-        }
-        scheduleChatPump();
-    }
-
-    static PendingChat selectNextPendingChat(List<PendingChat> pendingChats,
-                                             List<SessionManager.Session> sessions,
-                                             long now) {
-        PendingChat nextOnce = null;
-        PendingChat nextDueRepeat = null;
-        PendingChat nextFutureRepeat = null;
-
-        for (PendingChat pending : pendingChats) {
-            if (!pending.repeat) {
-                if (nextOnce == null || compareOnceOrder(pending, nextOnce, sessions) < 0) {
-                    nextOnce = pending;
-                }
-            } else if (pending.dueAt <= now) {
-                if (nextDueRepeat == null
-                        || compareReadyRepeatOrder(pending, nextDueRepeat, sessions) < 0) {
-                    nextDueRepeat = pending;
-                }
-            } else if (nextFutureRepeat == null
-                    || compareFutureRepeatOrder(pending, nextFutureRepeat, sessions) < 0) {
-                nextFutureRepeat = pending;
-            }
-        }
-
-        if (nextOnce != null) return nextOnce;
-        return nextDueRepeat != null ? nextDueRepeat : nextFutureRepeat;
-    }
-
-    private static int compareOnceOrder(PendingChat left, PendingChat right,
-                                        List<SessionManager.Session> sessions) {
-        int leftAccount = accountOrder(left.sessionId, sessions);
-        int rightAccount = accountOrder(right.sessionId, sessions);
-        if (leftAccount != rightAccount) return Integer.compare(leftAccount, rightAccount);
-        if (left.ruleIndex != right.ruleIndex) return Integer.compare(left.ruleIndex, right.ruleIndex);
-        return Long.compare(left.dueAt, right.dueAt);
-    }
-
-    private static int compareReadyRepeatOrder(PendingChat left, PendingChat right,
-                                               List<SessionManager.Session> sessions) {
-        int leftAccount = accountOrder(left.sessionId, sessions);
-        int rightAccount = accountOrder(right.sessionId, sessions);
-        if (leftAccount != rightAccount) return Integer.compare(leftAccount, rightAccount);
-        if (left.dueAt != right.dueAt) return Long.compare(left.dueAt, right.dueAt);
-        return Integer.compare(left.ruleIndex, right.ruleIndex);
-    }
-
-    private static int compareFutureRepeatOrder(PendingChat left, PendingChat right,
-                                                List<SessionManager.Session> sessions) {
-        if (left.dueAt != right.dueAt) return Long.compare(left.dueAt, right.dueAt);
-        int leftAccount = accountOrder(left.sessionId, sessions);
-        int rightAccount = accountOrder(right.sessionId, sessions);
-        if (leftAccount != rightAccount) return Integer.compare(leftAccount, rightAccount);
-        return Integer.compare(left.ruleIndex, right.ruleIndex);
-    }
-
-    private static int accountOrder(long sessionId, List<SessionManager.Session> sessions) {
-        for (int index = 0; index < sessions.size(); index++) {
-            if (sessions.get(index).getId() == sessionId) return index;
-        }
-        return Integer.MAX_VALUE;
     }
 
     static long selectNextQueuedSession(List<SessionManager.Session> sessions,
@@ -643,7 +429,7 @@ public final class SessionAutomationScheduler
         pumpReconnectQueue();
     }
 
-    private long reconnectDelay(SessionAutomationSettings settings, int attempt) {
+    static long reconnectDelay(SessionAutomationSettings settings, int attempt) {
         long delay = settings.getReconnectDelaySeconds();
         if (settings.isRetryBackoff() && attempt > 1) {
             for (int index = 1; index < attempt; index++) {
@@ -678,7 +464,12 @@ public final class SessionAutomationScheduler
                 || normalized.contains("offline_local cannot authenticate")
                 || normalized.contains("requires online mode")
                 || normalized.contains("already logged in")
-                || normalized.contains("logged in from another location");
+                || normalized.contains("logged in from another location")
+                || normalized.contains("too many login attempts")
+                || normalized.contains("too many connections")
+                || normalized.contains("rate limit")
+                || normalized.contains("connection throttled")
+                || normalized.contains("temporarily blocked");
     }
 
     private void persistSettings(long sessionId, SessionAutomationSettings settings) {
@@ -709,17 +500,4 @@ public final class SessionAutomationScheduler
                 ? throwable.getClass().getSimpleName() : message;
     }
 
-    static final class PendingChat {
-        final long sessionId;
-        final int ruleIndex;
-        final boolean repeat;
-        long dueAt;
-
-        PendingChat(long sessionId, int ruleIndex, boolean repeat, long dueAt) {
-            this.sessionId = sessionId;
-            this.ruleIndex = ruleIndex;
-            this.repeat = repeat;
-            this.dueAt = dueAt;
-        }
-    }
 }

@@ -54,7 +54,6 @@ Before creating a Beta tag:
 - Install the matching JAR and runtime for each supported Minecraft version.
 - A secondary account can connect and reach ONLINE on an offline-mode test server for each supported version.
 - Manual connection and reconnect attempts follow the saved account order.
-- AutoChat ONCE runs after Join Game, then ONCE and REPEAT rules follow account/rule order.
 - Manual Disconnect prevents automatic reconnection.
 - Removing an account clears its saved profile and automation settings.
 - The primary Minecraft session remains unaffected.

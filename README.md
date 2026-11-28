@@ -11,7 +11,7 @@ The repository is named **Multi-Sessions-Manager-Fabric**. The product's short n
 
 The JARs are version-specific. Install only the JAR matching the Minecraft profile; a single Fabric JAR cannot safely target both game versions because their runtime and client APIs differ.
 
-The Minecraft-specific UI and networking live in each version module. Shared profile/session logic comes from [MSM-Core](https://github.com/dap144p/MSM-Core), and the version-independent AutoChat / AutoReconnect scheduler is reused from the root source tree. Players install one MSM JAR per Minecraft profile, not a separate Core mod.
+The Minecraft-specific UI and networking live in each version module. Shared profile/session logic comes from the pinned [Dapdep Core](https://github.com/dap144p/dapdep-core) submodule, while the version-independent AutoReconnect scheduler is shared from the root source tree. Players install one MSM JAR per Minecraft profile, not a separate Core mod.
 
 ## Release stage
 
@@ -35,9 +35,8 @@ See [RELEASE_CHANNELS.md](RELEASE_CHANNELS.md) for the branch, tag, build, and p
 - Marks a session ONLINE only after the Minecraft Join Game packet is received.
 - Per-account chat history, normal chat messages, and slash-command sending.
 - Manual connection requests and AutoReconnect attempts are serialized in saved account-list order; the next account starts after the active connection reaches Join Game or disconnects.
-- Per-account AutoChat rules with `ONCE` and `REPEAT` modes. ONCE tasks are scheduled after Join Game; queued automated sends are serialized.
 - Per-account AutoReconnect with configurable delay, attempt limit, and optional exponential backoff. Reconnect attempts are serialized in saved account-list order. Manual Disconnect removes the account from the reconnect queue.
-- Removing an account clears its profile and saved AutoChat / AutoReconnect settings together. Active sessions must be disconnected first.
+- Removing an account clears its profile and saved AutoReconnect settings together. Active sessions must be disconnected first.
 - Built-in updater checks Nightly, Beta, RC, and Stable releases, downloads only the JAR matching the current Minecraft version, verifies SHA-256, and stages the file in `config/msm-updates/`. Close Minecraft and move the staged JAR into the profile's `mods` folder; MSM does not overwrite a loaded mod or modify launcher-managed folders.
 - Development builds from feature branches use temporary CI artifacts and do not use the release updater.
 - Uses no secondary Minecraft world renderer; the primary Minecraft client remains unchanged.
@@ -63,7 +62,7 @@ The new Fabric project is isolated in `fabric-1.21.8/`. Its client UI and networ
 - Output: `fabric-1.21.8/build/libs/MSM-Fabric-<version>-1.21.8.jar`
 - Requires a Minecraft 1.21.8 Fabric profile, compatible Fabric Loader / Fabric API, and Java 21 runtime.
 
-The new version keeps the Manager and Control Manage workflow: account list, connect / disconnect, chat, AutoChat, AutoReconnect, saved-server picker, and remove-account confirmation.
+The new version keeps the Manager and Control Manage workflow: account list, connect / disconnect, manual chat, AutoReconnect, saved-server picker, and remove-account confirmation.
 
 ## Current limitations
 
