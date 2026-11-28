@@ -190,7 +190,8 @@ public final class SessionNetworkScreen extends MsmScreen {
         return matches;
     }
 
-    private String fit(String value, int pixelWidth) {
+    @Override
+    protected String fit(String value, int pixelWidth) {
         return value == null ? "" : this.textRenderer.trimToWidth(value, Math.max(1, pixelWidth));
     }
 }
