@@ -1,6 +1,7 @@
 package dev.cylox.msm.screen;
 
 import dev.cylox.msm.config.LocalAddressCatalog;
+import dev.cylox.msm.config.ProxyProfile;
 import dev.cylox.msm.config.SessionNetworkSettings;
 import dev.cylox.msm.network.SecondarySessionController;
 import dev.cylox.msm.profile.SessionAuthMode;
@@ -23,6 +24,9 @@ public final class SessionNetworkScreen extends MsmScreen {
     private final List<String> availableAddresses = new ArrayList<String>();
 
     private String selectedAddress = "";
+    private String selectedProxyProfileId = "";
+    private List<ProxyProfile> availableProxies = new ArrayList<>();
+    private MsmButtonWidget proxyButton;
     private String status = "Choose a local IP, or use Automatic.";
     private ButtonWidget outgoingButton;
 
@@ -37,8 +41,10 @@ public final class SessionNetworkScreen extends MsmScreen {
         this.authMode = authMode;
         this.controller = controller;
         try {
-            this.selectedAddress = controller.getNetworkStore()
-                    .load(username, authMode).getOutgoingAddress();
+            SessionNetworkSettings settings = controller.getNetworkStore().load(username, authMode);
+            this.selectedAddress = settings.getOutgoingAddress();
+            this.selectedProxyProfileId = settings.getProxyProfileId();
+            this.availableProxies.addAll(controller.getProxyProfileStore().load());
         } catch (Exception exception) {
             this.status = "Could not load network settings: " + exception.getMessage();
         }
@@ -59,6 +65,12 @@ public final class SessionNetworkScreen extends MsmScreen {
         this.addButton(new MsmButtonWidget(
                 mainLeft + mainWidth + 6, 88, refreshWidth, 22,
                 "REFRESH", button -> refreshAddressCatalog(true)));
+        this.proxyButton = this.addButton(new MsmButtonWidget(
+                mainLeft, 116, mainWidth, 22, getProxyLabel(),
+                button -> cycleProxyProfile()));
+        this.addButton(new MsmButtonWidget(
+                mainLeft + mainWidth + 6, 116, refreshWidth, 22,
+                "MANAGE", button -> openProxyManager()));
 
         int footerY = this.height - 28;
         int footerWidth = Math.min(190, Math.max(1, panelWidth - 12));
@@ -112,13 +124,44 @@ public final class SessionNetworkScreen extends MsmScreen {
         }
     }
 
+    private String getProxyLabel() {
+        if (this.selectedProxyProfileId.isEmpty()) return "PROXY: DIRECT";
+        for (ProxyProfile proxy : this.availableProxies) {
+            if (proxy.getId().equals(this.selectedProxyProfileId)) {
+                return "PROXY: " + proxy.getName();
+            }
+        }
+        return "PROXY: UNAVAILABLE";
+    }
+
+    private void cycleProxyProfile() {
+        try {
+            this.availableProxies = new ArrayList<>(this.controller.getProxyProfileStore().load());
+            List<String> options = new ArrayList<>();
+            options.add("");
+            for (ProxyProfile proxy : this.availableProxies) options.add(proxy.getId());
+            int current = options.indexOf(this.selectedProxyProfileId);
+            this.selectedProxyProfileId = options.get((current + 1 + options.size()) % options.size());
+            this.status = this.selectedProxyProfileId.isEmpty()
+                    ? "Direct Connection selected."
+                    : "Proxy selected. Save and reconnect this account to apply it.";
+        } catch (Exception exception) {
+            this.status = "Could not load proxy profiles: " + exception.getMessage();
+        }
+        if (this.proxyButton != null) this.proxyButton.setMessage(getProxyLabel());
+    }
+
+    private void openProxyManager() {
+        MinecraftClient.getInstance().openScreen(new SessionProxyManagerScreen(this, this.controller));
+    }
+
     private void saveSettings() {
         try {
             if (!this.selectedAddress.isEmpty()) {
                 LocalAddressCatalog.resolveAvailableAddress(this.selectedAddress);
             }
             this.controller.getNetworkStore().save(this.username, this.authMode,
-                    new SessionNetworkSettings(this.selectedAddress));
+                    new SessionNetworkSettings(this.selectedAddress, this.selectedProxyProfileId));
             this.status = "Saved for " + this.username
                     + ". Reconnect this account's servers to apply the new source IP.";
         } catch (Exception exception) {
@@ -139,23 +182,23 @@ public final class SessionNetworkScreen extends MsmScreen {
         drawString(MinecraftClient.getInstance().textRenderer,
                 "ACCOUNT: " + this.username + "  |  " + this.authMode.name(),
                 left + 14, 70, 0xFF9EADBD);
-        this.drawSectionTitle("SOURCE IP FOR NEW CONNECTIONS", left + 14, 119);
+        this.drawSectionTitle("SOURCE IP FOR NEW CONNECTIONS", left + 14, 147);
         drawString(MinecraftClient.getInstance().textRenderer,
                 "AUTO lets the operating system choose the source interface.",
-                left + 14, 136, 0xFF8492A3);
+                left + 14, 164, 0xFF8492A3);
         drawString(MinecraftClient.getInstance().textRenderer,
                 "Only addresses assigned to this device are listed.",
-                left + 14, 149, 0xFF8492A3);
-        this.drawGlassDivider(left + 14, 166, right - 14);
+                left + 14, 177, 0xFF8492A3);
+        this.drawGlassDivider(left + 14, 194, right - 14);
 
-        this.drawSectionTitle("ACTUAL LOCAL IP", left + 14, 178);
+        this.drawSectionTitle("ACTUAL LOCAL IP", left + 14, 206);
         List<SessionManager.Session> sessions = matchingSessions();
         if (sessions.isEmpty()) {
             drawString(MinecraftClient.getInstance().textRenderer,
-                    "No saved servers for this account yet.", left + 14, 197, 0xFF9EADBD);
+                    "No saved servers for this account yet.", left + 14, 225, 0xFF9EADBD);
         } else {
-            int y = 197;
-            int availableRows = Math.max(1, (this.height - 250) / 14);
+            int y = 225;
+            int availableRows = Math.max(1, (this.height - 278) / 14);
             int shown = 0;
             for (SessionManager.Session session : sessions) {
                 if (shown >= availableRows) break;

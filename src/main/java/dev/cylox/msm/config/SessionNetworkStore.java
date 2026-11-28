@@ -28,7 +28,9 @@ public final class SessionNetworkStore {
             throws IOException {
         String prefix = accountPrefix(username, authMode);
         Properties properties = readProperties();
-        return new SessionNetworkSettings(properties.getProperty(prefix + "outgoingAddress", ""));
+        return new SessionNetworkSettings(
+                properties.getProperty(prefix + "outgoingAddress", ""),
+                properties.getProperty(prefix + "proxyProfileId", ""));
     }
 
     public synchronized void save(String username, SessionAuthMode authMode,
@@ -42,6 +44,12 @@ public final class SessionNetworkStore {
         } else {
             properties.setProperty(prefix + "outgoingAddress", address);
         }
+        String proxyProfileId = settings.getProxyProfileId();
+        if (proxyProfileId.isEmpty()) {
+            properties.remove(prefix + "proxyProfileId");
+        } else {
+            properties.setProperty(prefix + "proxyProfileId", proxyProfileId);
+        }
         writeAtomically(properties);
     }
 
@@ -52,6 +60,16 @@ public final class SessionNetworkStore {
             if (key.startsWith(prefix)) properties.remove(key);
         }
         writeAtomically(properties);
+    }
+
+    public synchronized boolean isProxyProfileInUse(String proxyProfileId) throws IOException {
+        if (proxyProfileId == null || proxyProfileId.trim().isEmpty()) return false;
+        Properties properties = readProperties();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.endsWith(".proxyProfileId")
+                    && proxyProfileId.equals(properties.getProperty(key))) return true;
+        }
+        return false;
     }
 
     private Properties readProperties() throws IOException {

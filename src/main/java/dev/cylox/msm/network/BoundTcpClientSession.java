@@ -14,6 +14,10 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.proxy.HttpProxyHandler;
+import io.netty.handler.proxy.ProxyHandler;
+import io.netty.handler.proxy.Socks5ProxyHandler;
+import dev.cylox.msm.config.ProxyProfile;
 import io.netty.util.concurrent.Future;
 
 import javax.naming.directory.InitialDirContext;
@@ -28,15 +32,36 @@ import java.util.Hashtable;
 public final class BoundTcpClientSession extends TcpSession {
     private final Client client;
     private final InetAddress bindAddress;
+    private final ProxyProfile proxyProfile;
     private EventLoopGroup group;
 
     public BoundTcpClientSession(Client client, InetAddress bindAddress) {
+        this(client, bindAddress, null);
+    }
+
+    public BoundTcpClientSession(Client client, InetAddress bindAddress, ProxyProfile proxyProfile) {
         super(client.getHost(), client.getPort(), client.getPacketProtocol());
-        if (client == null || bindAddress == null) {
-            throw new IllegalArgumentException("Client and local bind address are required.");
+        if (client == null || (bindAddress == null && proxyProfile == null)) {
+            throw new IllegalArgumentException("Client and at least one network override are required.");
         }
         this.client = client;
         this.bindAddress = bindAddress;
+        this.proxyProfile = proxyProfile;
+    }
+
+    private ProxyHandler createProxyHandler() {
+        InetSocketAddress address = new InetSocketAddress(
+                this.proxyProfile.getHost(), this.proxyProfile.getPort());
+        if (this.proxyProfile.getType() == ProxyProfile.Type.SOCKS5) {
+            return this.proxyProfile.hasAuthentication()
+                    ? new Socks5ProxyHandler(address, this.proxyProfile.getUsername(),
+                            this.proxyProfile.getPassword())
+                    : new Socks5ProxyHandler(address);
+        }
+        return this.proxyProfile.hasAuthentication()
+                ? new HttpProxyHandler(address, this.proxyProfile.getUsername(),
+                        this.proxyProfile.getPassword())
+                : new HttpProxyHandler(address);
     }
 
     @Override
@@ -51,7 +76,6 @@ public final class BoundTcpClientSession extends TcpSession {
             this.group = new NioEventLoopGroup();
             bootstrap.channel(NioSocketChannel.class)
                     .group(this.group)
-                    .localAddress(new InetSocketAddress(this.bindAddress, 0))
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getConnectTimeout() * 1000)
                     .handler(new ChannelInitializer<Channel>() {
                         @Override
@@ -64,6 +88,9 @@ public final class BoundTcpClientSession extends TcpSession {
                             ChannelPipeline pipeline = channel.pipeline();
                             refreshReadTimeoutHandler(channel);
                             refreshWriteTimeoutHandler(channel);
+                            if (BoundTcpClientSession.this.proxyProfile != null) {
+                                pipeline.addLast("proxy", BoundTcpClientSession.this.createProxyHandler());
+                            }
                             pipeline.addLast("encryption", new TcpPacketEncryptor(BoundTcpClientSession.this));
                             pipeline.addLast("sizer", new TcpPacketSizer(BoundTcpClientSession.this));
                             pipeline.addLast("codec", new TcpPacketCodec(BoundTcpClientSession.this));
@@ -94,7 +121,15 @@ public final class BoundTcpClientSession extends TcpSession {
                             // Match PacketLib's normal TCP session fallback when no SRV record exists.
                         }
 
-                        bootstrap.remoteAddress(host, port);
+                        if (BoundTcpClientSession.this.bindAddress != null) {
+                            bootstrap.localAddress(new InetSocketAddress(
+                                    BoundTcpClientSession.this.bindAddress, 0));
+                        }
+                        if (BoundTcpClientSession.this.proxyProfile != null) {
+                            bootstrap.remoteAddress(InetSocketAddress.createUnresolved(host, port));
+                        } else {
+                            bootstrap.remoteAddress(host, port);
+                        }
                         ChannelFuture future = bootstrap.connect().sync();
                         if (future.isSuccess()) {
                             while (!isConnected() && !disconnected) {

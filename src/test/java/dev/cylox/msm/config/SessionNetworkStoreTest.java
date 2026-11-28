@@ -16,8 +16,17 @@ public final class SessionNetworkStoreTest {
             check(store.load("Alice", SessionAuthMode.OFFLINE_LOCAL).isAutomatic(),
                     "Missing settings must default to automatic binding.");
 
+            ProxyProfileStore proxyStore = new ProxyProfileStore(directory.resolve("proxies.properties"));
+            ProxyProfile proxyA = ProxyProfile.create("Proxy A", ProxyProfile.Type.SOCKS5,
+                    "127.0.0.1", 1080, "alice", "secret");
+            ProxyProfile proxyB = ProxyProfile.create("Proxy B", ProxyProfile.Type.HTTP_CONNECT,
+                    "proxy.example.test", 8080, "", "");
+            proxyStore.save(java.util.Arrays.asList(proxyA, proxyB));
+            check(proxyStore.load().size() == 2, "Proxy profiles must persist.");
+            check(proxyStore.load().get(0).hasAuthentication(), "Proxy credentials must persist.");
+
             store.save("Alice", SessionAuthMode.OFFLINE_LOCAL,
-                    new SessionNetworkSettings("192.168.1.20"));
+                    new SessionNetworkSettings("192.168.1.20", proxyA.getId()));
             store.save("Bob", SessionAuthMode.OFFLINE_LOCAL,
                     new SessionNetworkSettings("10.0.0.12"));
             store.save("Alice", SessionAuthMode.MICROSOFT,
@@ -26,6 +35,10 @@ public final class SessionNetworkStoreTest {
             check("192.168.1.20".equals(store.load("Alice",
                     SessionAuthMode.OFFLINE_LOCAL).getOutgoingAddress()),
                     "Alice's offline settings must be restored.");
+            check(proxyA.getId().equals(store.load("Alice", SessionAuthMode.OFFLINE_LOCAL).getProxyProfileId()),
+                    "Alice's proxy selection must persist per account.");
+            check(store.isProxyProfileInUse(proxyA.getId()), "A selected proxy must be marked as in use.");
+            check(!store.isProxyProfileInUse(proxyB.getId()), "An unused proxy must be removable.");
             check("10.0.0.12".equals(store.load("Bob",
                     SessionAuthMode.OFFLINE_LOCAL).getOutgoingAddress()),
                     "Bob's settings must remain isolated.");

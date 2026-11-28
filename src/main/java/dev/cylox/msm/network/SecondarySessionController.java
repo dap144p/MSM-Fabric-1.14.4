@@ -19,6 +19,8 @@ import com.github.steveice10.packetlib.event.session.PacketReceivedEvent;
 import com.github.steveice10.packetlib.event.session.SessionAdapter;
 import com.github.steveice10.packetlib.tcp.TcpSessionFactory;
 import dev.cylox.msm.config.LocalAddressCatalog;
+import dev.cylox.msm.config.ProxyProfile;
+import dev.cylox.msm.config.ProxyProfileStore;
 import dev.cylox.msm.config.SessionNetworkSettings;
 import dev.cylox.msm.config.SessionNetworkStore;
 import dev.cylox.msm.profile.SessionAuthMode;
@@ -65,6 +67,7 @@ public final class SecondarySessionController {
             });
     private final SessionManager sessionManager;
     private final SessionNetworkStore networkStore;
+    private final ProxyProfileStore proxyProfileStore;
     private volatile SessionLifecycleListener lifecycleListener;
     private final ConcurrentMap<Long, Connection> connections =
             new ConcurrentHashMap<Long, Connection>();
@@ -84,6 +87,8 @@ public final class SecondarySessionController {
         }
         this.sessionManager = sessionManager;
         this.networkStore = networkStore;
+        this.proxyProfileStore = new ProxyProfileStore(
+                FabricLoader.getInstance().getConfigDir().resolve("msm-proxies.properties"));
     }
 
     public SessionManager getSessionManager() {
@@ -92,6 +97,10 @@ public final class SecondarySessionController {
 
     public SessionNetworkStore getNetworkStore() {
         return this.networkStore;
+    }
+
+    public ProxyProfileStore getProxyProfileStore() {
+        return this.proxyProfileStore;
     }
 
     /** Returns the source IP assigned to this session's live TCP socket, or an empty string. */
@@ -116,6 +125,22 @@ public final class SecondarySessionController {
             throw new IllegalStateException(
                     "Could not load or validate this account's outgoing IP: " + exception.getMessage(),
                     exception);
+        }
+    }
+
+    private ProxyProfile resolveProxyProfile(SessionProfile profile) {
+        try {
+            SessionNetworkSettings settings = this.networkStore.load(
+                    profile.getUsername(), profile.getAuthMode());
+            String selectedId = settings.getProxyProfileId();
+            if (selectedId.isEmpty()) return null;
+            for (ProxyProfile proxy : this.proxyProfileStore.load()) {
+                if (proxy.getId().equals(selectedId)) return proxy;
+            }
+            throw new IllegalStateException("The selected proxy profile no longer exists. Choose another proxy or Direct Connection.");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not load this account's proxy profile: "
+                    + exception.getMessage(), exception);
         }
     }
 
@@ -149,13 +174,14 @@ public final class SecondarySessionController {
 
         ServerAddress address = ServerAddress.parse(profile.getServerAddress());
         InetAddress bindAddress = resolveBindAddress(profile);
+        ProxyProfile proxyProfile = resolveProxyProfile(profile);
         MinecraftProtocol protocol = new MsmMinecraftProtocol(profile.getUsername());
         TcpSessionFactory factory = new TcpSessionFactory();
-        if (bindAddress != null) {
+        if (bindAddress != null || proxyProfile != null) {
             factory = new TcpSessionFactory() {
                 @Override
                 public Session createClientSession(Client client) {
-                    return new BoundTcpClientSession(client, bindAddress);
+                    return new BoundTcpClientSession(client, bindAddress, proxyProfile);
                 }
             };
         }

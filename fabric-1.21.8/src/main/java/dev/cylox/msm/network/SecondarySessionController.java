@@ -1,6 +1,8 @@
 package dev.cylox.msm.network;
 
 import dev.cylox.msm.config.LocalAddressCatalog;
+import dev.cylox.msm.config.ProxyProfile;
+import dev.cylox.msm.config.ProxyProfileStore;
 import dev.cylox.msm.config.SessionNetworkSettings;
 import dev.cylox.msm.config.SessionNetworkStore;
 import dev.cylox.msm.profile.SessionAuthMode;
@@ -12,6 +14,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.geysermc.mcprotocollib.network.ClientSession;
+import org.geysermc.mcprotocollib.network.ProxyInfo;
 import org.geysermc.mcprotocollib.network.Session;
 import org.geysermc.mcprotocollib.network.event.session.ConnectedEvent;
 import org.geysermc.mcprotocollib.network.event.session.DisconnectedEvent;
@@ -70,6 +73,7 @@ public final class SecondarySessionController {
 
     private final SessionManager sessionManager;
     private final SessionNetworkStore networkStore;
+    private final ProxyProfileStore proxyProfileStore;
     private final ConcurrentMap<Long, Connection> connections = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, ChatBuffer> chatBuffers = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, PingAttempt> pingAttempts = new ConcurrentHashMap<>();
@@ -86,6 +90,8 @@ public final class SecondarySessionController {
         }
         this.sessionManager = sessionManager;
         this.networkStore = networkStore;
+        this.proxyProfileStore = new ProxyProfileStore(
+                FabricLoader.getInstance().getConfigDir().resolve("msm-proxies.properties"));
     }
 
     public SessionManager getSessionManager() {
@@ -94,6 +100,10 @@ public final class SecondarySessionController {
 
     public SessionNetworkStore getNetworkStore() {
         return this.networkStore;
+    }
+
+    public ProxyProfileStore getProxyProfileStore() {
+        return this.proxyProfileStore;
     }
 
     /** Returns the source IP assigned to this session's live TCP socket, or an empty string. */
@@ -118,6 +128,22 @@ public final class SecondarySessionController {
             throw new IllegalStateException(
                     "Could not load or validate this account's outgoing IP: " + exception.getMessage(),
                     exception);
+        }
+    }
+
+    private ProxyProfile resolveProxyProfile(SessionProfile profile) {
+        try {
+            SessionNetworkSettings settings = this.networkStore.load(
+                    profile.getUsername(), profile.getAuthMode());
+            String selectedId = settings.getProxyProfileId();
+            if (selectedId.isEmpty()) return null;
+            for (ProxyProfile proxy : this.proxyProfileStore.load()) {
+                if (proxy.getId().equals(selectedId)) return proxy;
+            }
+            throw new IllegalStateException("The selected proxy profile no longer exists. Choose another proxy or Direct Connection.");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not load this account's proxy profile: "
+                    + exception.getMessage(), exception);
         }
     }
 
@@ -153,6 +179,7 @@ public final class SecondarySessionController {
 
         ServerAddress address = ServerAddress.parse(profile.getServerAddress());
         InetAddress bindAddress = resolveBindAddress(profile);
+        ProxyProfile proxyProfile = resolveProxyProfile(profile);
         MinecraftProtocol protocol = new MinecraftProtocol(profile.getUsername());
         ClientNetworkSessionFactory factory = ClientNetworkSessionFactory.factory()
                 .setAddress(address.host, address.port)
@@ -160,6 +187,13 @@ public final class SecondarySessionController {
         if (bindAddress != null) {
             // Use the generated field setter; the pinned helper assigns the remote address by mistake.
             factory.setBindSocketAddress(new InetSocketAddress(bindAddress, 0));
+        }
+        if (proxyProfile != null) {
+            ProxyInfo.Type proxyType = proxyProfile.getType() == ProxyProfile.Type.SOCKS5
+                    ? ProxyInfo.Type.SOCKS5 : ProxyInfo.Type.HTTP;
+            factory.setProxy(new ProxyInfo(proxyType, proxyProfile.getHost(), proxyProfile.getPort(),
+                    proxyProfile.hasAuthentication() ? proxyProfile.getUsername() : null,
+                    proxyProfile.hasAuthentication() ? proxyProfile.getPassword() : null));
         }
         ClientSession session = factory.create();
         Connection connection = new Connection(sessionId, session);
