@@ -45,6 +45,7 @@ public final class SessionAutomationScheduler
 
     private volatile boolean accountsRestored;
     private long activeReconnectSession = -1L;
+    private long scheduledAutoReconnectSession = -1L;
     private ScheduledFuture<?> reconnectTask;
 
     public SessionAutomationScheduler(SessionManager sessionManager,
@@ -95,6 +96,12 @@ public final class SessionAutomationScheduler
         this.worker.execute(() -> {
             if (!snapshot.isAutoReconnect() || !snapshot.isDesiredOnline()) {
                 this.reconnectQueue.remove(sessionId);
+                if (this.scheduledAutoReconnectSession == sessionId
+                        && this.activeReconnectSession == sessionId) {
+                    this.activeReconnectSession = -1L;
+                    cancelReconnectTask();
+                    pumpReconnectQueue();
+                }
             } else if (isOffline(sessionId)) {
                 this.reconnectQueue.add(sessionId);
                 pumpReconnectQueue();
@@ -341,12 +348,14 @@ public final class SessionAutomationScheduler
 
             this.activeReconnectSession = sessionId;
             if (manual) {
+                this.scheduledAutoReconnectSession = -1L;
                 this.reconnectAttempts.remove(sessionId);
                 this.controller.addSystemMessage(sessionId,
                         "[MSM] Manual connection queued in account order.");
                 this.reconnectTask = this.worker.schedule(
                         () -> attemptManualConnect(sessionId), 0L, TimeUnit.MILLISECONDS);
             } else {
+                this.scheduledAutoReconnectSession = sessionId;
                 int nextAttempt = this.reconnectAttempts.getOrDefault(sessionId, 0) + 1;
                 long delaySeconds = reconnectDelay(settings, nextAttempt);
                 this.controller.addSystemMessage(sessionId,
@@ -387,6 +396,7 @@ public final class SessionAutomationScheduler
 
     private void attemptReconnect(long sessionId, int attempt) {
         this.reconnectTask = null;
+        this.scheduledAutoReconnectSession = -1L;
         if (this.activeReconnectSession != sessionId) return;
 
         SessionAutomationSettings settings = getSettings(sessionId);
@@ -466,8 +476,10 @@ public final class SessionAutomationScheduler
                 || normalized.contains("logged in from another location")
                 || normalized.contains("too many login attempts")
                 || normalized.contains("too many connections")
+                || normalized.contains("logging in too fast")
+                || normalized.contains("login throttled")
                 || normalized.contains("rate limit")
-                || normalized.contains("connection throttled")
+                || normalized.contains("throttl")
                 || normalized.contains("temporarily blocked");
     }
 
@@ -486,6 +498,7 @@ public final class SessionAutomationScheduler
             this.reconnectTask.cancel(false);
             this.reconnectTask = null;
         }
+        this.scheduledAutoReconnectSession = -1L;
     }
 
     private SessionManager.Session requireSession(long sessionId) {

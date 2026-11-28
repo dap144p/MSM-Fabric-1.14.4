@@ -16,6 +16,9 @@ public final class SessionAutomationSchedulerTest {
         check(SessionAutomationScheduler.isServerRejection(
                 "Too many login attempts; connection temporarily blocked."),
                 "Rate-limited login attempts must stop automatic retries.");
+        check(SessionAutomationScheduler.isServerRejection(
+                "You are logging in too fast."),
+                "Login-rate throttling must stop automatic retries.");
         check(!SessionAutomationScheduler.isServerRejection("Connection reset by peer"),
                 "A transient network failure must remain retryable.");
         check(!SessionAutomationScheduler.isServerRejection("Connection timed out"),
