@@ -137,10 +137,13 @@ public final class MsmButtonWidget extends ButtonWidget {
                             : hovered ? 0xCC6BBBD2 : 0x80435369;
                 }
                 fill(this.x, this.y, this.x + this.width, this.y + this.height, cardFill);
-                fill(this.x, this.y, this.x + this.width, this.y + 1, cardBorder);
-                fill(this.x, this.y + this.height - 1, this.x + this.width, this.y + this.height, cardBorder);
-                fill(this.x, this.y, this.x + 1, this.y + this.height, cardBorder);
-                fill(this.x + this.width - 1, this.y, this.x + this.width, this.y + this.height, cardBorder);
+                int borderThickness = this.accountCardStyle && this.active && this.selected ? 2 : 1;
+                fill(this.x, this.y, this.x + this.width, this.y + borderThickness, cardBorder);
+                fill(this.x, this.y + this.height - borderThickness,
+                        this.x + this.width, this.y + this.height, cardBorder);
+                fill(this.x, this.y, this.x + borderThickness, this.y + this.height, cardBorder);
+                fill(this.x + this.width - borderThickness, this.y,
+                        this.x + this.width, this.y + this.height, cardBorder);
             }
             if (!this.active) {
                 textColor = 0xFF7F8B98;

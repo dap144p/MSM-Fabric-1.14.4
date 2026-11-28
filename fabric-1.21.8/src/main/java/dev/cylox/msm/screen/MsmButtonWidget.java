@@ -149,10 +149,15 @@ public final class MsmButtonWidget extends ButtonWidget {
                             : hovered ? 0xCC6BBBD2 : 0x80435369;
                 }
                 context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardFill);
-                context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(), this.getY() + 1, cardBorder);
-                context.fill(this.getX(), this.getY() + this.getHeight() - 1, this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
-                context.fill(this.getX(), this.getY(), this.getX() + 1, this.getY() + this.getHeight(), cardBorder);
-                context.fill(this.getX() + this.getWidth() - 1, this.getY(), this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
+                int borderThickness = this.accountCardStyle && this.active && this.selected ? 2 : 1;
+                context.fill(this.getX(), this.getY(), this.getX() + this.getWidth(),
+                        this.getY() + borderThickness, cardBorder);
+                context.fill(this.getX(), this.getY() + this.getHeight() - borderThickness,
+                        this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
+                context.fill(this.getX(), this.getY(),
+                        this.getX() + borderThickness, this.getY() + this.getHeight(), cardBorder);
+                context.fill(this.getX() + this.getWidth() - borderThickness, this.getY(),
+                        this.getX() + this.getWidth(), this.getY() + this.getHeight(), cardBorder);
             }
             if (!this.active) {
                 textColor = 0xFF7F8B98;
