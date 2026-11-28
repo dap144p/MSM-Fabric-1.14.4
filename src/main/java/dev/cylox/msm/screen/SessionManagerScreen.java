@@ -663,8 +663,10 @@ public final class SessionManagerScreen extends MsmScreen {
             this.addButton(new MsmButtonWidget(
                     left + (width + gap) * 3, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
+            int networkLeft = left >= 99 ? left - 87 : 12;
+            int networkY = left >= 99 ? footerY : footerY - 24;
             this.addButton(new MsmButtonWidget(
-                    Math.max(12, left - 87), footerY, 82, 20,
+                    networkLeft, networkY, 82, 20,
                     "NETWORK", button -> openNetworkSettings()));
         }
         refreshControls();
