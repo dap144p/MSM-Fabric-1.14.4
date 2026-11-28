@@ -33,6 +33,10 @@ import org.geysermc.mcprotocollib.protocol.packet.login.clientbound.ClientboundL
 import org.geysermc.mcprotocollib.protocol.packet.ping.clientbound.ClientboundPongResponsePacket;
 import org.geysermc.mcprotocollib.protocol.packet.status.clientbound.ClientboundStatusResponsePacket;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -60,16 +64,23 @@ public final class SecondarySessionController {
             });
 
     private final SessionManager sessionManager;
+    private final SessionNetworkSettingsStore networkSettingsStore;
     private final ConcurrentMap<Long, Connection> connections = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, ChatBuffer> chatBuffers = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, PingAttempt> pingAttempts = new ConcurrentHashMap<>();
     private volatile SessionLifecycleListener lifecycleListener;
 
     public SecondarySessionController(SessionManager sessionManager) {
+        this(sessionManager, null);
+    }
+
+    public SecondarySessionController(SessionManager sessionManager,
+                                      SessionNetworkSettingsStore networkSettingsStore) {
         if (sessionManager == null) {
             throw new IllegalArgumentException("Session manager is required");
         }
         this.sessionManager = sessionManager;
+        this.networkSettingsStore = networkSettingsStore;
     }
 
     public SessionManager getSessionManager() {
@@ -107,11 +118,34 @@ public final class SecondarySessionController {
         }
 
         ServerAddress address = ServerAddress.parse(profile.getServerAddress());
+        String configuredBindAddress = "";
+        if (networkSettingsStore != null) {
+            try {
+                configuredBindAddress = networkSettingsStore.loadBindAddress(profile);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Could not read this account's network settings: "
+                        + safeMessage(exception), exception);
+            }
+        }
+
+        InetAddress localBindAddress = null;
+        if (!configuredBindAddress.isEmpty()) {
+            try {
+                localBindAddress = NetworkInterfaceAddress.resolveLocalAddress(configuredBindAddress);
+            } catch (IOException | IllegalArgumentException exception) {
+                throw new IllegalStateException("Cannot use outgoing IP " + configuredBindAddress
+                        + ": " + safeMessage(exception), exception);
+            }
+        }
+
         MinecraftProtocol protocol = new MinecraftProtocol(profile.getUsername());
-        ClientSession session = ClientNetworkSessionFactory.factory()
+        ClientNetworkSessionFactory factory = ClientNetworkSessionFactory.factory()
                 .setAddress(address.host, address.port)
-                .setProtocol(protocol)
-                .create();
+                .setProtocol(protocol);
+        if (localBindAddress != null) {
+            factory.setBindSocketAddress(new InetSocketAddress(localBindAddress, 0));
+        }
+        ClientSession session = factory.create();
         Connection connection = new Connection(sessionId, session);
 
         if (connections.putIfAbsent(sessionId, connection) != null) {
@@ -129,6 +163,10 @@ public final class SecondarySessionController {
                 public void connected(ConnectedEvent event) {
                     connection.stage = "LOGIN_HANDSHAKE";
                     appendMessage(sessionId, "[MSM] TCP connected. Starting Minecraft login.");
+                    String localIp = getActiveLocalAddress(sessionId);
+                    if (!localIp.isEmpty()) {
+                        appendMessage(sessionId, "[MSM] Actual outgoing local IP: " + localIp);
+                    }
                 }
 
                 @Override
@@ -387,6 +425,18 @@ public final class SecondarySessionController {
 
     public SessionState getState(long sessionId) {
         return requireSession(sessionId).getState();
+    }
+
+    public String getActiveLocalAddress(long sessionId) {
+        Connection connection = connections.get(sessionId);
+        if (connection == null) return "";
+        SocketAddress localAddress = connection.session.getLocalAddress();
+        if (localAddress instanceof InetSocketAddress) {
+            InetSocketAddress socketAddress = (InetSocketAddress) localAddress;
+            InetAddress address = socketAddress.getAddress();
+            return address == null ? socketAddress.getHostString() : address.getHostAddress();
+        }
+        return "";
     }
 
     private SessionManager.Session requireSession(long sessionId) {

@@ -291,46 +291,49 @@ public final class SessionManagerScreen extends MsmScreen {
 
         if (this.compactLayout) {
             int actionGap = 6;
-            int actionWidth = Math.max(1, (contentWidth - actionGap) / 2);
+            int actionWidth = Math.max(1, (contentWidth - actionGap * 2) / 3);
             int firstRowY = this.height - 76;
             int secondRowY = this.height - 50;
+            int halfWidth = Math.max(1, (contentWidth - actionGap) / 2);
             this.connectionButton = this.addButton(new MsmButtonWidget(
-                    contentLeft, firstRowY, actionWidth, 20,
-                    (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"),
-                    button -> toggleConnection()));
+                    contentLeft, firstRowY, halfWidth, 20,
+                    "JOIN", button -> toggleConnection()));
             this.controlButton = this.addButton(new MsmButtonWidget(
-                    contentLeft + actionWidth + actionGap, firstRowY,
-                    contentWidth - actionWidth - actionGap, 20,
-                    (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"),
-                    button -> openControlManage()));
+                    contentLeft + halfWidth + actionGap, firstRowY,
+                    contentWidth - halfWidth - actionGap, 20,
+                    "CONTROL", button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft, secondRowY, actionWidth, 20,
-                    "REMOVE ACCOUNT", button -> requestRemoveAccount()));
+                    "REMOVE", button -> requestRemoveAccount()));
             this.removeButton.setDanger(true);
             this.addButton(new MsmButtonWidget(
                     contentLeft + actionWidth + actionGap, secondRowY,
-                    contentWidth - actionWidth - actionGap, 20,
-                    "CLOSE", button -> close()));
+                    actionWidth, 20, "CLOSE", button -> close()));
+            this.addButton(new MsmButtonWidget(
+                    contentLeft + (actionWidth + actionGap) * 2, secondRowY,
+                    contentWidth - (actionWidth + actionGap) * 2, 20,
+                    "NETWORK", button -> openNetworkSettings()));
         } else {
             int actionGap = 6;
-            int actionWidth = Math.max(1, (contentWidth - actionGap * 3) / 4);
+            int actionWidth = Math.max(1, (contentWidth - actionGap * 4) / 5);
             int actionY = this.height - 28;
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     contentLeft, actionY, actionWidth, 20,
-                    (contentWidth < 540 ? "JOIN" : "JOIN / CONNECT"),
-                    button -> toggleConnection()));
+                    "JOIN", button -> toggleConnection()));
             this.controlButton = this.addButton(new MsmButtonWidget(
                     contentLeft + actionWidth + actionGap, actionY, actionWidth, 20,
-                    (contentWidth < 540 ? "CONTROL" : "CONTROL MANAGE"),
-                    button -> openControlManage()));
+                    "CONTROL", button -> openControlManage()));
             this.removeButton = this.addButton(new MsmButtonWidget(
                     contentLeft + (actionWidth + actionGap) * 2, actionY,
-                    actionWidth, 20, (contentWidth < 540 ? "REMOVE" : "REMOVE ACCOUNT"),
-                    button -> requestRemoveAccount()));
+                    actionWidth, 20, "REMOVE", button -> requestRemoveAccount()));
             this.removeButton.setDanger(true);
             this.addButton(new MsmButtonWidget(
                     contentLeft + (actionWidth + actionGap) * 3, actionY,
                     actionWidth, 20, "CLOSE", button -> close()));
+            this.addButton(new MsmButtonWidget(
+                    contentLeft + (actionWidth + actionGap) * 4, actionY,
+                    contentWidth - (actionWidth + actionGap) * 4, 20,
+                    "NETWORK", button -> openNetworkSettings()));
         }
 
         refreshControls();
@@ -413,6 +416,16 @@ public final class SessionManagerScreen extends MsmScreen {
             this.status = exception.getMessage();
         }
         refreshSessions();
+    }
+
+    private void openNetworkSettings() {
+        Optional<SessionManager.Session> selected = getSelectedSession();
+        if (!selected.isPresent()) {
+            this.status = "Select an account first.";
+            return;
+        }
+
+        this.client.setScreen(new SessionNetworkScreen(this, selected.get().getId()));
     }
 
     private void openControlManage() {

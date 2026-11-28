@@ -3,6 +3,7 @@ package dev.cylox.msm;
 import dev.cylox.msm.automation.SessionAutomationScheduler;
 import dev.cylox.msm.automation.SessionAutomationStore;
 import dev.cylox.msm.network.SecondarySessionController;
+import dev.cylox.msm.network.SessionNetworkSettingsStore;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.profile.SessionProfileStore;
 import dev.cylox.msm.session.SessionManager;
@@ -29,6 +30,7 @@ public final class MsmClient implements ClientModInitializer {
     private static SessionProfileStore profileStore;
     private static SessionManager sessionManager;
     private static SecondarySessionController secondarySessions;
+    private static SessionNetworkSettingsStore networkSettingsStore;
     private static SessionAutomationScheduler automationScheduler;
 
     @Override
@@ -36,7 +38,9 @@ public final class MsmClient implements ClientModInitializer {
         Path configDir = FabricLoader.getInstance().getConfigDir();
         profileStore = new SessionProfileStore(configDir.resolve("msm-fabric.properties"));
         sessionManager = new SessionManager();
-        secondarySessions = new SecondarySessionController(sessionManager);
+        networkSettingsStore = new SessionNetworkSettingsStore(
+                configDir.resolve("msm-network.properties"));
+        secondarySessions = new SecondarySessionController(sessionManager, networkSettingsStore);
         automationScheduler = new SessionAutomationScheduler(
                 sessionManager,
                 secondarySessions,
@@ -65,6 +69,10 @@ public final class MsmClient implements ClientModInitializer {
 
     public static SecondarySessionController getSecondarySessions() {
         return secondarySessions;
+    }
+
+    public static SessionNetworkSettingsStore getNetworkSettingsStore() {
+        return networkSettingsStore;
     }
 
     public static SessionAutomationScheduler getAutomationScheduler() {
@@ -108,12 +116,25 @@ public final class MsmClient implements ClientModInitializer {
                     }
 
                     boolean removedFromProfiles = PROFILES.remove(managed.getProfile());
+                    String previousNetworkBinding = "";
+                    boolean networkBindingDeleted = false;
                     try {
+                        previousNetworkBinding = networkSettingsStore.loadBindAddress(managed.getProfile());
+                        networkSettingsStore.delete(managed.getProfile());
+                        networkBindingDeleted = true;
                         profileStore.save(PROFILES);
                         secondarySessions.forgetSession(sessionId);
                         sessionManager.remove(sessionId);
                         completion.accept(null);
                     } catch (Throwable exception) {
+                        if (networkBindingDeleted) {
+                            try {
+                                networkSettingsStore.saveBindAddress(
+                                        managed.getProfile(), previousNetworkBinding);
+                            } catch (IOException restoreFailure) {
+                                exception.addSuppressed(restoreFailure);
+                            }
+                        }
                         if (removedFromProfiles && !PROFILES.contains(managed.getProfile())) {
                             PROFILES.add(managed.getProfile());
                             try {
