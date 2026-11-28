@@ -1,5 +1,8 @@
 package dev.cylox.msm.network;
 
+import dev.cylox.msm.config.LocalAddressCatalog;
+import dev.cylox.msm.config.SessionNetworkSettings;
+import dev.cylox.msm.config.SessionNetworkStore;
 import dev.cylox.msm.profile.SessionAuthMode;
 import dev.cylox.msm.profile.SessionProfile;
 import dev.cylox.msm.session.SessionManager;
@@ -32,7 +35,13 @@ import org.geysermc.mcprotocollib.protocol.packet.login.clientbound.ClientboundL
 import org.geysermc.mcprotocollib.protocol.packet.login.clientbound.ClientboundLoginFinishedPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ping.clientbound.ClientboundPongResponsePacket;
 import org.geysermc.mcprotocollib.protocol.packet.status.clientbound.ClientboundStatusResponsePacket;
+import net.fabricmc.loader.api.FabricLoader;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -60,16 +69,56 @@ public final class SecondarySessionController {
             });
 
     private final SessionManager sessionManager;
+    private final SessionNetworkStore networkStore;
     private final ConcurrentMap<Long, Connection> connections = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, ChatBuffer> chatBuffers = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, PingAttempt> pingAttempts = new ConcurrentHashMap<>();
     private volatile SessionLifecycleListener lifecycleListener;
 
     public SecondarySessionController(SessionManager sessionManager) {
-        if (sessionManager == null) {
-            throw new IllegalArgumentException("Session manager is required");
+        this(sessionManager, new SessionNetworkStore(
+                FabricLoader.getInstance().getConfigDir().resolve("msm-network.properties")));
+    }
+
+    public SecondarySessionController(SessionManager sessionManager, SessionNetworkStore networkStore) {
+        if (sessionManager == null || networkStore == null) {
+            throw new IllegalArgumentException("Session manager and network settings store are required");
         }
         this.sessionManager = sessionManager;
+        this.networkStore = networkStore;
+    }
+
+    public SessionManager getSessionManager() {
+        return this.sessionManager;
+    }
+
+    public SessionNetworkStore getNetworkStore() {
+        return this.networkStore;
+    }
+
+    /** Returns the source IP assigned to this session's live TCP socket, or an empty string. */
+    public String getLocalAddress(long sessionId) {
+        Connection connection = this.connections.get(sessionId);
+        if (connection == null) return "";
+        SocketAddress local = connection.session.getLocalAddress();
+        if (local instanceof InetSocketAddress) {
+            InetAddress address = ((InetSocketAddress) local).getAddress();
+            return address == null ? "" : address.getHostAddress();
+        }
+        return local == null ? "" : local.toString();
+    }
+
+    private InetAddress resolveBindAddress(SessionProfile profile) {
+        try {
+            SessionNetworkSettings settings = this.networkStore.load(
+                    profile.getUsername(), profile.getAuthMode());
+            return settings.isAutomatic()
+                    ? null : LocalAddressCatalog.resolveAvailableAddress(settings.getOutgoingAddress());
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Could not load or validate this account's outgoing IP: " + exception.getMessage(),
+                    exception);
+        }
     }
 
     public void setLifecycleListener(SessionLifecycleListener listener) {
@@ -103,11 +152,16 @@ public final class SecondarySessionController {
         }
 
         ServerAddress address = ServerAddress.parse(profile.getServerAddress());
+        InetAddress bindAddress = resolveBindAddress(profile);
         MinecraftProtocol protocol = new MinecraftProtocol(profile.getUsername());
-        ClientSession session = ClientNetworkSessionFactory.factory()
+        ClientNetworkSessionFactory factory = ClientNetworkSessionFactory.factory()
                 .setAddress(address.host, address.port)
-                .setProtocol(protocol)
-                .create();
+                .setProtocol(protocol);
+        if (bindAddress != null) {
+            // Use the generated field setter; the pinned helper assigns the remote address by mistake.
+            factory.setBindSocketAddress(new InetSocketAddress(bindAddress, 0));
+        }
+        ClientSession session = factory.create();
         Connection connection = new Connection(sessionId, session);
 
         if (connections.putIfAbsent(sessionId, connection) != null) {

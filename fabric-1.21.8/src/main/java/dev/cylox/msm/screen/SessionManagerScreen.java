@@ -578,9 +578,9 @@ public final class SessionManagerScreen extends MsmScreen {
         int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
-            int groupWidth = Math.min(420, contentWidth);
+            int groupWidth = Math.min(520, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            int width = Math.max(1, (groupWidth - gap * 4) / 5);
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     left, footerY, width, 20, "JOIN", button -> toggleConnection()));
             this.manageButton = this.addButton(new MsmButtonWidget(
@@ -592,6 +592,9 @@ public final class SessionManagerScreen extends MsmScreen {
             this.removeButton.setDanger(true);
             this.addButton(new MsmButtonWidget(
                     left + (width + gap) * 3, footerY, width, 20,
+                    "NETWORK", button -> openNetworkSettings()));
+            this.addButton(new MsmButtonWidget(
+                    left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> this.client.setScreen(this.parent)));
         } else {
             if (MsmClient.getUpdateManager() != null) {
@@ -611,6 +614,13 @@ public final class SessionManagerScreen extends MsmScreen {
             if (group.key.equals(key)) return group.username;
         }
         return this.usernameValue;
+    }
+
+    private SessionAuthMode accountAuthMode(String key) {
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(key)) return group.authMode;
+        }
+        return SessionAuthMode.OFFLINE_LOCAL;
     }
 
     private void selectAccountGroup(String key) {
@@ -918,6 +928,16 @@ public final class SessionManagerScreen extends MsmScreen {
         SessionManager.Session session = selected.get();
         this.client.setScreen(new SessionControlScreen(
                 this, session.getId(), session.getProfile().getUsername()));
+    }
+
+    private void openNetworkSettings() {
+        if (this.expandedAccountKey == null) {
+            this.status = "Select an account first.";
+            return;
+        }
+        this.client.setScreen(new SessionNetworkScreen(
+                this, accountUsername(this.expandedAccountKey),
+                accountAuthMode(this.expandedAccountKey), MsmClient.getSecondarySessions()));
     }
 
     private void cycleAuthMode() {

@@ -290,6 +290,13 @@ public final class SessionManagerScreen extends MsmScreen {
         return this.usernameValue;
     }
 
+    private SessionAuthMode accountAuthMode(String key) {
+        for (AccountGroup group : this.accountGroups) {
+            if (group.key.equals(key)) return group.authMode;
+        }
+        return SessionAuthMode.OFFLINE_LOCAL;
+    }
+
     private String getAccountGroupLabel(AccountGroup group) {
         return group.username;
     }
@@ -641,9 +648,9 @@ public final class SessionManagerScreen extends MsmScreen {
         int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
-            int groupWidth = Math.min(420, contentWidth);
+            int groupWidth = Math.min(520, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 3) / 4);
+            int width = Math.max(1, (groupWidth - gap * 4) / 5);
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     left, footerY, width, 20, "JOIN", button -> toggleConnection()));
             this.manageButton = this.addButton(new MsmButtonWidget(
@@ -655,6 +662,9 @@ public final class SessionManagerScreen extends MsmScreen {
             ((MsmButtonWidget) this.removeButton).setDanger(true);
             this.addButton(new MsmButtonWidget(
                     left + (width + gap) * 3, footerY, width, 20,
+                    "NETWORK", button -> openNetworkSettings()));
+            this.addButton(new MsmButtonWidget(
+                    left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
         }
         refreshControls();
@@ -725,6 +735,16 @@ public final class SessionManagerScreen extends MsmScreen {
         if (session == null) return;
         this.selectedSessionId = session.getId();
         openControlManage();
+    }
+
+    private void openNetworkSettings() {
+        if (this.managedAccountKey == null) {
+            this.status = "Select an account first.";
+            return;
+        }
+        MinecraftClient.getInstance().openScreen(new SessionNetworkScreen(
+                this, accountUsername(this.managedAccountKey),
+                accountAuthMode(this.managedAccountKey), this.secondarySessions));
     }
 
         private void applyLastSelectedServer() {
@@ -885,10 +905,13 @@ public final class SessionManagerScreen extends MsmScreen {
             List<AccountIdentity> updatedIdentities = new ArrayList<AccountIdentity>(this.identities);
             updatedIdentities.remove(new AccountIdentity(username, SessionAuthMode.OFFLINE_LOCAL));
             this.accountStore.save(updatedIdentities);
+            this.secondarySessions.getNetworkStore().delete(username, SessionAuthMode.OFFLINE_LOCAL);
             this.identities.clear();
             this.identities.addAll(updatedIdentities);
         } catch (IOException exception) {
             try { this.store.save(this.profiles); }
+            catch (IOException rollbackException) { exception.addSuppressed(rollbackException); }
+            try { this.accountStore.save(this.identities); }
             catch (IOException rollbackException) { exception.addSuppressed(rollbackException); }
             this.status = "Could not save account deletion: " + exception.getMessage();
             MinecraftClient.getInstance().openScreen(this);

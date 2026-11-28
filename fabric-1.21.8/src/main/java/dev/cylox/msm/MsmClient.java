@@ -116,11 +116,19 @@ public final class MsmClient implements ClientModInitializer {
 
     public static synchronized void removeAccountIdentity(String username, dev.cylox.msm.profile.SessionAuthMode authMode) throws IOException {
         AccountIdentity target = new AccountIdentity(username, authMode);
-        if (!ACCOUNT_IDENTITIES.remove(target)) return;
+        boolean removed = ACCOUNT_IDENTITIES.remove(target);
         try {
-            accountIdentityStore.save(ACCOUNT_IDENTITIES);
+            if (removed) accountIdentityStore.save(ACCOUNT_IDENTITIES);
+            secondarySessions.getNetworkStore().delete(username, authMode);
         } catch (IOException exception) {
-            ACCOUNT_IDENTITIES.add(target);
+            if (removed) {
+                ACCOUNT_IDENTITIES.add(target);
+                try {
+                    accountIdentityStore.save(ACCOUNT_IDENTITIES);
+                } catch (IOException rollbackFailure) {
+                    exception.addSuppressed(rollbackFailure);
+                }
+            }
             throw exception;
         }
     }
