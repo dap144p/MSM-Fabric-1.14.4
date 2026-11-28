@@ -169,7 +169,7 @@ public final class SessionAutomationScheduler
             this.reconnectQueue.remove(sessionId);
             this.manualConnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
-            cancelChatTasks(sessionId);
+
             if (this.activeReconnectSession == sessionId) {
                 this.activeReconnectSession = -1L;
                 cancelReconnectTask();
@@ -206,7 +206,7 @@ public final class SessionAutomationScheduler
             this.reconnectQueue.remove(sessionId);
             this.manualConnectQueue.remove(sessionId);
             this.reconnectAttempts.remove(sessionId);
-            cancelChatTasks(sessionId);
+
             if (this.activeReconnectSession == sessionId) {
                 this.activeReconnectSession = -1L;
                 cancelReconnectTask();
@@ -259,7 +259,6 @@ public final class SessionAutomationScheduler
     @Override
     public void onDisconnected(long sessionId, boolean manuallyStopped, String reason) {
         this.worker.execute(() -> {
-            cancelChatTasks(sessionId);
 
             if (this.activeReconnectSession == sessionId) {
                 this.activeReconnectSession = -1L;
