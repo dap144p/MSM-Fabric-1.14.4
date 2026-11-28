@@ -578,9 +578,9 @@ public final class SessionManagerScreen extends MsmScreen {
         int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
-            int groupWidth = Math.min(520, contentWidth);
+            int groupWidth = Math.min(420, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 4) / 5);
+            int width = Math.max(1, (groupWidth - gap * 3) / 4);
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     left, footerY, width, 20, "JOIN", button -> toggleConnection()));
             this.manageButton = this.addButton(new MsmButtonWidget(
@@ -592,11 +592,12 @@ public final class SessionManagerScreen extends MsmScreen {
             this.removeButton.setDanger(true);
             this.addButton(new MsmButtonWidget(
                     left + (width + gap) * 3, footerY, width, 20,
-                    "NETWORK", button -> openNetworkSettings()));
-            this.addButton(new MsmButtonWidget(
-                    left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> this.client.setScreen(this.parent)));
         } else {
+            MsmButtonWidget network = this.addButton(new MsmButtonWidget(
+                    this.width - 181, footerY, 82, 20,
+                    "NETWORK", button -> openNetworkSettings()));
+            network.setLineStyle(true);
             if (MsmClient.getUpdateManager() != null) {
                 MsmButtonWidget updates = this.addButton(new MsmButtonWidget(
                         this.width - 94, footerY, 82, 20,

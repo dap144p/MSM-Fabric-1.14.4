@@ -648,9 +648,9 @@ public final class SessionManagerScreen extends MsmScreen {
         int footerY = this.height - 28;
         int gap = 5;
         if (this.manageView) {
-            int groupWidth = Math.min(520, contentWidth);
+            int groupWidth = Math.min(420, contentWidth);
             int left = this.width - 12 - groupWidth;
-            int width = Math.max(1, (groupWidth - gap * 4) / 5);
+            int width = Math.max(1, (groupWidth - gap * 3) / 4);
             this.connectionButton = this.addButton(new MsmButtonWidget(
                     left, footerY, width, 20, "JOIN", button -> toggleConnection()));
             this.manageButton = this.addButton(new MsmButtonWidget(
@@ -662,10 +662,10 @@ public final class SessionManagerScreen extends MsmScreen {
             ((MsmButtonWidget) this.removeButton).setDanger(true);
             this.addButton(new MsmButtonWidget(
                     left + (width + gap) * 3, footerY, width, 20,
-                    "NETWORK", button -> openNetworkSettings()));
-            this.addButton(new MsmButtonWidget(
-                    left + (width + gap) * 4, footerY, width, 20,
                     "BACK", button -> MinecraftClient.getInstance().openScreen(this.parent)));
+            this.addButton(new MsmButtonWidget(
+                    Math.max(12, left - 87), footerY, 82, 20,
+                    "NETWORK", button -> openNetworkSettings()));
         }
         refreshControls();
     }
